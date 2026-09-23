@@ -1,0 +1,10 @@
+{
+  "name": "outmedia-social-media",
+  "version": "1.0.0",
+  "description": "Aplikasi media sosial seperti TikTok dengan antarmuka modern",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  }
+}

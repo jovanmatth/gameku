@@ -147,7 +147,22 @@ GRANT ALL ON TABLE public.schedules TO anon, authenticated;
 GRANT ALL ON TABLE public.day_notes TO anon, authenticated;
 
 -- ==============================================================================
--- 7. QUERY VERIFIKASI AKHIR (MUNCUL DI HASIL RESULT SQL EDITOR)
+-- 7. PEMBERSIHAN JADWAL CONTOH / DUMMY LAMA DI DATABASE
+-- ==============================================================================
+DELETE FROM public.schedules 
+WHERE id LIKE '%sch-00%' 
+   OR id LIKE '%sch-010%'
+   OR title ILIKE '%Daily Standup%'
+   OR title ILIKE '%Sesi Lari Pagi%'
+   OR title ILIKE '%Refactor Design System%'
+   OR title ILIKE '%Coffee Break%'
+   OR title ILIKE '%Sprint Retrospective%'
+   OR title ILIKE '%Client Pitch Deck%'
+   OR title ILIKE '%Workshop UI/UX%'
+   OR title ILIKE '%Team Brainstorming%';
+
+-- ==============================================================================
+-- 8. QUERY VERIFIKASI AKHIR (MUNCUL DI HASIL RESULT SQL EDITOR)
 -- ==============================================================================
 -- Setelah klik RUN, tabel di bawah ini akan memunculkan status Super Admin Anda:
 SELECT 
@@ -161,3 +176,4 @@ FROM auth.users u
 LEFT JOIN public.profiles p ON p.id = u.id
 WHERE lower(trim(u.email)) = 'matthewajovan@gmail.com'
    OR u.id = 'a76b1dfe-9c4d-4be5-be10-808f0355bfaa';
+

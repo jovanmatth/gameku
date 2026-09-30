@@ -19,7 +19,7 @@
  * ==============================================================================
  */
 
-import { CATEGORIES, PRIORITIES, STATUSES, getDefaultSchedules } from './schedule-data.js';
+import { CATEGORIES, PRIORITIES, STATUSES, getDefaultSchedules, isOldDummySchedule } from './schedule-data.js';
 import {
   initSupabase,
   isSupabaseConfigured,
@@ -35,6 +35,7 @@ import {
   fetchUserDayNotes,
   saveUserDayNote,
   seedInitialSchedulesForUser,
+  purgeOldDummySchedules,
   isUserAdmin,
   fetchAllSchedulesAdmin,
   deleteAnyScheduleAdmin,
@@ -48,6 +49,38 @@ const STORAGE_PREFIX = 'plancraft_schedules_';
 const THEME_KEY = 'plancraft_theme_pref';
 const NOTES_PREFIX = 'plancraft_day_notes_';
 const SOUND_KEY = 'plancraft_sound_pref';
+
+/** Membersihkan seluruh cache LocalStorage dari jadwal dummy lama di browser */
+function sanitizeAllStoredSchedules() {
+  try {
+    const keysToClean = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith(STORAGE_PREFIX)) {
+        keysToClean.push(k);
+      }
+    }
+
+    keysToClean.forEach(key => {
+      try {
+        const raw = localStorage.getItem(key);
+        if (raw) {
+          const items = JSON.parse(raw);
+          if (Array.isArray(items)) {
+            const nonDummy = items.filter(s => !isOldDummySchedule(s));
+            const hasIdn = nonDummy.some(s => s.category === 'holiday' || (typeof s.id === 'string' && s.id.includes('idn-')));
+            const defaults = getDefaultSchedules();
+            const finalItems = hasIdn ? nonDummy : [...defaults, ...nonDummy];
+            localStorage.setItem(key, JSON.stringify(finalItems));
+          }
+        }
+      } catch {}
+    });
+  } catch {}
+}
+
+// Jalankan sanitasi cache storage secara dini saat modul dimuat
+sanitizeAllStoredSchedules();
 
 const state = {
   schedules: [],
@@ -65,6 +98,7 @@ const state = {
   soundEnabled: localStorage.getItem(SOUND_KEY) !== 'false',
   dayNotes: {}
 };
+
 
 // ==============================================================================
 // 2. SUPABASE INITIALIZATION & USER SESSION
@@ -177,6 +211,9 @@ function activateJovanAdminSession(showFeedback = true) {
 /** Memuat data jadwal dan catatan khusus milik user ID yang sedang aktif */
 async function loadUserData(userId) {
   try {
+    // 1. Bersihkan seluruh jadwal dummy / contoh lama dari Supabase
+    await purgeOldDummySchedules(userId).catch(() => {});
+
     let cloudSchedules = null;
     if (state.isAdmin && state.adminModeAllSchedules) {
       showToast('👑 Mode Pengawas: Mengambil seluruh jadwal cloud...', 'info');
@@ -192,15 +229,24 @@ async function loadUserData(userId) {
       return;
     }
 
-    if (cloudSchedules && cloudSchedules.length > 0) {
-      state.schedules = cloudSchedules;
-    } else {
-      // User baru pertama kali mendaftar: isi dengan jadwal bawaan contoh di akun Supabase-nya
+    // Filter jadwal di cloud agar tidak memuat contoh/dummy lama
+    let cleanCloud = (cloudSchedules || []).filter(s => !isOldDummySchedule(s));
+
+    // Periksa apakah event resmi Kalender Indonesia sudah masuk
+    const hasIndonesianEvents = cleanCloud.some(s => s.category === 'holiday' || (typeof s.id === 'string' && s.id.includes('idn-')));
+
+    if (!hasIndonesianEvents || cleanCloud.length === 0) {
       const defaults = getDefaultSchedules();
-      await seedInitialSchedulesForUser(userId, defaults);
-      const seeded = await fetchUserSchedules(userId);
-      state.schedules = seeded || defaults;
+      await seedInitialSchedulesForUser(userId, defaults).catch(() => {});
+      const seeded = await fetchUserSchedules(userId).catch(() => null);
+      if (seeded && seeded.length > 0) {
+        cleanCloud = seeded.filter(s => !isOldDummySchedule(s));
+      } else {
+        cleanCloud = [...defaults, ...cleanCloud];
+      }
     }
+
+    state.schedules = cleanCloud;
 
     // Simpan cache offline per user
     localStorage.setItem(`${STORAGE_PREFIX}${userId}`, JSON.stringify(state.schedules));
@@ -210,7 +256,7 @@ async function loadUserData(userId) {
     localStorage.setItem(`${NOTES_PREFIX}${userId}`, JSON.stringify(state.dayNotes));
 
     renderApp();
-    showToast(`Data akun berhasil disinkronkan (${state.schedules.length} jadwal)`, 'success');
+    showToast(`🇮🇩 Kalender Indonesia & jadwal akun disinkronkan (${state.schedules.length} kegiatan)`, 'success');
   } catch (err) {
     console.warn('Gagal mengambil data dari Supabase, memuat dari cache lokal:', err);
     loadLocalSchedules(userId);
@@ -221,12 +267,18 @@ async function loadUserData(userId) {
 function loadLocalSchedules(accountKey) {
   try {
     const saved = localStorage.getItem(`${STORAGE_PREFIX}${accountKey}`);
-    if (saved) {
-      state.schedules = JSON.parse(saved);
+    let list = saved ? JSON.parse(saved) : null;
+    if (list && Array.isArray(list)) {
+      list = list.filter(s => !isOldDummySchedule(s));
+      const hasIndonesianEvents = list.some(s => s.category === 'holiday' || (typeof s.id === 'string' && s.id.includes('idn-')));
+      if (!hasIndonesianEvents) {
+        list = [...getDefaultSchedules(), ...list];
+      }
+      state.schedules = list;
     } else {
       state.schedules = getDefaultSchedules();
-      localStorage.setItem(`${STORAGE_PREFIX}${accountKey}`, JSON.stringify(state.schedules));
     }
+    localStorage.setItem(`${STORAGE_PREFIX}${accountKey}`, JSON.stringify(state.schedules));
 
     const savedNotes = localStorage.getItem(`${NOTES_PREFIX}${accountKey}`);
     state.dayNotes = savedNotes ? JSON.parse(savedNotes) : {};
@@ -702,7 +754,7 @@ function renderCommandResults(query = '') {
     { id: 'act-theme', label: `Ganti Tema ke Mode ${state.theme === 'dark' ? 'Terang' : 'Gelap'}`, icon: '🌓', cat: 'Pengaturan', action: () => { closeCommandPalette(); toggleTheme(); } },
     { id: 'act-sound', label: `Efek Suara Antarmuka: ${state.soundEnabled ? 'Nonaktifkan' : 'Aktifkan'}`, icon: '🔊', cat: 'Pengaturan', action: () => { closeCommandPalette(); toggleSound(); } },
     { id: 'act-export', label: 'Ekspor Data Jadwal (Backup JSON)', icon: '💾', cat: 'Data', action: () => { closeCommandPalette(); exportDataJSON(); } },
-    { id: 'act-reset', label: 'Reset ke Jadwal Default Contoh', icon: '🔄', cat: 'Data', action: () => { closeCommandPalette(); resetToDefaultData(); } }
+    { id: 'act-reset', label: '🇮🇩 Reset & Muat Kalender Indonesia (Hapus Data Lama)', icon: '🇮🇩', cat: 'Data', action: () => { closeCommandPalette(); resetToIndonesiaCalendar(); } }
   ];
 
   const matchedActions = systemActions.filter(a => a.label.toLowerCase().includes(q) || a.cat.toLowerCase().includes(q));
@@ -2329,15 +2381,30 @@ async function applyImportJSON() {
   }
 }
 
-function resetToDefaultData() {
-  if (confirm('Apakah Anda yakin ingin mereset seluruh jadwal ke contoh bawaan awal?')) {
-    playUiSound('pop');
-    state.schedules = getDefaultSchedules();
-    const accKey = state.currentUser ? state.currentUser.id : 'guest';
-    localStorage.setItem(`${STORAGE_PREFIX}${accKey}`, JSON.stringify(state.schedules));
-    renderApp();
-    showToast('Jadwal berhasil di-reset ke data bawaan.', 'success');
+async function resetToDefaultData() {
+  await resetToIndonesiaCalendar();
+}
+
+/** Mereset seluruh jadwal dan menggantinya dengan Kalender Indonesia resmi (Hari Libur Nasional 2025 - 2026) */
+async function resetToIndonesiaCalendar() {
+  if (!confirm('Hapus seluruh jadwal lama dan muat seluruh Hari Libur & Perayaan Resmi Kalender Indonesia (2025 - 2026)?')) {
+    return;
   }
+  playUiSound('pop');
+  const defaults = getDefaultSchedules();
+  state.schedules = [...defaults];
+  const accKey = state.currentUser ? state.currentUser.id : 'guest';
+  localStorage.setItem(`${STORAGE_PREFIX}${accKey}`, JSON.stringify(state.schedules));
+
+  if (state.currentUser && isSupabaseConfigured()) {
+    showToast('Menyimpan Kalender Indonesia ke Supabase...', 'info');
+    await purgeOldDummySchedules(state.currentUser.id).catch(() => {});
+    await seedInitialSchedulesForUser(state.currentUser.id, defaults).catch(() => {});
+  }
+
+  renderApp();
+  triggerConfetti();
+  showToast(`🇮🇩 Berhasil memuat ${defaults.length} Hari Libur & Perayaan Kalender Indonesia!`, 'success');
 }
 
 // ==============================================================================
@@ -2684,9 +2751,14 @@ function setupEventListeners() {
     toggleHeaderDropdown(false);
   });
 
+  document.getElementById('btnSyncIndonesiaHolidays')?.addEventListener('click', () => {
+    toggleHeaderDropdown(false);
+    resetToIndonesiaCalendar();
+  });
+
   // Automatically close dropdown when action modals are opened
   headerDropdownMenu?.querySelectorAll('.hdrop-item').forEach((item) => {
-    if (item.id === 'btnOpenPomodoro' || item.id === 'btnSupabaseBadge') {
+    if (item.id === 'btnOpenPomodoro' || item.id === 'btnSupabaseBadge' || item.id === 'btnSyncIndonesiaHolidays') {
       item.addEventListener('click', () => {
         toggleHeaderDropdown(false);
       });

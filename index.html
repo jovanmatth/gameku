@@ -18,7 +18,7 @@
   <!-- Supabase Official JS Client CDN -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-  <link rel="stylesheet" href="style.css?v=2.9">
+  <link rel="stylesheet" href="style.css?v=3.0">
 </head>
 
 <body>
@@ -350,7 +350,18 @@
                 </div>
               </button>
 
-              <!-- 5. Supabase Status Badge (Admin) -->
+              <!-- 5. Reset & Sinkronkan Kalender Indonesia -->
+              <button class="hdrop-item" id="btnSyncIndonesiaHolidays" role="menuitem" title="Hapus Jadwal Lama & Muat Kalender Indonesia">
+                <div class="hdrop-icon-wrap" style="color: #ef4444; font-size: 16px;">
+                  🇮🇩
+                </div>
+                <div class="hdrop-item-body">
+                  <span class="hdrop-item-title">Kalender Indonesia</span>
+                  <span class="hdrop-item-desc">Muat Libur Nasional & bersihkan data lama</span>
+                </div>
+              </button>
+
+              <!-- 6. Supabase Status Badge (Admin) -->
               <button class="hdrop-item hidden" id="btnSupabaseBadge" role="menuitem" title="Status Database Supabase (Khusus Admin)">
                 <div class="hdrop-icon-wrap">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -1206,7 +1217,7 @@
   <div class="toast-container" id="toastContainer" aria-live="polite"></div>
 
   <!-- Scripts -->
-  <script type="module" src="app.js?v=2.9"></script>
+  <script type="module" src="app.js?v=3.0"></script>
 </body>
 
 </html>

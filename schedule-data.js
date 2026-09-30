@@ -1,17 +1,9 @@
 /**
  * ==============================================================================
- * SCHEDULE DATA & CONFIGURATION (PANDUAN MUDAH EDIT DATA)
+ * SCHEDULE DATA & CONFIGURATION (KALENDER INDONESIA & HARI LIBUR NASIONAL)
  * ==============================================================================
- * File ini dirancang khusus agar SANGAT MUDAH DI-EDIT oleh Anda!
- * 
- * 1. Menambah Kategori Baru:
- *    Cukup tambahkan objek baru pada array `CATEGORIES` di bawah.
- * 
- * 2. Mengubah Warna / Icon / Gradien Kategori:
- *    Ganti nilai `color`, `bgColor`, `gradient`, atau `icon` pada kategori yang ingin diubah.
- * 
- * 3. Menambah Jadwal Bawaan (Default Events):
- *    Tambahkan item pada fungsi `getDefaultSchedules()`.
+ * File ini memuat konfigurasi kategori jadwal, tingkat prioritas, dan database
+ * Hari Libur Nasional & Hari Peringatan Resmi Kalender Indonesia.
  * ==============================================================================
  */
 
@@ -19,6 +11,16 @@
 // 1. DAFTAR KATEGORI JADWAL DENGAN GRADIEN MEWAH
 // ------------------------------------------------------------------------------
 export const CATEGORIES = [
+  {
+    id: 'holiday',
+    name: 'Libur Nasional & Perayaan',
+    nameEn: 'National Holidays',
+    color: '#ef4444',       // Merah Putih Indonesia
+    gradient: 'linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)',
+    bgColor: 'rgba(239, 68, 68, 0.16)',
+    borderColor: '#f87171',
+    icon: '🇮🇩'
+  },
   {
     id: 'work',
     name: 'Pekerjaan',
@@ -101,174 +103,612 @@ export const STATUSES = [
 ];
 
 // ------------------------------------------------------------------------------
-// 4. GENERATOR JADWAL BAWAAN (DINAMIS TERHADAP HARI INI)
+// 4. DATABASE HARI LIBUR & EVENT RESMI KALENDER INDONESIA
 // ------------------------------------------------------------------------------
 export function getDefaultSchedules() {
-  const now = new Date();
-  
-  // Helper membuat format tanggal YYYY-MM-DD
-  const formatOffsetDate = (dayOffset = 0) => {
-    const d = new Date(now);
-    d.setDate(d.getDate() + dayOffset);
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${y}-${m}-${day}`;
-  };
-
   return [
+    // =========================================================================
+    // KALENDER INDONESIA 2026 (HARI LIBUR NASIONAL & PERINGATAN RESMI)
+    // =========================================================================
     {
-      id: 'sch-001',
-      title: 'Sesi Lari Pagi & Hidrasi Kardio',
-      category: 'health',
-      date: formatOffsetDate(0), // Hari ini
-      startTime: '06:30',
-      endTime: '07:30',
-      priority: 'medium',
-      status: 'completed',
-      location: 'Taman Kota / Fitness Track',
-      description: 'Lari 4km untuk menjaga stamina, dilanjutkan stretching dan sarapan sehat.',
-      checklist: [
-        { text: 'Pemanasan & stretching 10 menit', done: true },
-        { text: 'Lari pagi 4 km santai', done: true },
-        { text: 'Minum air 500ml + protein shake', done: true }
-      ]
-    },
-    {
-      id: 'sch-002',
-      title: 'Daily Standup & Sync Tim Produk',
-      category: 'meeting',
-      date: formatOffsetDate(0), // Hari ini
-      startTime: '09:30',
-      endTime: '10:30',
-      priority: 'high',
-      status: 'in_progress',
-      location: 'Google Meet (meet.google.com/xyz-prod)',
-      description: 'Sinkronisasi prioritas mingguan, penyelarasan roadmap fitur baru, dan evaluasi bug sprint.',
-      checklist: [
-        { text: 'Review metrik performa sprint', done: true },
-        { text: 'Penyelarasan tim UI/UX dan Frontend', done: true },
-        { text: 'Bahas integrasi API pembayaran', done: false }
-      ]
-    },
-    {
-      id: 'sch-003',
-      title: 'Refactor Design System & Glassmorphic UI',
-      category: 'work',
-      date: formatOffsetDate(0), // Hari ini
-      startTime: '13:30',
-      endTime: '15:30',
+      id: 'idn-2026-01-01',
+      title: 'Tahun Baru 2026 Masehi 🎆',
+      category: 'holiday',
+      date: '2026-01-01',
+      startTime: '00:00',
+      endTime: '23:59',
       priority: 'high',
       status: 'scheduled',
-      location: 'Workstation Utama Studio',
-      description: 'Implementasi tema ultra-modern, ambient glow orbs, micro-animations, dan command palette.',
-      checklist: [
-        { text: 'Polish gradien dan shadows', done: false },
-        { text: 'Uji responsivitas tablet dan mobile', done: false },
-        { text: 'Tambahkan sound synthesizers Web Audio', done: false }
-      ]
+      location: 'Seluruh Indonesia 🇮🇩',
+      description: 'Hari Libur Nasional Tahun Baru Masehi 2026. Awal lembaran tahun baru dengan resolusi dan harapan produktif.',
+      checklist: [{ text: 'Perayaan tahun baru & refleksi resolusi tahun 2026', done: true }]
     },
     {
-      id: 'sch-004',
-      title: 'Coffee Break & Eksplorasi Tech Trends',
-      category: 'personal',
-      date: formatOffsetDate(0), // Hari ini
-      startTime: '16:30',
-      endTime: '17:15',
-      priority: 'low',
-      status: 'todo',
-      location: 'Lounge Kafe Artisan',
-      description: 'Menikmati latte hangat sambil membaca rilis artikel web dev dan AI agents terbaru.',
-      checklist: []
-    },
-    {
-      id: 'sch-005',
-      title: 'Deadline Pengiriman Proposal Klien',
-      category: 'deadline',
-      date: formatOffsetDate(1), // Besok
-      startTime: '10:00',
-      endTime: '11:30',
+      id: 'idn-2026-01-16',
+      title: 'Isra Mi\'raj Nabi Muhammad SAW 1447 H 🕌',
+      category: 'holiday',
+      date: '2026-01-16',
+      startTime: '08:00',
+      endTime: '12:00',
       priority: 'high',
       status: 'scheduled',
-      location: 'Portal Stakeholder / Pitch Deck',
-      description: 'Submit dokumen proposal final beserta kalkulasi timeline dan skema arsitektur.',
+      location: 'Seluruh Indonesia 🇮🇩',
+      description: 'Hari Libur Nasional peringatan perjalanan agung Isra Mi\'raj Nabi Muhammad SAW 1447 Hijriah.',
+      checklist: [{ text: 'Ibadah & peringatan Isra Mi\'raj', done: false }]
+    },
+    {
+      id: 'idn-2026-02-17',
+      title: 'Tahun Baru Imlek 2577 Kongzili 🏮',
+      category: 'holiday',
+      date: '2026-02-17',
+      startTime: '08:00',
+      endTime: '20:00',
+      priority: 'high',
+      status: 'scheduled',
+      location: 'Seluruh Indonesia 🇮🇩',
+      description: 'Hari Libur Nasional Tahun Baru Imlek 2577 Kongzili (Tahun Kuda Api). Silaturahmi keluarga & festival budaya.',
+      checklist: [{ text: 'Silaturahmi keluarga & perayaan Imlek', done: false }]
+    },
+    {
+      id: 'idn-2026-03-20',
+      title: 'Hari Raya Idul Fitri 1447 H (Hari Pertama) 🌙',
+      category: 'holiday',
+      date: '2026-03-20',
+      startTime: '06:00',
+      endTime: '21:00',
+      priority: 'high',
+      status: 'scheduled',
+      location: 'Seluruh Indonesia 🇮🇩',
+      description: 'Hari Libur Nasional Hari Raya Idul Fitri 1 Syawal 1447 H. Shalat Idul Fitri, silaturahmi akbar, dan saling memaafkan.',
       checklist: [
-        { text: 'Cek ulang estimasi anggaran biaya', done: false },
-        { text: 'Export PDF resolusi tinggi', done: false },
-        { text: 'Kirim email pengantar resmi', done: false }
+        { text: 'Shalat Idul Fitri berjamaah', done: false },
+        { text: 'Silaturahmi & halalbihalal keluarga besar', done: false }
       ]
     },
     {
-      id: 'sch-006',
-      title: 'Deep Work: Eksplorasi AI Agents & SDK',
-      category: 'study',
-      date: formatOffsetDate(1), // Besok
-      startTime: '14:00',
-      endTime: '16:30',
-      priority: 'medium',
-      status: 'todo',
-      location: 'Lab Riset Pribadi',
-      description: 'Eksperimen integrasi model reasoning dan automation pipeline.',
+      id: 'idn-2026-03-21',
+      title: 'Hari Raya Idul Fitri 1447 H (Hari Kedua) & Nyepi 1948 🕊️',
+      category: 'holiday',
+      date: '2026-03-21',
+      startTime: '00:00',
+      endTime: '23:59',
+      priority: 'high',
+      status: 'scheduled',
+      location: 'Seluruh Indonesia 🇮🇩',
+      description: 'Hari Libur Nasional Idul Fitri Hari ke-2 bertepatan dengan Hari Suci Nyepi (Tahun Baru Saka 1948).',
       checklist: [
-        { text: 'Setup environment isolated', done: false },
-        { text: 'Jalankan benchmark performa', done: false }
+        { text: 'Silaturahmi lebaran hari kedua', done: false },
+        { text: 'Menghormati perayaan Catur Brata Penyepian', done: false }
       ]
     },
     {
-      id: 'sch-007',
-      title: '1-on-1 Mentoring Arsitektur Kode',
-      category: 'meeting',
-      date: formatOffsetDate(2), // 2 hari lagi
-      startTime: '11:00',
+      id: 'idn-2026-04-03',
+      title: 'Wafat Yesus Kristus (Jumat Agung) ✝️',
+      category: 'holiday',
+      date: '2026-04-03',
+      startTime: '09:00',
+      endTime: '18:00',
+      priority: 'high',
+      status: 'scheduled',
+      location: 'Seluruh Indonesia 🇮🇩',
+      description: 'Hari Libur Nasional peringatan Wafat Yesus Kristus (Jumat Agung). Ibadah kebaktian & refleksi spiritual.',
+      checklist: [{ text: 'Ibadah Jumat Agung', done: false }]
+    },
+    {
+      id: 'idn-2026-04-05',
+      title: 'Hari Raya Paskah 2026 🐣',
+      category: 'holiday',
+      date: '2026-04-05',
+      startTime: '08:00',
       endTime: '12:00',
       priority: 'medium',
       status: 'scheduled',
-      location: 'Zoom Meeting Room',
-      description: 'Sharing session praktik clean code, pemisahan dependensi, dan prinsip SOLID.',
-      checklist: []
+      location: 'Seluruh Indonesia 🇮🇩',
+      description: 'Peringatan Kebangkitan Yesus Kristus (Hari Paskah). Ibadah ucapan syukur & perayaan keluarga.',
+      checklist: [{ text: 'Ibadah Minggu Paskah', done: false }]
     },
     {
-      id: 'sch-008',
-      title: 'Pemeriksaan Kesehatan Berkala & Dental',
-      category: 'health',
-      date: formatOffsetDate(3), // 3 hari lagi
-      startTime: '15:00',
-      endTime: '16:15',
+      id: 'idn-2026-04-21',
+      title: 'Hari Kartini 🌺',
+      category: 'holiday',
+      date: '2026-04-21',
+      startTime: '08:00',
+      endTime: '16:00',
       priority: 'medium',
       status: 'scheduled',
-      location: 'Klinik Medika Utama',
-      description: 'Pemeriksaan rutin kesehatan mata dan gigi secara komprehensif.',
-      checklist: []
+      location: 'Seluruh Indonesia 🇮🇩',
+      description: 'Hari peringatan nasional pelopor emansipasi wanita Indonesia, Raden Ajeng Kartini ("Habis Gelap Terbitlah Terang").',
+      checklist: [{ text: 'Peringatan Hari Kartini & apresiasi wanita Indonesia', done: false }]
     },
     {
-      id: 'sch-009',
-      title: 'Santai Akhir Pekan & Barbeque Bersama',
-      category: 'personal',
-      date: formatOffsetDate(4), // 4 hari lagi
-      startTime: '17:00',
-      endTime: '20:30',
-      priority: 'low',
-      status: 'todo',
-      location: 'Taman Belakang Rumah',
-      description: 'Waktu berkualitas bersama teman dan keluarga menikmati santapan barbeque.',
-      checklist: []
-    },
-    {
-      id: 'sch-010',
-      title: 'Rilis Besar Produksi PlanCraft v2.5',
-      category: 'deadline',
-      date: formatOffsetDate(6), // 6 hari lagi
-      startTime: '09:00',
-      endTime: '11:00',
+      id: 'idn-2026-05-01',
+      title: 'Hari Buruh Internasional (May Day) ✊',
+      category: 'holiday',
+      date: '2026-05-01',
+      startTime: '00:00',
+      endTime: '23:59',
       priority: 'high',
       status: 'scheduled',
-      location: 'Cloud Infrastructure Pipeline',
-      description: 'Deployment live production, monitoring log server, dan pengumuman update fitur.',
+      location: 'Seluruh Indonesia 🇮🇩',
+      description: 'Hari Libur Nasional Hari Buruh Internasional. Mengapresiasi dedikasi dan kerja keras para pekerja di seluruh tanah air.',
+      checklist: [{ text: 'Hari istirahat & apresiasi pekerja Indonesia', done: false }]
+    },
+    {
+      id: 'idn-2026-05-02',
+      title: 'Hari Pendidikan Nasional (Hardiknas) 🎓',
+      category: 'holiday',
+      date: '2026-05-02',
+      startTime: '08:00',
+      endTime: '11:00',
+      priority: 'medium',
+      status: 'scheduled',
+      location: 'Seluruh Indonesia 🇮🇩',
+      description: 'Peringatan hari lahir Ki Hadjar Dewantara ("Ing Ngarso Sung Tulodo, Ing Madyo Mangun Karso, Tut Wuri Handayani").',
+      checklist: [{ text: 'Upacara bendera Hardiknas & refleksi pendidikan bangsa', done: false }]
+    },
+    {
+      id: 'idn-2026-05-14',
+      title: 'Kenaikan Yesus Kristus 🕊️',
+      category: 'holiday',
+      date: '2026-05-14',
+      startTime: '09:00',
+      endTime: '12:00',
+      priority: 'high',
+      status: 'scheduled',
+      location: 'Seluruh Indonesia 🇮🇩',
+      description: 'Hari Libur Nasional peringatan Kenaikan Yesus Kristus ke surga. Ibadah kebaktian gereja.',
+      checklist: [{ text: 'Ibadah Kenaikan Yesus Kristus', done: false }]
+    },
+    {
+      id: 'idn-2026-05-27',
+      title: 'Hari Raya Idul Adha 1447 H (Hari Qurban) 🐑',
+      category: 'holiday',
+      date: '2026-05-27',
+      startTime: '06:00',
+      endTime: '17:00',
+      priority: 'high',
+      status: 'scheduled',
+      location: 'Seluruh Indonesia 🇮🇩',
+      description: 'Hari Libur Nasional Hari Raya Idul Adha 10 Dzulhijjah 1447 H. Shalat Idul Adha & penyembelihan hewan qurban.',
       checklist: [
-        { text: 'Verifikasi build & asset compression', done: false },
-        { text: 'Deploy ke global edge CDN', done: false },
-        { text: 'Publikasi changelog resmi', done: false }
+        { text: 'Shalat Idul Adha berjamaah', done: false },
+        { text: 'Penyembelihan & pembagian daging qurban', done: false }
       ]
+    },
+    {
+      id: 'idn-2026-05-31',
+      title: 'Hari Raya Waisak 2570 BE 🪷',
+      category: 'holiday',
+      date: '2026-05-31',
+      startTime: '08:00',
+      endTime: '22:00',
+      priority: 'high',
+      status: 'scheduled',
+      location: 'Seluruh Indonesia 🇮🇩 / Candi Borobudur',
+      description: 'Hari Libur Nasional Hari Tri Suci Waisak 2570 Buddhist Era. Pelepasan lampion Borobudur & doa perdamaian.',
+      checklist: [{ text: 'Meditasi & doa peringatan Waisak', done: false }]
+    },
+    {
+      id: 'idn-2026-06-01',
+      title: 'Hari Lahir Pancasila 🦅',
+      category: 'holiday',
+      date: '2026-06-01',
+      startTime: '08:00',
+      endTime: '12:00',
+      priority: 'high',
+      status: 'scheduled',
+      location: 'Seluruh Indonesia 🇮🇩',
+      description: 'Hari Libur Nasional Peringatan Hari Lahir Dasar Negara Indonesia, Pancasila (1 Juni 1945). Bhinneka Tunggal Ika.',
+      checklist: [{ text: 'Upacara kenegaraan Hari Lahir Pancasila', done: false }]
+    },
+    {
+      id: 'idn-2026-06-16',
+      title: 'Tahun Baru Islam 1448 H (1 Muharram) 🌙',
+      category: 'holiday',
+      date: '2026-06-16',
+      startTime: '08:00',
+      endTime: '12:00',
+      priority: 'high',
+      status: 'scheduled',
+      location: 'Seluruh Indonesia 🇮🇩',
+      description: 'Hari Libur Nasional Tahun Baru Islam 1 Muharram 1448 Hijriah. Refleksi spiritual dan doa awal tahun.',
+      checklist: [{ text: 'Doa akhir & awal tahun Hijriah', done: false }]
+    },
+    {
+      id: 'idn-2026-08-17',
+      title: 'HUT Kemerdekaan RI ke-81 (17 Agustus) 🇮🇩',
+      category: 'holiday',
+      date: '2026-08-17',
+      startTime: '08:00',
+      endTime: '18:00',
+      priority: 'high',
+      status: 'scheduled',
+      location: 'Seluruh Indonesia 🇮🇩 / Istana Merdeka',
+      description: 'Hari Proklamasi Kemerdekaan Republik Indonesia ke-81. Detik-detik proklamasi, upacara bendera, dan pesta rakyat merah putih.',
+      checklist: [
+        { text: 'Pengibaran Sang Saka Merah Putih', done: true },
+        { text: 'Mengikuti siaran upacara detik-detik Proklamasi', done: false },
+        { text: 'Lomba kemerdekaan bersama warga lingkungan', done: false }
+      ]
+    },
+    {
+      id: 'idn-2026-08-25',
+      title: 'Maulid Nabi Muhammad SAW 1448 H 🕌',
+      category: 'holiday',
+      date: '2026-08-25',
+      startTime: '08:00',
+      endTime: '12:00',
+      priority: 'high',
+      status: 'scheduled',
+      location: 'Seluruh Indonesia 🇮🇩',
+      description: 'Hari Libur Nasional memperingati hari kelahiran Nabi Muhammad SAW 12 Rabiul Awal 1448 Hijriah.',
+      checklist: [{ text: 'Pengajian & peringatan Maulid Nabi SAW', done: false }]
+    },
+    {
+      id: 'idn-2026-09-30',
+      title: 'Peringatan Hari G30S/PKI 🇮🇩',
+      category: 'holiday',
+      date: '2026-09-30',
+      startTime: '06:00',
+      endTime: '18:00',
+      priority: 'high',
+      status: 'scheduled',
+      location: 'Seluruh Indonesia 🇮🇩',
+      description: 'Peringatan Hari Pemberontakan G30S/PKI untuk mengenang gugurnya para Pahlawan Revolusi. Pengibaran bendera setengah tiang.',
+      checklist: [{ text: 'Pengibaran bendera setengah tiang tanda duka nasional', done: true }]
+    },
+    {
+      id: 'idn-2026-10-01',
+      title: 'Hari Kesaktian Pancasila 🛡️',
+      category: 'holiday',
+      date: '2026-10-01',
+      startTime: '08:00',
+      endTime: '10:00',
+      priority: 'high',
+      status: 'scheduled',
+      location: 'Seluruh Indonesia 🇮🇩 / Monumen Pancasila Sakti',
+      description: 'Hari peringatan nasional untuk mengenang jasa Pahlawan Revolusi dan kokohnya ideologi Pancasila. Pengibaran bendera satu tiang penuh.',
+      checklist: [{ text: 'Upacara Hari Kesaktian Pancasila & bendera satu tiang penuh', done: false }]
+    },
+    {
+      id: 'idn-2026-10-05',
+      title: 'HUT Tentara Nasional Indonesia (TNI) ke-81 ⚔️',
+      category: 'holiday',
+      date: '2026-10-05',
+      startTime: '08:00',
+      endTime: '14:00',
+      priority: 'medium',
+      status: 'scheduled',
+      location: 'Mabes TNI / Seluruh Indonesia 🇮🇩',
+      description: 'Peringatan Hari Ulang Tahun Tentara Nasional Indonesia (TNI) ke-81.',
+      checklist: [{ text: 'Menyaksikan parade alutsista & upacara HUT TNI', done: false }]
+    },
+    {
+      id: 'idn-2026-10-02',
+      title: 'Hari Batik Nasional 🎨',
+      category: 'holiday',
+      date: '2026-10-02',
+      startTime: '08:00',
+      endTime: '17:00',
+      priority: 'medium',
+      status: 'scheduled',
+      location: 'Seluruh Indonesia 🇮🇩',
+      description: 'Peringatan penetapan Batik sebagai Warisan Kemanusiaan untuk Budaya Lisan dan Nonbendawi oleh UNESCO pada 2 Oktober 2009.',
+      checklist: [{ text: 'Mengenakan busana batik khas Indonesia', done: true }]
+    },
+    {
+      id: 'idn-2026-10-28',
+      title: 'Hari Sumpah Pemuda (28 Oktober) 🇮🇩',
+      category: 'holiday',
+      date: '2026-10-28',
+      startTime: '08:00',
+      endTime: '12:00',
+      priority: 'medium',
+      status: 'scheduled',
+      location: 'Seluruh Indonesia 🇮🇩',
+      description: 'Peringatan ikrar pemuda Indonesia 1928: Satu Nusa, Satu Bangsa, dan Satu Bahasa Indonesia.',
+      checklist: [{ text: 'Peringatan semangat Sumpah Pemuda', done: false }]
+    },
+    {
+      id: 'idn-2026-11-10',
+      title: 'Hari Pahlawan Nasional 🎖️',
+      category: 'holiday',
+      date: '2026-11-10',
+      startTime: '08:00',
+      endTime: '11:00',
+      priority: 'medium',
+      status: 'scheduled',
+      location: 'Seluruh Indonesia 🇮🇩 / Tugu Pahlawan',
+      description: 'Peringatan Pertempuran Surabaya 10 November 1945 untuk menghormati jasa dan pengorbanan para pahlawan bangsa.',
+      checklist: [{ text: 'Mengheningkan cipta serentak 60 detik untuk para pahlawan', done: false }]
+    },
+    {
+      id: 'idn-2026-11-25',
+      title: 'Hari Guru Nasional (HGN) 📚',
+      category: 'holiday',
+      date: '2026-11-25',
+      startTime: '08:00',
+      endTime: '12:00',
+      priority: 'medium',
+      status: 'scheduled',
+      location: 'Seluruh Indonesia 🇮🇩',
+      description: 'Peringatan Hari Guru Nasional dan HUT PGRI sebagai tanda penghormatan dan terima kasih kepada para guru bangsa.',
+      checklist: [{ text: 'Apresiasi & terima kasih untuk bapak/ibu guru', done: false }]
+    },
+    {
+      id: 'idn-2026-12-22',
+      title: 'Hari Ibu Nasional 💐',
+      category: 'holiday',
+      date: '2026-12-22',
+      startTime: '08:00',
+      endTime: '20:00',
+      priority: 'medium',
+      status: 'scheduled',
+      location: 'Seluruh Indonesia 🇮🇩',
+      description: 'Peringatan Hari Ibu Indonesia memperingati Kongres Perempuan Indonesia I tahun 1928. Ungkapan kasih sayang kepada ibu.',
+      checklist: [{ text: 'Memberikan ucapan & kado spesial untuk Ibu', done: false }]
+    },
+    {
+      id: 'idn-2026-12-25',
+      title: 'Hari Raya Natal 2026 🎄',
+      category: 'holiday',
+      date: '2026-12-25',
+      startTime: '08:00',
+      endTime: '22:00',
+      priority: 'high',
+      status: 'scheduled',
+      location: 'Seluruh Indonesia 🇮🇩',
+      description: 'Hari Libur Nasional Hari Raya Natal memperingati kelahiran Yesus Kristus. Damai di bumi, damai di hati.',
+      checklist: [
+        { text: 'Ibadah Natal bersama keluarga', done: false },
+        { text: 'Silaturahmi & berbagi kebahagiaan Natal', done: false }
+      ]
+    },
+
+    // =========================================================================
+    // KALENDER INDONESIA 2025 (HARI LIBUR NASIONAL & PERINGATAN RESMI)
+    // =========================================================================
+    {
+      id: 'idn-2025-01-01',
+      title: 'Tahun Baru 2025 Masehi 🎆',
+      category: 'holiday',
+      date: '2025-01-01',
+      startTime: '00:00',
+      endTime: '23:59',
+      priority: 'high',
+      status: 'completed',
+      location: 'Seluruh Indonesia 🇮🇩',
+      description: 'Hari Libur Nasional Tahun Baru 2025 Masehi.',
+      checklist: []
+    },
+    {
+      id: 'idn-2025-01-27',
+      title: 'Isra Mi\'raj Nabi Muhammad SAW 1446 H 🕌',
+      category: 'holiday',
+      date: '2025-01-27',
+      startTime: '08:00',
+      endTime: '12:00',
+      priority: 'high',
+      status: 'completed',
+      location: 'Seluruh Indonesia 🇮🇩',
+      description: 'Hari Libur Nasional Isra Mi\'raj Nabi Muhammad SAW 1446 H.',
+      checklist: []
+    },
+    {
+      id: 'idn-2025-01-29',
+      title: 'Tahun Baru Imlek 2576 Kongzili 🏮',
+      category: 'holiday',
+      date: '2025-01-29',
+      startTime: '08:00',
+      endTime: '20:00',
+      priority: 'high',
+      status: 'completed',
+      location: 'Seluruh Indonesia 🇮🇩',
+      description: 'Hari Libur Nasional Tahun Baru Imlek 2576 Kongzili (Tahun Ular Kayu).',
+      checklist: []
+    },
+    {
+      id: 'idn-2025-03-29',
+      title: 'Hari Suci Nyepi (Tahun Baru Saka 1947) 🕊️',
+      category: 'holiday',
+      date: '2025-03-29',
+      startTime: '00:00',
+      endTime: '23:59',
+      priority: 'high',
+      status: 'completed',
+      location: 'Seluruh Indonesia 🇮🇩',
+      description: 'Hari Libur Nasional Hari Suci Nyepi Tahun Baru Saka 1947.',
+      checklist: []
+    },
+    {
+      id: 'idn-2025-03-31',
+      title: 'Hari Raya Idul Fitri 1446 H (Hari Ke-1) 🌙',
+      category: 'holiday',
+      date: '2025-03-31',
+      startTime: '06:00',
+      endTime: '21:00',
+      priority: 'high',
+      status: 'completed',
+      location: 'Seluruh Indonesia 🇮🇩',
+      description: 'Hari Raya Idul Fitri 1 Syawal 1446 H.',
+      checklist: []
+    },
+    {
+      id: 'idn-2025-04-01',
+      title: 'Hari Raya Idul Fitri 1446 H (Hari Ke-2) 🌙',
+      category: 'holiday',
+      date: '2025-04-01',
+      startTime: '06:00',
+      endTime: '21:00',
+      priority: 'high',
+      status: 'completed',
+      location: 'Seluruh Indonesia 🇮🇩',
+      description: 'Hari Raya Idul Fitri 2 Syawal 1446 H.',
+      checklist: []
+    },
+    {
+      id: 'idn-2025-04-18',
+      title: 'Wafat Yesus Kristus (Jumat Agung) ✝️',
+      category: 'holiday',
+      date: '2025-04-18',
+      startTime: '09:00',
+      endTime: '18:00',
+      priority: 'high',
+      status: 'completed',
+      location: 'Seluruh Indonesia 🇮🇩',
+      description: 'Peringatan Wafat Yesus Kristus.',
+      checklist: []
+    },
+    {
+      id: 'idn-2025-05-01',
+      title: 'Hari Buruh Internasional (May Day) ✊',
+      category: 'holiday',
+      date: '2025-05-01',
+      startTime: '00:00',
+      endTime: '23:59',
+      priority: 'high',
+      status: 'completed',
+      location: 'Seluruh Indonesia 🇮🇩',
+      description: 'Hari Libur Nasional Hari Buruh Internasional 2025.',
+      checklist: []
+    },
+    {
+      id: 'idn-2025-05-12',
+      title: 'Hari Raya Waisak 2569 BE 🪷',
+      category: 'holiday',
+      date: '2025-05-12',
+      startTime: '08:00',
+      endTime: '22:00',
+      priority: 'high',
+      status: 'completed',
+      location: 'Seluruh Indonesia 🇮🇩',
+      description: 'Hari Libur Nasional Hari Tri Suci Waisak 2569 BE.',
+      checklist: []
+    },
+    {
+      id: 'idn-2025-05-29',
+      title: 'Kenaikan Yesus Kristus 🕊️',
+      category: 'holiday',
+      date: '2025-05-29',
+      startTime: '09:00',
+      endTime: '12:00',
+      priority: 'high',
+      status: 'completed',
+      location: 'Seluruh Indonesia 🇮🇩',
+      description: 'Hari Libur Nasional Kenaikan Yesus Kristus.',
+      checklist: []
+    },
+    {
+      id: 'idn-2025-06-01',
+      title: 'Hari Lahir Pancasila 🦅',
+      category: 'holiday',
+      date: '2025-06-01',
+      startTime: '08:00',
+      endTime: '12:00',
+      priority: 'high',
+      status: 'completed',
+      location: 'Seluruh Indonesia 🇮🇩',
+      description: 'Peringatan Hari Lahir Pancasila 1 Juni 2025.',
+      checklist: []
+    },
+    {
+      id: 'idn-2025-06-06',
+      title: 'Hari Raya Idul Adha 1446 H 🐑',
+      category: 'holiday',
+      date: '2025-06-06',
+      startTime: '06:00',
+      endTime: '17:00',
+      priority: 'high',
+      status: 'completed',
+      location: 'Seluruh Indonesia 🇮🇩',
+      description: 'Hari Libur Nasional Hari Raya Idul Adha 1446 H.',
+      checklist: []
+    },
+    {
+      id: 'idn-2025-06-27',
+      title: 'Tahun Baru Islam 1447 H 🌙',
+      category: 'holiday',
+      date: '2025-06-27',
+      startTime: '08:00',
+      endTime: '12:00',
+      priority: 'high',
+      status: 'completed',
+      location: 'Seluruh Indonesia 🇮🇩',
+      description: 'Hari Libur Nasional 1 Muharram 1447 H.',
+      checklist: []
+    },
+    {
+      id: 'idn-2025-08-17',
+      title: 'HUT Kemerdekaan RI ke-80 🇮🇩',
+      category: 'holiday',
+      date: '2025-08-17',
+      startTime: '08:00',
+      endTime: '18:00',
+      priority: 'high',
+      status: 'completed',
+      location: 'Seluruh Indonesia 🇮🇩',
+      description: 'HUT Proklamasi Kemerdekaan RI ke-80.',
+      checklist: []
+    },
+    {
+      id: 'idn-2025-09-05',
+      title: 'Maulid Nabi Muhammad SAW 1447 H 🕌',
+      category: 'holiday',
+      date: '2025-09-05',
+      startTime: '08:00',
+      endTime: '12:00',
+      priority: 'high',
+      status: 'completed',
+      location: 'Seluruh Indonesia 🇮🇩',
+      description: 'Hari Libur Nasional Maulid Nabi Muhammad SAW 1447 H.',
+      checklist: []
+    },
+    {
+      id: 'idn-2025-12-25',
+      title: 'Hari Raya Natal 2025 🎄',
+      category: 'holiday',
+      date: '2025-12-25',
+      startTime: '08:00',
+      endTime: '22:00',
+      priority: 'high',
+      status: 'completed',
+      location: 'Seluruh Indonesia 🇮🇩',
+      description: 'Hari Libur Nasional Hari Raya Natal 2025.',
+      checklist: []
     }
   ];
 }
+
+/**
+ * Memeriksa apakah sebuah objek jadwal merupakan jadwal dummy / contoh lama (mock tasks)
+ * @param {Object} schedule - Objek jadwal yang akan diperiksa
+ * @returns {boolean} True jika merupakan jadwal contoh bawaan lama yang perlu dihapus
+ */
+export function isOldDummySchedule(schedule) {
+  if (!schedule) return false;
+  
+  // 1. Cek pola ID lama (sch-001 s/d sch-010, atau sch-user-sch-00X)
+  const idStr = String(schedule.id || '');
+  if (/^sch-0[0-9]{2}$/.test(idStr)) return true;
+  if (idStr.includes('-sch-00') || idStr.includes('-sch-010') || idStr.includes('sch-00')) return true;
+
+  // 2. Cek judul kegiatan contoh/dummy lama
+  const titleLower = String(schedule.title || '').toLowerCase().trim();
+  const dummyKeywords = [
+    'sesi lari pagi',
+    'daily standup',
+    'refactor design system',
+    'coffee break',
+    'client pitch deck',
+    'deep work: core engine',
+    'deep work',
+    'team brainstorming',
+    'quick catch-up',
+    'sprint retrospective',
+    'workshop ui/ux',
+    'sync weekly'
+  ];
+
+  return dummyKeywords.some(keyword => titleLower.includes(keyword));
+}
+

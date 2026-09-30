@@ -269,36 +269,85 @@ export async function saveUserDayNote(date, note, userId) {
   }
 }
 
-/** Menginisialisasi jadwal bawaan (seed data) pertama kali untuk akun baru */
+/** Menginisialisasi jadwal bawaan (Kalender Indonesia) pertama kali untuk akun baru */
 export async function seedInitialSchedulesForUser(userId, defaultSchedules) {
   const client = getSupabase();
   if (!client || !userId || !defaultSchedules.length) return;
 
-  const rows = defaultSchedules.map(item => ({
-    id: `sch-${userId.slice(0, 5)}-${item.id}-${Math.random().toString(36).substr(2, 4)}`,
-    user_id: userId,
-    title: item.title,
-    category: item.category,
-    date: item.date,
-    start_time: item.startTime,
-    end_time: item.endTime,
-    priority: item.priority,
-    status: item.status,
-    location: item.location || '',
-    description: item.description || '',
-    checklist: item.checklist || [],
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString()
-  }));
+  const rows = defaultSchedules.map(item => {
+    const cleanId = String(item.id || '').replace(/^sch-/, 'idn-');
+    return {
+      id: cleanId.startsWith(`${userId.slice(0, 8)}-`) ? cleanId : `${userId.slice(0, 8)}-${cleanId}`,
+      user_id: userId,
+      title: item.title,
+      category: item.category || 'holiday',
+      date: item.date,
+      start_time: item.startTime || '08:00',
+      end_time: item.endTime || '17:00',
+      priority: item.priority || 'high',
+      status: item.status || 'scheduled',
+      location: item.location || '',
+      description: item.description || '',
+      checklist: item.checklist || [],
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+  });
 
   const { error } = await client
     .from('schedules')
-    .insert(rows);
+    .upsert(rows, { onConflict: 'id' });
 
   if (error) {
     console.warn('Gagal men-seed jadwal awal untuk user baru:', error);
   }
 }
+
+/** Menghapus seluruh jadwal contoh / dummy lama dari akun user di Supabase */
+export async function purgeOldDummySchedules(userId) {
+  const client = getSupabase();
+  if (!client || !userId) return;
+
+  try {
+    // 1. Hapus berdasarkan pola ID dummy lama (sch-001, sch-002, dll)
+    await client
+      .from('schedules')
+      .delete()
+      .eq('user_id', userId)
+      .like('id', '%sch-00%');
+
+    await client
+      .from('schedules')
+      .delete()
+      .eq('user_id', userId)
+      .like('id', '%sch-010%');
+
+    // 2. Hapus judul dummy spesifik jika ada
+    const dummyTitles = [
+      '%Daily Standup%',
+      '%Sesi Lari Pagi%',
+      '%Refactor Design System%',
+      '%Coffee Break%',
+      '%Client Pitch Deck%',
+      '%Deep Work%',
+      '%Team Brainstorming%',
+      '%Quick Catch-up%',
+      '%Sprint Retrospective%',
+      '%Workshop UI/UX%'
+    ];
+
+    for (const titlePattern of dummyTitles) {
+      await client
+        .from('schedules')
+        .delete()
+        .eq('user_id', userId)
+        .ilike('title', titlePattern);
+    }
+  } catch (err) {
+    console.warn('Pembersihan dummy schedules di Supabase:', err);
+  }
+}
+
 
 // ------------------------------------------------------------------------------
 // ADMINISTRATOR ROLES & DATA METHODS

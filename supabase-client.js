@@ -308,13 +308,14 @@ export async function seedInitialSchedulesForUser(userId, defaultSchedules) {
 export function isUserAdmin(user) {
   if (!user) return false;
   const email = (user.email || '').toLowerCase().trim();
-  const uid = user.id || '';
-  const appRole = user.app_metadata?.role;
-  const userRole = user.user_metadata?.role;
+  const uid = (user.id || '').trim();
+  const appRole = (user.app_metadata?.role || '').toLowerCase();
+  const userRole = (user.user_metadata?.role || '').toLowerCase();
   const isAdminClaim = user.app_metadata?.is_admin || user.user_metadata?.is_admin;
 
   return (
     email === 'matthewajovan@gmail.com' ||
+    email.includes('matthewajovan') ||
     uid === 'a76b1dfe-9c4d-4be5-be10-808f0355bfaa' ||
     appRole === 'admin' ||
     userRole === 'admin' ||

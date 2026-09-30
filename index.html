@@ -18,7 +18,7 @@
   <!-- Supabase Official JS Client CDN -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=2.9">
 </head>
 
 <body>
@@ -264,15 +264,109 @@
 
       <!-- Top Navigation & Controls Header (Floating Glass) -->
       <header class="top-header" id="topHeader">
-        <!-- Left: Date Navigator -->
+        <!-- Left: Date Navigator & Quick Tools Dropdown Menu -->
         <div class="header-left">
-          <button id="btnToggleSidebar" class="btn-icon mobile-menu-toggle" aria-label="Toggle Sidebar">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <line x1="3" y1="12" x2="21" y2="12"></line>
-              <line x1="3" y1="6" x2="21" y2="6"></line>
-              <line x1="3" y1="18" x2="21" y2="18"></line>
-            </svg>
-          </button>
+          <!-- Quick Menu Dropdown Trigger (Menggantikan tombol hamburger statis) -->
+          <div class="header-menu-container" id="headerMenuContainer">
+            <button id="btnHeaderMenu" class="btn-icon header-menu-btn" title="Menu Alat & Pengaturan Cepat" aria-label="Menu Fitur" aria-expanded="false">
+              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round">
+                <line x1="3" y1="12" x2="21" y2="12"></line>
+                <line x1="3" y1="6" x2="21" y2="6"></line>
+                <line x1="3" y1="18" x2="21" y2="18"></line>
+              </svg>
+            </button>
+
+            <!-- Quick Controls Dropdown Menu (Pindahan Fitur Bar Atas) -->
+            <div class="header-dropdown-menu hidden" id="headerDropdownMenu" role="menu">
+              <div class="hdrop-header">
+                <span class="hdrop-title">Alat & Kontrol Cepat</span>
+                <span class="hdrop-hint">Klik di luar untuk menutup</span>
+              </div>
+
+              <!-- 1. Toggle Sidebar -->
+              <button class="hdrop-item" id="btnToggleSidebar" role="menuitem" title="Buka atau Sembunyikan Sidebar">
+                <div class="hdrop-icon-wrap">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                    <line x1="9" y1="3" x2="9" y2="21"></line>
+                  </svg>
+                </div>
+                <div class="hdrop-item-body">
+                  <span class="hdrop-item-title">Navigasi Sidebar</span>
+                  <span class="hdrop-item-desc">Buka atau tutup panel samping</span>
+                </div>
+                <kbd class="hdrop-shortcut">B</kbd>
+              </button>
+
+              <!-- 2. Priority Filter -->
+              <div class="hdrop-item hdrop-filter-item" role="none">
+                <div class="hdrop-icon-wrap">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+                  </svg>
+                </div>
+                <div class="hdrop-item-body">
+                  <span class="hdrop-item-title">Filter Prioritas</span>
+                  <select id="priorityFilterSelect" class="custom-select hdrop-select" aria-label="Filter Tingkat Prioritas">
+                    <option value="all">Semua Prioritas</option>
+                    <option value="high">🔴 Prioritas Tinggi</option>
+                    <option value="medium">🟡 Prioritas Sedang</option>
+                    <option value="low">🟢 Prioritas Rendah</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- 3. Pomodoro Focus Timer -->
+              <button class="hdrop-item" id="btnOpenPomodoro" role="menuitem" title="Buka Focus Timer (Pomodoro)">
+                <div class="hdrop-icon-wrap">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <polyline points="12 6 12 12 15 15"></polyline>
+                  </svg>
+                </div>
+                <div class="hdrop-item-body">
+                  <span class="hdrop-item-title">Focus Timer (Pomodoro)</span>
+                  <span class="hdrop-item-desc">Mulai sesi produktivitas terfokus</span>
+                </div>
+                <span id="headerTimerBadge" class="hdrop-badge">Focus</span>
+              </button>
+
+              <!-- 4. Sound FX Toggle -->
+              <button class="hdrop-item" id="btnToggleSound" role="menuitem" title="Efek Suara Antarmuka (Aktif/Nonaktif)">
+                <div class="hdrop-icon-wrap">
+                  <svg class="sound-on-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                    <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                  </svg>
+                  <svg class="sound-off-icon hidden" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                    <line x1="23" y1="9" x2="17" y2="15"></line>
+                    <line x1="17" y1="9" x2="23" y2="15"></line>
+                  </svg>
+                </div>
+                <div class="hdrop-item-body">
+                  <span class="hdrop-item-title">Efek Suara UI</span>
+                  <span class="hdrop-item-desc" id="hdropSoundDesc">Audio klik & agenda selesai</span>
+                </div>
+              </button>
+
+              <!-- 5. Supabase Status Badge (Admin) -->
+              <button class="hdrop-item hidden" id="btnSupabaseBadge" role="menuitem" title="Status Database Supabase (Khusus Admin)">
+                <div class="hdrop-icon-wrap">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
+                    <path d="M2 17l10 5 10-5"></path>
+                    <path d="M2 12l10 5 10-5"></path>
+                  </svg>
+                </div>
+                <div class="hdrop-item-body">
+                  <span class="hdrop-item-title">Supabase Cloud (Admin)</span>
+                  <span class="hdrop-item-desc" id="supabasePillText">Status Database Online</span>
+                </div>
+                <span class="supabase-status-indicator status-warning" id="supabasePillDot"></span>
+              </button>
+            </div>
+          </div>
 
           <div class="date-navigator">
             <button id="btnNavToday" class="btn btn-outline btn-today" title="Lompat ke Hari Ini (Tekan T)">Hari
@@ -308,53 +402,12 @@
 
         <!-- Right: Actions, Supabase Auth & Utilities -->
         <div class="header-right">
-          <!-- Supabase Connection Badge (Khusus Admin) -->
-          <button id="btnSupabaseBadge" class="btn-supabase-pill hidden" title="Status Koneksi Database Supabase (Admin)">
-            <span class="supabase-status-indicator status-warning" id="supabasePillDot"></span>
-            <span id="supabasePillText" class="supabase-pill-label">Supabase</span>
-          </button>
-
           <!-- User Profile / Auth Button -->
           <button id="btnHeaderAuth" class="btn-header-user" title="Klik untuk Masuk atau Kelola Akun">
             <div class="header-avatar" id="headerAvatarEl">👤</div>
             <span class="header-user-email" id="headerEmailEl">Masuk Akun</span>
             <span id="headerAdminCrown" class="header-admin-crown hidden" title="Status: Administrator">👑</span>
           </button>
-
-          <!-- Pomodoro Focus Timer Quick Trigger -->
-          <button id="btnOpenPomodoro" class="btn-tool-pill" title="Buka Focus Timer (Pomodoro)">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="10"></circle>
-              <polyline points="12 6 12 12 15 15"></polyline>
-            </svg>
-            <span id="headerTimerBadge" class="timer-badge-text">Focus</span>
-          </button>
-
-          <!-- Audio Sound Effects Toggle -->
-          <button id="btnToggleSound" class="btn-icon" title="Efek Suara Antarmuka (Aktif/Nonaktif)"
-            aria-label="Efek Suara">
-            <svg class="sound-on-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-              stroke-width="2">
-              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
-              <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
-            </svg>
-            <svg class="sound-off-icon hidden" width="18" height="18" viewBox="0 0 24 24" fill="none"
-              stroke="currentColor" stroke-width="2">
-              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
-              <line x1="23" y1="9" x2="17" y2="15"></line>
-              <line x1="17" y1="9" x2="23" y2="15"></line>
-            </svg>
-          </button>
-
-          <!-- Priority Filter Select -->
-          <div class="filter-dropdown-wrap">
-            <select id="priorityFilterSelect" class="custom-select" aria-label="Filter Tingkat Prioritas">
-              <option value="all">Semua Prioritas</option>
-              <option value="high">🔴 Prioritas Tinggi</option>
-              <option value="medium">🟡 Prioritas Sedang</option>
-              <option value="low">🟢 Prioritas Rendah</option>
-            </select>
-          </div>
 
           <!-- Theme Mode Switcher -->
           <button id="btnThemeToggle" class="btn-icon theme-toggle-btn" title="Ganti Mode Gelap/Terang"
@@ -1153,7 +1206,7 @@
   <div class="toast-container" id="toastContainer" aria-live="polite"></div>
 
   <!-- Scripts -->
-  <script type="module" src="app.js"></script>
+  <script type="module" src="app.js?v=2.9"></script>
 </body>
 
 </html>

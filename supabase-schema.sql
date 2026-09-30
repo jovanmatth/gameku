@@ -1,111 +1,163 @@
 -- ==============================================================================
--- PlanCraft PRO — Supabase Database Schema & Row Level Security (RLS)
+-- PlanCraft PRO — Supabase Database Schema, Super Admin & RLS Setup
 -- ==============================================================================
--- Script SQL ini dijamin 100% kompatibel tanpa error permission schema auth!
--- Cara menjalankan:
--- 1. Buka Supabase Dashboard -> SQL Editor -> New query
--- 2. Paste seluruh script ini -> klik RUN
+-- CARA PENGGUNAAN DI SUPABASE:
+-- 1. Buka dashboard Supabase (https://supabase.com/dashboard)
+-- 2. Klik menu "SQL Editor" di bilah samping kiri -> "New query"
+-- 3. Paste seluruh script ini lalu klik tombol "RUN" (hijau)
 -- ==============================================================================
 
--- 1. Buat Tabel Schedules (Jadwal Kegiatan Pengguna)
-create table if not exists public.schedules (
-  id text primary key,
-  user_id uuid not null default auth.uid(),
-  title text not null,
-  category text not null default 'work',
-  date text not null,
-  start_time text default '09:00',
-  end_time text default '10:00',
-  priority text default 'medium',
-  status text default 'scheduled',
-  location text default '',
-  description text default '',
-  checklist jsonb default '[]'::jsonb,
-  created_at timestamptz default now() not null,
-  updated_at timestamptz default now() not null
+-- ==============================================================================
+-- 1. AKTIVASI ROLE SUPER ADMIN UNTUK: matthewajovan@gmail.com
+-- ==============================================================================
+-- Perintah ini langsung mengubah metadata akun Jovan Matthew menjadi Administrator:
+UPDATE auth.users
+SET 
+  raw_app_meta_data = coalesce(raw_app_meta_data, '{}'::jsonb) || '{"role": "admin", "is_admin": true}'::jsonb,
+  raw_user_meta_data = coalesce(raw_user_meta_data, '{}'::jsonb) || '{"role": "admin", "is_admin": true, "display_name": "Jovan Matthew Adderson"}'::jsonb
+WHERE lower(trim(email)) = 'matthewajovan@gmail.com'
+   OR id = 'a76b1dfe-9c4d-4be5-be10-808f0355bfaa';
+
+-- ==============================================================================
+-- 2. TABEL PROFIL PENGGUNA (public.profiles)
+-- ==============================================================================
+-- Agar status Admin dapat terlihat langsung di menu Table Editor Supabase:
+CREATE TABLE IF NOT EXISTS public.profiles (
+  id uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  email text,
+  role text DEFAULT 'user',
+  is_admin boolean DEFAULT false,
+  updated_at timestamptz DEFAULT now()
 );
 
--- 2. Buat Tabel Day Notes (Catatan Harian Pengguna)
-create table if not exists public.day_notes (
-  id text primary key default gen_random_uuid()::text,
-  user_id uuid not null default auth.uid(),
-  date text not null,
-  note text default '',
-  updated_at timestamptz default now() not null,
-  constraint day_notes_user_date_key unique (user_id, date)
-);
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
--- 3. Aktifkan Row Level Security (RLS) pada Kedua Tabel
-alter table public.schedules enable row level security;
-alter table public.day_notes enable row level security;
+DROP POLICY IF EXISTS "profiles_select_all" ON public.profiles;
+CREATE POLICY "profiles_select_all" ON public.profiles FOR SELECT USING (true);
 
--- 3.5. Fungsi Helper: Memeriksa apakah user yang sedang aktif adalah Administrator
-create or replace function public.is_admin()
-returns boolean
-language sql
-stable
-security definer
-as $$
-  select coalesce(
+DROP POLICY IF EXISTS "profiles_manage" ON public.profiles;
+CREATE POLICY "profiles_manage" ON public.profiles FOR ALL USING (auth.uid() = id OR lower(trim(auth.jwt()->>'email')) = 'matthewajovan@gmail.com');
+
+-- Sinkronkan data admin Jovan ke tabel profiles:
+INSERT INTO public.profiles (id, email, role, is_admin)
+SELECT id, email, 'admin', true
+FROM auth.users
+WHERE lower(trim(email)) = 'matthewajovan@gmail.com'
+   OR id = 'a76b1dfe-9c4d-4be5-be10-808f0355bfaa'
+ON CONFLICT (id) DO UPDATE 
+SET role = 'admin', is_admin = true, updated_at = now();
+
+-- ==============================================================================
+-- 3. FUNGSI HELPER: is_admin()
+-- ==============================================================================
+-- Memeriksa apakah sesi pengguna saat ini memiliki hak akses Administrator:
+CREATE OR REPLACE FUNCTION public.is_admin()
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+AS $$
+  SELECT coalesce(
     (auth.jwt() -> 'app_metadata' ->> 'role') = 'admin'
-    or (auth.jwt() -> 'user_metadata' ->> 'role') = 'admin'
-    or (auth.jwt() ->> 'email') = 'matthewajovan@gmail.com'
-    or auth.uid() = 'a76b1dfe-9c4d-4be5-be10-808f0355bfaa'::uuid,
+    OR (auth.jwt() -> 'user_metadata' ->> 'role') = 'admin'
+    OR (auth.jwt() -> 'app_metadata' ->> 'is_admin')::boolean = true
+    OR (auth.jwt() -> 'user_metadata' ->> 'is_admin')::boolean = true
+    OR lower(trim(auth.jwt() ->> 'email')) = 'matthewajovan@gmail.com'
+    OR auth.uid() = 'a76b1dfe-9c4d-4be5-be10-808f0355bfaa'::uuid,
     false
   );
 $$;
 
--- 4. Kebijakan Keamanan (Policies) untuk Tabel Schedules
--- Pengguna biasa hanya dapat mengakses data miliknya sendiri.
--- Administrator memiliki izin penuh (Super Admin) untuk melihat, memperbarui, dan menghapus seluruh data.
-drop policy if exists "schedules_select_policy" on public.schedules;
-create policy "schedules_select_policy" on public.schedules
-  for select using (auth.uid() = user_id or public.is_admin());
+-- ==============================================================================
+-- 4. TABEL SCHEDULES (Jadwal Kegiatan)
+-- ==============================================================================
+CREATE TABLE IF NOT EXISTS public.schedules (
+  id text PRIMARY KEY,
+  user_id uuid NOT NULL DEFAULT auth.uid(),
+  title text NOT NULL,
+  category text NOT NULL DEFAULT 'work',
+  date text NOT NULL,
+  start_time text DEFAULT '09:00',
+  end_time text DEFAULT '10:00',
+  priority text DEFAULT 'medium',
+  status text DEFAULT 'scheduled',
+  location text DEFAULT '',
+  description text DEFAULT '',
+  checklist jsonb DEFAULT '[]'::jsonb,
+  created_at timestamptz DEFAULT now() NOT NULL,
+  updated_at timestamptz DEFAULT now() NOT NULL
+);
 
-drop policy if exists "schedules_insert_policy" on public.schedules;
-create policy "schedules_insert_policy" on public.schedules
-  for insert with check (auth.uid() = user_id or public.is_admin());
+ALTER TABLE public.schedules ENABLE ROW LEVEL SECURITY;
 
-drop policy if exists "schedules_update_policy" on public.schedules;
-create policy "schedules_update_policy" on public.schedules
-  for update using (auth.uid() = user_id or public.is_admin())
-  with check (auth.uid() = user_id or public.is_admin());
+DROP POLICY IF EXISTS "schedules_select_policy" ON public.schedules;
+CREATE POLICY "schedules_select_policy" ON public.schedules
+  FOR SELECT USING (auth.uid() = user_id OR public.is_admin());
 
-drop policy if exists "schedules_delete_policy" on public.schedules;
-create policy "schedules_delete_policy" on public.schedules
-  for delete using (auth.uid() = user_id or public.is_admin());
+DROP POLICY IF EXISTS "schedules_insert_policy" ON public.schedules;
+CREATE POLICY "schedules_insert_policy" ON public.schedules
+  FOR INSERT WITH CHECK (auth.uid() = user_id OR public.is_admin());
 
--- 5. Kebijakan Keamanan (Policies) untuk Tabel Day Notes
-drop policy if exists "notes_select_policy" on public.day_notes;
-create policy "notes_select_policy" on public.day_notes
-  for select using (auth.uid() = user_id or public.is_admin());
+DROP POLICY IF EXISTS "schedules_update_policy" ON public.schedules;
+CREATE POLICY "schedules_update_policy" ON public.schedules
+  FOR UPDATE USING (auth.uid() = user_id OR public.is_admin())
+  WITH CHECK (auth.uid() = user_id OR public.is_admin());
 
-drop policy if exists "notes_insert_policy" on public.day_notes;
-create policy "notes_insert_policy" on public.day_notes
-  for insert with check (auth.uid() = user_id or public.is_admin());
-
-drop policy if exists "notes_update_policy" on public.day_notes;
-create policy "notes_update_policy" on public.day_notes
-  for update using (auth.uid() = user_id or public.is_admin())
-  with check (auth.uid() = user_id or public.is_admin());
-
-drop policy if exists "notes_delete_policy" on public.day_notes;
-create policy "notes_delete_policy" on public.day_notes
-  for delete using (auth.uid() = user_id or public.is_admin());
-
--- 6. Beri hak akses standar ke role authenticated & anon
-grant usage on schema public to anon, authenticated;
-grant all on table public.schedules to anon, authenticated;
-grant all on table public.day_notes to anon, authenticated;
+DROP POLICY IF EXISTS "schedules_delete_policy" ON public.schedules;
+CREATE POLICY "schedules_delete_policy" ON public.schedules
+  FOR DELETE USING (auth.uid() = user_id OR public.is_admin());
 
 -- ==============================================================================
--- 7. PERINTAH AKTIVASI ROLE ADMIN: JOVAN MATTHEW ADDERSON
+-- 5. TABEL DAY NOTES (Catatan Harian)
 -- ==============================================================================
--- Script di bawah ini otomatis memberikan klaim role admin di auth.users Supabase:
-update auth.users
-set raw_app_meta_data = coalesce(raw_app_meta_data, '{}'::jsonb) || '{"role": "admin", "is_admin": true}'::jsonb,
-    raw_user_meta_data = coalesce(raw_user_meta_data, '{}'::jsonb) || '{"role": "admin", "is_admin": true}'::jsonb
-where id = 'a76b1dfe-9c4d-4be5-be10-808f0355bfaa'
-   or email = 'matthewajovan@gmail.com';
+CREATE TABLE IF NOT EXISTS public.day_notes (
+  id text PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  user_id uuid NOT NULL DEFAULT auth.uid(),
+  date text NOT NULL,
+  note text DEFAULT '',
+  updated_at timestamptz DEFAULT now() NOT NULL,
+  CONSTRAINT day_notes_user_date_key UNIQUE (user_id, date)
+);
 
--- Selesai! Akun matthewajovan@gmail.com resmi memiliki hak akses Administrator penuh.
+ALTER TABLE public.day_notes ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "notes_select_policy" ON public.day_notes;
+CREATE POLICY "notes_select_policy" ON public.day_notes
+  FOR SELECT USING (auth.uid() = user_id OR public.is_admin());
+
+DROP POLICY IF EXISTS "notes_insert_policy" ON public.day_notes;
+CREATE POLICY "notes_insert_policy" ON public.day_notes
+  FOR INSERT WITH CHECK (auth.uid() = user_id OR public.is_admin());
+
+DROP POLICY IF EXISTS "notes_update_policy" ON public.day_notes;
+CREATE POLICY "notes_update_policy" ON public.day_notes
+  FOR UPDATE USING (auth.uid() = user_id OR public.is_admin())
+  WITH CHECK (auth.uid() = user_id OR public.is_admin());
+
+DROP POLICY IF EXISTS "notes_delete_policy" ON public.day_notes;
+CREATE POLICY "notes_delete_policy" ON public.day_notes
+  FOR DELETE USING (auth.uid() = user_id OR public.is_admin());
+
+-- ==============================================================================
+-- 6. HAK AKSES PERMISSION DATABASE
+-- ==============================================================================
+GRANT USAGE ON SCHEMA public TO anon, authenticated;
+GRANT ALL ON TABLE public.profiles TO anon, authenticated;
+GRANT ALL ON TABLE public.schedules TO anon, authenticated;
+GRANT ALL ON TABLE public.day_notes TO anon, authenticated;
+
+-- ==============================================================================
+-- 7. QUERY VERIFIKASI AKHIR (MUNCUL DI HASIL RESULT SQL EDITOR)
+-- ==============================================================================
+-- Setelah klik RUN, tabel di bawah ini akan memunculkan status Super Admin Anda:
+SELECT 
+  u.id, 
+  u.email, 
+  u.raw_app_meta_data->>'role' AS role_di_auth,
+  u.raw_app_meta_data->>'is_admin' AS is_super_admin,
+  p.role AS role_di_profiles_table,
+  public.is_admin() AS fungsi_is_admin_aktif
+FROM auth.users u
+LEFT JOIN public.profiles p ON p.id = u.id
+WHERE lower(trim(u.email)) = 'matthewajovan@gmail.com'
+   OR u.id = 'a76b1dfe-9c4d-4be5-be10-808f0355bfaa';

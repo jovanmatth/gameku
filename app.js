@@ -80,16 +80,26 @@ async function initSupabaseSession() {
       const user = await getCurrentUser();
       if (user) {
         state.currentUser = user;
-        if (isUserAdmin(user)) {
-          state.isAdmin = true;
+        const emailLower = (user.email || '').toLowerCase().trim();
+        const isAdm = isUserAdmin(user) || emailLower === 'matthewajovan@gmail.com' || emailLower.includes('matthewajovan') || user.id === 'a76b1dfe-9c4d-4be5-be10-808f0355bfaa';
+        state.isAdmin = isAdm;
+
+        if (isAdm) {
+          user.user_metadata = user.user_metadata || {};
+          user.user_metadata.role = 'admin';
+          user.user_metadata.is_admin = true;
+          user.app_metadata = user.app_metadata || {};
+          user.app_metadata.role = 'admin';
+          user.app_metadata.is_admin = true;
+
           // Otomatis sinkronkan klaim admin ke Supabase user metadata jika belum ada
           const client = getSupabase();
-          if (client && (!user.user_metadata?.is_admin || user.user_metadata?.role !== 'admin')) {
+          if (client) {
             client.auth.updateUser({
               data: {
                 role: 'admin',
                 is_admin: true,
-                display_name: 'jovan matthew adderson'
+                display_name: 'Jovan Matthew Adderson'
               }
             }).catch(() => {});
           }
@@ -317,15 +327,15 @@ function updateUserUI() {
 
   if (state.currentUser) {
     const user = state.currentUser;
-    const isAdm = isUserAdmin(user);
+    const email = (user.email || '').toLowerCase().trim();
+    const isAdm = isUserAdmin(user) || email === 'matthewajovan@gmail.com' || email.includes('matthewajovan') || user.id === 'a76b1dfe-9c4d-4be5-be10-808f0355bfaa';
     state.isAdmin = isAdm;
 
     let fullName = user.user_metadata?.display_name || user.email?.split('@')[0] || 'User';
-    if (user.email === 'matthewajovan@gmail.com') {
+    if (email === 'matthewajovan@gmail.com' || email.includes('matthewajovan')) {
       fullName = 'Jovan Matthew Adderson';
     }
     const shortName = isAdm ? 'Jovan Matthew' : (fullName.length > 14 ? fullName.slice(0, 13) + '…' : fullName);
-    const email = user.email || '';
     const initial = fullName.charAt(0).toUpperCase();
 
     if (sidebarName) sidebarName.textContent = isAdm ? 'Jovan Matthew' : fullName;
@@ -341,7 +351,7 @@ function updateUserUI() {
     if (isAdm) {
       sidebarAdminBadge?.classList.remove('hidden');
       sidebarAdminWrap?.classList.remove('hidden');
-      headerAdminCrown?.classList.remove('hidden');
+      headerAdminCrown?.classList.add('hidden'); // Avatar already shows 👑, prevents duplicate crown & saves header space
       profileRoleBadge?.classList.remove('hidden');
       btnProfileAdmin?.classList.remove('hidden');
     } else {
@@ -2630,9 +2640,76 @@ function setupEventListeners() {
   // Theme Toggle
   document.getElementById('btnThemeToggle')?.addEventListener('click', toggleTheme);
 
-  // Mobile Menu Toggle
+  // ========================================================================
+  // Header Quick Tools Dropdown & Sidebar Toggle Controls
+  // ========================================================================
+  const btnHeaderMenu = document.getElementById('btnHeaderMenu');
+  const headerDropdownMenu = document.getElementById('headerDropdownMenu');
+
+  function toggleHeaderDropdown(forceState) {
+    if (!headerDropdownMenu) return;
+    const shouldOpen = forceState !== undefined ? forceState : headerDropdownMenu.classList.contains('hidden');
+    if (shouldOpen) {
+      headerDropdownMenu.classList.remove('hidden');
+      btnHeaderMenu?.setAttribute('aria-expanded', 'true');
+      btnHeaderMenu?.classList.add('active');
+    } else {
+      headerDropdownMenu.classList.add('hidden');
+      btnHeaderMenu?.setAttribute('aria-expanded', 'false');
+      btnHeaderMenu?.classList.remove('active');
+    }
+  }
+
+  btnHeaderMenu?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    playUiSound('pop');
+    toggleHeaderDropdown();
+  });
+
+  function handleSidebarToggle() {
+    playUiSound('click');
+    const sidebar = document.getElementById('sidebar');
+    const isMobile = window.innerWidth <= 860;
+    if (isMobile) {
+      sidebar?.classList.toggle('mobile-open');
+    } else {
+      document.body.classList.toggle('sidebar-collapsed');
+      const isCollapsed = document.body.classList.contains('sidebar-collapsed');
+      showToast(isCollapsed ? 'Sidebar disembunyikan (Widescreen Mode)' : 'Sidebar ditampilkan', 'info');
+    }
+  }
+
   document.getElementById('btnToggleSidebar')?.addEventListener('click', () => {
-    document.getElementById('sidebar')?.classList.toggle('mobile-open');
+    handleSidebarToggle();
+    toggleHeaderDropdown(false);
+  });
+
+  // Automatically close dropdown when action modals are opened
+  headerDropdownMenu?.querySelectorAll('.hdrop-item').forEach((item) => {
+    if (item.id === 'btnOpenPomodoro' || item.id === 'btnSupabaseBadge') {
+      item.addEventListener('click', () => {
+        toggleHeaderDropdown(false);
+      });
+    }
+  });
+
+  // Close dropdown on click outside
+  document.addEventListener('click', (e) => {
+    if (headerDropdownMenu && !headerDropdownMenu.classList.contains('hidden')) {
+      if (!headerDropdownMenu.contains(e.target) && !btnHeaderMenu?.contains(e.target)) {
+        toggleHeaderDropdown(false);
+      }
+    }
+  });
+
+  // Keyboard shortcut 'B' for sidebar & Escape for dropdown
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && headerDropdownMenu && !headerDropdownMenu.classList.contains('hidden')) {
+      toggleHeaderDropdown(false);
+    }
+    if ((e.key === 'b' || e.key === 'B') && !['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName)) {
+      handleSidebarToggle();
+    }
   });
 
   // Schedule Modal

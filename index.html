@@ -58,7 +58,7 @@
             <h1 class="brand-title">PlanCraft</h1>
             <span class="pro-tag">PRO</span>
           </div>
-          <span class="brand-subtitle">Supabase Cloud Sync</span>
+          <span class="brand-subtitle" id="brandSubtitle">Smart Schedule & Focus</span>
         </div>
       </div>
 
@@ -67,7 +67,10 @@
         <div class="user-card-inner">
           <div class="user-avatar-circle" id="sidebarUserAvatar">👤</div>
           <div class="user-card-details">
-            <span class="user-name-title" id="sidebarUserName">Tamu (Guest Mode)</span>
+            <div class="user-name-row">
+              <span class="user-name-title" id="sidebarUserName">Tamu (Guest Mode)</span>
+              <span class="admin-badge-pill hidden" id="sidebarAdminBadge" title="Akun Terverifikasi Administrator">👑 ADMIN</span>
+            </div>
             <span class="user-email-subtitle" id="sidebarUserEmail">Klik untuk Masuk Akun</span>
           </div>
           <button id="btnSidebarAuthAction" class="btn-sidebar-auth" title="Kelola Akun / Masuk">
@@ -78,6 +81,16 @@
             </svg>
           </button>
         </div>
+      </div>
+
+      <!-- Admin Panel Shortcut (Khusus Administrator) -->
+      <div class="sidebar-admin-wrap hidden" id="sidebarAdminWrap">
+        <button id="btnSidebarAdminPanel" class="btn-sidebar-admin" title="Buka Pusat Kontrol Administrator">
+          <div class="admin-pulse-glow"></div>
+          <span class="admin-crown-icon">👑</span>
+          <span class="admin-btn-label">Pusat Kontrol Admin</span>
+          <span class="admin-btn-tag">SUPER</span>
+        </button>
       </div>
 
       <!-- Quick Action Buttons -->
@@ -229,7 +242,7 @@
             </svg>
             <span>Import</span>
           </button>
-          <button id="btnOpenSupabaseConfig" class="btn-data-action text-supabase" title="Atur Koneksi Supabase">
+          <button id="btnOpenSupabaseConfig" class="btn-data-action text-supabase hidden" title="Atur Koneksi Supabase">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
               <path d="M2 17l10 5 10-5"></path>
@@ -239,7 +252,7 @@
           </button>
         </div>
         <div class="version-tag">
-          <span class="version-dot" id="footerStatusDot"></span> PlanCraft v2.5 PRO • Supabase Sync
+          <span class="version-dot" id="footerStatusDot"></span> PlanCraft v2.5 PRO
         </div>
       </div>
     </aside>
@@ -289,14 +302,14 @@
             <span class="live-pulse-dot"></span>
             <span id="liveClockTime" class="live-time-text">00:00:00</span>
             <span class="live-divider">•</span>
-            <span id="liveGreetingText" class="live-greeting-text">Semangat Produktif ✨</span>
+            <span id="liveGreetingText" class="live-greeting-text">Produktif ✨</span>
           </div>
         </div>
 
         <!-- Right: Actions, Supabase Auth & Utilities -->
         <div class="header-right">
-          <!-- Supabase Connection Badge -->
-          <button id="btnSupabaseBadge" class="btn-supabase-pill" title="Status Koneksi Database Supabase">
+          <!-- Supabase Connection Badge (Khusus Admin) -->
+          <button id="btnSupabaseBadge" class="btn-supabase-pill hidden" title="Status Koneksi Database Supabase (Admin)">
             <span class="supabase-status-indicator status-warning" id="supabasePillDot"></span>
             <span id="supabasePillText" class="supabase-pill-label">Supabase</span>
           </button>
@@ -305,6 +318,7 @@
           <button id="btnHeaderAuth" class="btn-header-user" title="Klik untuk Masuk atau Kelola Akun">
             <div class="header-avatar" id="headerAvatarEl">👤</div>
             <span class="header-user-email" id="headerEmailEl">Masuk Akun</span>
+            <span id="headerAdminCrown" class="header-admin-crown hidden" title="Status: Administrator">👑</span>
           </button>
 
           <!-- Pomodoro Focus Timer Quick Trigger -->
@@ -642,6 +656,12 @@
           <span id="authSubmitText">Masuk Sekarang</span>
         </button>
 
+        <!-- Quick Super Admin Access Button -->
+        <button type="button" id="btnQuickAdminLogin" class="btn btn-warning btn-block" style="margin-top: 10px;"
+          title="Masuk Langsung sebagai Super Administrator (Jovan Matthew Adderson)">
+          <span>👑 Masuk Langsung sebagai Admin (Jovan)</span>
+        </button>
+
         <div class="auth-footer-links">
           <button type="button" id="btnContinueGuest" class="btn-link btn-xs text-muted">Lanjutkan sebagai Tamu (Mode
             Lokal)</button>
@@ -670,6 +690,7 @@
           <div class="profile-avatar-big" id="profileBigAvatar">👤</div>
           <h4 class="profile-display-name" id="profileDisplayName">Nama Pengguna</h4>
           <span class="profile-email-badge" id="profileEmailBadge">email@domain.com</span>
+          <div class="profile-role-badge hidden" id="profileRoleBadge">👑 Super Administrator</div>
         </div>
 
         <div class="profile-stats-grid">
@@ -684,6 +705,12 @@
         </div>
 
         <div class="profile-actions-list">
+          <button id="btnProfileOpenAdmin" class="btn btn-warning btn-block hidden">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+            </svg>
+            <span>Buka Pusat Kontrol Admin</span>
+          </button>
           <button id="btnSyncNow" class="btn btn-outline btn-block">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M21 2v6h-6"></path>
@@ -993,6 +1020,129 @@
       <div class="modal-footer">
         <button type="button" id="btnCancelImport" class="btn btn-outline">Batal</button>
         <button type="button" id="btnConfirmImport" class="btn btn-primary">Terapkan Import</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====================================================================== -->
+  <!-- MODAL: PUSAT KONTROL ADMINISTRATOR (SUPER ADMIN)                       -->
+  <!-- ====================================================================== -->
+  <div class="modal-overlay hidden" id="adminControlModalOverlay" role="dialog" aria-modal="true">
+    <div class="modal-card modal-card-md admin-modal-card">
+      <div class="modal-header admin-modal-header">
+        <div class="modal-title-wrap">
+          <span class="modal-icon-badge admin-icon-badge">👑</span>
+          <div>
+            <h3 class="modal-title">Pusat Kontrol Administrator</h3>
+            <span class="modal-subtitle">Akses Khusus Super Admin • Supabase Cloud</span>
+          </div>
+        </div>
+        <button id="btnCloseAdminModal" class="btn-icon modal-close-btn" aria-label="Tutup Panel Admin">✕</button>
+      </div>
+
+      <div class="admin-modal-body">
+        <!-- Admin Profile Spotlight -->
+        <div class="admin-profile-spotlight">
+          <div class="admin-avatar-wrap">
+            <div class="admin-avatar-lg" id="adminModalAvatar">👑</div>
+            <span class="admin-verified-tick" title="Terverifikasi Super Admin">✓</span>
+          </div>
+          <div class="admin-info-meta">
+            <div class="admin-name-row">
+              <h4 class="admin-name-title" id="adminModalName">Jovan Matthew Adderson</h4>
+              <span class="admin-pill-tag">SUPER ADMIN</span>
+            </div>
+            <div class="admin-email-text" id="adminModalEmail">matthewajovan@gmail.com</div>
+            <div class="admin-uid-code">UID: <code id="adminModalUid">a76b1dfe-9c4d-4be5-be10-808f0355bfaa</code></div>
+          </div>
+        </div>
+
+        <!-- Realtime Supabase Database Metrics -->
+        <div class="admin-section-block">
+          <div class="admin-section-title">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
+              <path d="M2 17l10 5 10-5"></path>
+              <path d="M2 12l10 5 10-5"></path>
+            </svg>
+            <span>STATISTIK DATABASE CLOUD (SUPABASE)</span>
+          </div>
+          <div class="admin-metrics-grid">
+            <div class="admin-metric-card">
+              <span class="admin-metric-val" id="adminStatSchedules">Memuat...</span>
+              <span class="admin-metric-lbl">Total Jadwal Cloud</span>
+            </div>
+            <div class="admin-metric-card">
+              <span class="admin-metric-val" id="adminStatNotes">Memuat...</span>
+              <span class="admin-metric-lbl">Total Catatan Harian</span>
+            </div>
+            <div class="admin-metric-card">
+              <span class="admin-metric-val" id="adminStatUsers">Memuat...</span>
+              <span class="admin-metric-lbl">Pengguna Terdeteksi</span>
+            </div>
+            <div class="admin-metric-card">
+              <span class="admin-metric-val text-success" id="adminStatPing">Aktif</span>
+              <span class="admin-metric-lbl">Status Database</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Admin View Switch: Global Overseer Mode -->
+        <div class="admin-switch-card">
+          <div class="admin-switch-info">
+            <div class="admin-switch-title">
+              <span>Mode Pengawas (Global Cloud View)</span>
+              <span class="badge-beta">LIVE</span>
+            </div>
+            <p class="admin-switch-desc">
+              Tampilkan semua jadwal dari seluruh pengguna di dashboard kalender Anda.
+            </p>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="toggleAdminGlobalView">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+
+        <!-- Admin Quick Actions -->
+        <div class="admin-section-block">
+          <div class="admin-section-title">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path>
+            </svg>
+            <span>TINDAKAN ADMINISTRATOR</span>
+          </div>
+          <div class="admin-actions-grid">
+            <button id="btnAdminExportMaster" class="btn btn-outline admin-action-btn">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+              </svg>
+              <span>Download Master Backup JSON</span>
+            </button>
+            <button id="btnAdminCopySql" class="btn btn-outline admin-action-btn">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+              </svg>
+              <span>Salin Query SQL Aktivasi</span>
+            </button>
+            <button id="btnAdminTestPing" class="btn btn-outline admin-action-btn">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+              </svg>
+              <span>Uji Latensi Supabase</span>
+            </button>
+            <button id="btnAdminBroadcast" class="btn btn-outline admin-action-btn">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+              </svg>
+              <span>Siarkan Pengumuman Admin</span>
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   </div>

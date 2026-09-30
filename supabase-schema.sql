@@ -39,43 +39,73 @@ create table if not exists public.day_notes (
 alter table public.schedules enable row level security;
 alter table public.day_notes enable row level security;
 
+-- 3.5. Fungsi Helper: Memeriksa apakah user yang sedang aktif adalah Administrator
+create or replace function public.is_admin()
+returns boolean
+language sql
+stable
+security definer
+as $$
+  select coalesce(
+    (auth.jwt() -> 'app_metadata' ->> 'role') = 'admin'
+    or (auth.jwt() -> 'user_metadata' ->> 'role') = 'admin'
+    or (auth.jwt() ->> 'email') = 'matthewajovan@gmail.com'
+    or auth.uid() = 'a76b1dfe-9c4d-4be5-be10-808f0355bfaa'::uuid,
+    false
+  );
+$$;
+
 -- 4. Kebijakan Keamanan (Policies) untuk Tabel Schedules
+-- Pengguna biasa hanya dapat mengakses data miliknya sendiri.
+-- Administrator memiliki izin penuh (Super Admin) untuk melihat, memperbarui, dan menghapus seluruh data.
 drop policy if exists "schedules_select_policy" on public.schedules;
 create policy "schedules_select_policy" on public.schedules
-  for select using (auth.uid() = user_id);
+  for select using (auth.uid() = user_id or public.is_admin());
 
 drop policy if exists "schedules_insert_policy" on public.schedules;
 create policy "schedules_insert_policy" on public.schedules
-  for insert with check (auth.uid() = user_id);
+  for insert with check (auth.uid() = user_id or public.is_admin());
 
 drop policy if exists "schedules_update_policy" on public.schedules;
 create policy "schedules_update_policy" on public.schedules
-  for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+  for update using (auth.uid() = user_id or public.is_admin())
+  with check (auth.uid() = user_id or public.is_admin());
 
 drop policy if exists "schedules_delete_policy" on public.schedules;
 create policy "schedules_delete_policy" on public.schedules
-  for delete using (auth.uid() = user_id);
+  for delete using (auth.uid() = user_id or public.is_admin());
 
 -- 5. Kebijakan Keamanan (Policies) untuk Tabel Day Notes
 drop policy if exists "notes_select_policy" on public.day_notes;
 create policy "notes_select_policy" on public.day_notes
-  for select using (auth.uid() = user_id);
+  for select using (auth.uid() = user_id or public.is_admin());
 
 drop policy if exists "notes_insert_policy" on public.day_notes;
 create policy "notes_insert_policy" on public.day_notes
-  for insert with check (auth.uid() = user_id);
+  for insert with check (auth.uid() = user_id or public.is_admin());
 
 drop policy if exists "notes_update_policy" on public.day_notes;
 create policy "notes_update_policy" on public.day_notes
-  for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+  for update using (auth.uid() = user_id or public.is_admin())
+  with check (auth.uid() = user_id or public.is_admin());
 
 drop policy if exists "notes_delete_policy" on public.day_notes;
 create policy "notes_delete_policy" on public.day_notes
-  for delete using (auth.uid() = user_id);
+  for delete using (auth.uid() = user_id or public.is_admin());
 
 -- 6. Beri hak akses standar ke role authenticated & anon
 grant usage on schema public to anon, authenticated;
 grant all on table public.schedules to anon, authenticated;
 grant all on table public.day_notes to anon, authenticated;
 
--- Selesai! Schema siap digunakan dengan isolasi data akun 100% aman.
+-- ==============================================================================
+-- 7. PERINTAH AKTIVASI ROLE ADMIN: JOVAN MATTHEW ADDERSON
+-- ==============================================================================
+-- Script di bawah ini otomatis memberikan klaim role admin di auth.users Supabase:
+update auth.users
+set raw_app_meta_data = coalesce(raw_app_meta_data, '{}'::jsonb) || '{"role": "admin", "is_admin": true}'::jsonb,
+    raw_user_meta_data = coalesce(raw_user_meta_data, '{}'::jsonb) || '{"role": "admin", "is_admin": true}'::jsonb
+where id = 'a76b1dfe-9c4d-4be5-be10-808f0355bfaa'
+   or email = 'matthewajovan@gmail.com';
+
+-- Selesai! Akun matthewajovan@gmail.com resmi memiliki hak akses Administrator penuh.

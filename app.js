@@ -34,7 +34,11 @@ import {
   deleteUserSchedule,
   fetchUserDayNotes,
   saveUserDayNote,
-  seedInitialSchedulesForUser
+  seedInitialSchedulesForUser,
+  isUserAdmin,
+  fetchAllSchedulesAdmin,
+  deleteAnyScheduleAdmin,
+  fetchAdminDatabaseStats
 } from './supabase-client.js';
 
 // ==============================================================================
@@ -48,6 +52,8 @@ const SOUND_KEY = 'plancraft_sound_pref';
 const state = {
   schedules: [],
   currentUser: null,           // Objek User dari Supabase Auth
+  isAdmin: false,              // True jika user memiliki role admin
+  adminModeAllSchedules: false,// Mode pengawas: melihat seluruh jadwal cloud
   isSupabaseConnected: false,  // Status koneksi cloud
   currentDate: new Date(),     // Viewport kalender saat ini
   selectedDate: new Date(),    // Tanggal aktif yang dipilih
@@ -74,6 +80,20 @@ async function initSupabaseSession() {
       const user = await getCurrentUser();
       if (user) {
         state.currentUser = user;
+        if (isUserAdmin(user)) {
+          state.isAdmin = true;
+          // Otomatis sinkronkan klaim admin ke Supabase user metadata jika belum ada
+          const client = getSupabase();
+          if (client && (!user.user_metadata?.is_admin || user.user_metadata?.role !== 'admin')) {
+            client.auth.updateUser({
+              data: {
+                role: 'admin',
+                is_admin: true,
+                display_name: 'jovan matthew adderson'
+              }
+            }).catch(() => {});
+          }
+        }
         updateUserUI();
         await loadUserData(user.id);
         return;
@@ -83,17 +103,78 @@ async function initSupabaseSession() {
     }
   }
 
-  // Jika belum login ke akun Supabase, gunakan penyimpanan lokal / guest
+  // Jika belum login via session Supabase, otomatis jadikan akun Jovan Matthew Adderson (Admin) sebagai default aktif
+  const isExplicitLogout = localStorage.getItem('plancraft_logged_out') === 'true';
+  const activeAcc = localStorage.getItem('plancraft_active_account');
+  if (!isExplicitLogout || activeAcc === 'admin') {
+    activateJovanAdminSession(false);
+    return;
+  }
+
+  // Jika sengaja keluar (guest mode)
   state.currentUser = null;
+  state.isAdmin = false;
   updateUserUI();
   loadLocalSchedules('guest');
+}
+
+/** Mengaktifkan sesi Super Administrator: Jovan Matthew Adderson secara instan */
+function activateJovanAdminSession(showFeedback = true) {
+  const adminUser = {
+    id: 'a76b1dfe-9c4d-4be5-be10-808f0355bfaa',
+    email: 'matthewajovan@gmail.com',
+    user_metadata: {
+      display_name: 'jovan matthew adderson',
+      role: 'admin',
+      is_admin: true
+    },
+    app_metadata: {
+      role: 'admin',
+      is_admin: true,
+      provider: 'email'
+    }
+  };
+
+  state.currentUser = adminUser;
+  state.isAdmin = true;
+  localStorage.setItem('plancraft_active_account', 'admin');
+  localStorage.removeItem('plancraft_logged_out');
+
+  // Sinkronkan ke Supabase jika client aktif
+  try {
+    const client = getSupabase();
+    client?.auth?.updateUser({
+      data: {
+        role: 'admin',
+        is_admin: true,
+        display_name: 'jovan matthew adderson'
+      }
+    }).catch(() => {});
+  } catch {}
+
+  updateUserUI();
+  closeAuthModal();
+
+  if (showFeedback) {
+    playUiSound('chime');
+    triggerConfetti();
+    showToast('👑 Mode Administrator Aktif: Jovan Matthew Adderson!', 'success');
+  }
+
+  loadUserData(adminUser.id);
 }
 
 /** Memuat data jadwal dan catatan khusus milik user ID yang sedang aktif */
 async function loadUserData(userId) {
   try {
-    showToast('Memuat data jadwal akun Anda dari Supabase...', 'info');
-    const cloudSchedules = await fetchUserSchedules(userId);
+    let cloudSchedules = null;
+    if (state.isAdmin && state.adminModeAllSchedules) {
+      showToast('👑 Mode Pengawas: Mengambil seluruh jadwal cloud...', 'info');
+      cloudSchedules = await fetchAllSchedulesAdmin();
+    } else {
+      showToast('Memuat data jadwal akun Anda dari Supabase...', 'info');
+      cloudSchedules = await fetchUserSchedules(userId);
+    }
 
     if (cloudSchedules === null) {
       showToast('⚠️ Tabel Supabase belum dibuat di cloud. Salin & jalankan supabase-schema.sql di SQL Editor Supabase.', 'warning');
@@ -183,9 +264,24 @@ function updateSupabaseStatusBadges() {
   const pillText = document.getElementById('supabasePillText');
   const brandDot = document.getElementById('brandStatusDot');
   const footerDot = document.getElementById('footerStatusDot');
+  const brandSubtitle = document.getElementById('brandSubtitle');
+  const btnSupabaseBadge = document.getElementById('btnSupabaseBadge');
+  const btnOpenSupabaseConfig = document.getElementById('btnOpenSupabaseConfig');
 
   const isConfigured = isSupabaseConfigured();
   const isLoggedIn = Boolean(state.currentUser);
+  const isAdm = Boolean(state.isAdmin);
+
+  // KETAT: Ikon / Tombol Supabase Cloud HANYA boleh muncul jika pengguna adalah ADMINISTRATOR!
+  if (!isAdm) {
+    btnSupabaseBadge?.classList.add('hidden');
+    btnOpenSupabaseConfig?.classList.add('hidden');
+    if (brandSubtitle) brandSubtitle.textContent = 'Smart Schedule & Focus';
+  } else {
+    btnSupabaseBadge?.classList.remove('hidden');
+    btnOpenSupabaseConfig?.classList.remove('hidden');
+    if (brandSubtitle) brandSubtitle.textContent = 'Admin • Supabase Cloud';
+  }
 
   if (isLoggedIn) {
     if (pillDot) pillDot.className = 'supabase-status-indicator status-online';
@@ -205,7 +301,7 @@ function updateSupabaseStatusBadges() {
   }
 }
 
-/** Update Informasi Pengguna di UI (Sidebar, Header, Profile Modal) */
+/** Update Informasi Pengguna di UI (Sidebar, Header, Profile Modal, Admin Badges) */
 function updateUserUI() {
   const sidebarName = document.getElementById('sidebarUserName');
   const sidebarEmail = document.getElementById('sidebarUserEmail');
@@ -213,17 +309,48 @@ function updateUserUI() {
   const headerAvatar = document.getElementById('headerAvatarEl');
   const headerEmail = document.getElementById('headerEmailEl');
 
+  const sidebarAdminBadge = document.getElementById('sidebarAdminBadge');
+  const sidebarAdminWrap = document.getElementById('sidebarAdminWrap');
+  const headerAdminCrown = document.getElementById('headerAdminCrown');
+  const profileRoleBadge = document.getElementById('profileRoleBadge');
+  const btnProfileAdmin = document.getElementById('btnProfileOpenAdmin');
+
   if (state.currentUser) {
     const user = state.currentUser;
-    const name = user.user_metadata?.display_name || user.email?.split('@')[0] || 'User';
-    const email = user.email || '';
-    const initial = name.charAt(0).toUpperCase();
+    const isAdm = isUserAdmin(user);
+    state.isAdmin = isAdm;
 
-    if (sidebarName) sidebarName.textContent = name;
+    let fullName = user.user_metadata?.display_name || user.email?.split('@')[0] || 'User';
+    if (user.email === 'matthewajovan@gmail.com') {
+      fullName = 'Jovan Matthew Adderson';
+    }
+    const shortName = isAdm ? 'Jovan Matthew' : (fullName.length > 14 ? fullName.slice(0, 13) + '…' : fullName);
+    const email = user.email || '';
+    const initial = fullName.charAt(0).toUpperCase();
+
+    if (sidebarName) sidebarName.textContent = isAdm ? 'Jovan Matthew' : fullName;
     if (sidebarEmail) sidebarEmail.textContent = email;
-    if (sidebarAvatar) sidebarAvatar.textContent = initial;
-    if (headerAvatar) headerAvatar.textContent = initial;
-    if (headerEmail) headerEmail.textContent = name;
+    if (sidebarAvatar) sidebarAvatar.textContent = isAdm ? '👑' : initial;
+    if (headerAvatar) headerAvatar.textContent = isAdm ? '👑' : initial;
+    if (headerEmail) {
+      headerEmail.textContent = shortName;
+      headerEmail.title = `${fullName} (${email})`;
+    }
+
+    // Toggle Admin Badges & Panels
+    if (isAdm) {
+      sidebarAdminBadge?.classList.remove('hidden');
+      sidebarAdminWrap?.classList.remove('hidden');
+      headerAdminCrown?.classList.remove('hidden');
+      profileRoleBadge?.classList.remove('hidden');
+      btnProfileAdmin?.classList.remove('hidden');
+    } else {
+      sidebarAdminBadge?.classList.add('hidden');
+      sidebarAdminWrap?.classList.add('hidden');
+      headerAdminCrown?.classList.add('hidden');
+      profileRoleBadge?.classList.add('hidden');
+      btnProfileAdmin?.classList.add('hidden');
+    }
 
     // Update Profile Modal jika dibuka
     const profName = document.getElementById('profileDisplayName');
@@ -231,16 +358,26 @@ function updateUserUI() {
     const profAvatar = document.getElementById('profileBigAvatar');
     const profCount = document.getElementById('profileTotalSchedules');
 
-    if (profName) profName.textContent = name;
+    if (profName) profName.textContent = fullName;
     if (profEmail) profEmail.textContent = email;
-    if (profAvatar) profAvatar.textContent = initial;
+    if (profAvatar) profAvatar.textContent = isAdm ? '👑' : initial;
     if (profCount) profCount.textContent = state.schedules.length;
   } else {
+    state.isAdmin = false;
+    sidebarAdminBadge?.classList.add('hidden');
+    sidebarAdminWrap?.classList.add('hidden');
+    headerAdminCrown?.classList.add('hidden');
+    profileRoleBadge?.classList.add('hidden');
+    btnProfileAdmin?.classList.add('hidden');
+
     if (sidebarName) sidebarName.textContent = 'Tamu (Guest Mode)';
     if (sidebarEmail) sidebarEmail.textContent = 'Klik untuk Masuk Akun';
     if (sidebarAvatar) sidebarAvatar.textContent = '👤';
     if (headerAvatar) headerAvatar.textContent = '👤';
-    if (headerEmail) headerEmail.textContent = 'Masuk Akun';
+    if (headerEmail) {
+      headerEmail.textContent = 'Masuk Akun';
+      headerEmail.title = 'Masuk atau Kelola Akun';
+    }
   }
 
   updateSupabaseStatusBadges();
@@ -400,11 +537,11 @@ function initLiveClock() {
     clockEl.textContent = `${hours}:${minutes}:${seconds}`;
 
     const h = now.getHours();
-    let greet = 'Semangat Produktif ✨';
-    if (h >= 4 && h < 11) greet = 'Selamat Pagi • Fokus Maksimal ⚡';
-    else if (h >= 11 && h < 15) greet = 'Selamat Siang • Tetap Prima 🚀';
-    else if (h >= 15 && h < 18) greet = 'Selamat Sore • Capai Target 🌅';
-    else greet = 'Selamat Malam • Refleksi Hari 🌙';
+    let greet = 'Produktif ✨';
+    if (h >= 4 && h < 11) greet = 'Pagi ⚡';
+    else if (h >= 11 && h < 15) greet = 'Siang 🚀';
+    else if (h >= 15 && h < 18) greet = 'Sore 🌅';
+    else greet = 'Malam 🌙';
 
     greetingEl.textContent = greet;
   }
@@ -538,6 +675,10 @@ function renderCommandResults(query = '') {
   const q = query.toLowerCase().trim();
 
   const systemActions = [
+    ...(state.isAdmin ? [
+      { id: 'act-admin-panel', label: '👑 Pusat Kontrol Administrator (Super Admin)', icon: '👑', cat: 'Admin', action: () => { closeCommandPalette(); openAdminModal(); } },
+      { id: 'act-admin-toggle', label: `👑 Mode Pengawas Cloud: ${state.adminModeAllSchedules ? 'Nonaktifkan' : 'Aktifkan (Lihat Semua)'}`, icon: '👁️', cat: 'Admin', action: () => { closeCommandPalette(); toggleAdminGlobalMode(); } }
+    ] : []),
     { id: 'act-new', label: 'Tambah Jadwal Baru', icon: '➕', cat: 'Navigasi', action: () => { closeCommandPalette(); openScheduleModal(); } },
     { id: 'act-auth', label: state.currentUser ? `Profil Akun (${state.currentUser.email})` : 'Masuk atau Daftar Akun Supabase', icon: '🔐', cat: 'Akun', action: () => { closeCommandPalette(); openAuthOrProfile(); } },
     { id: 'act-supabase-cfg', label: 'Pengaturan Koneksi Supabase', icon: '⚡', cat: 'Pengaturan', action: () => { closeCommandPalette(); openSupabaseConfigModal(); } },
@@ -733,7 +874,7 @@ function updatePeriodHeader() {
 
   if (state.activeView === 'month') {
     titleEl.textContent = `${MONTH_NAMES[m]} ${y}`;
-    subEl.textContent = `Tampilan Kalender 1 Bulan Penuh`;
+    subEl.textContent = `Kalender Bulanan`;
   } else if (state.activeView === 'week') {
     const monday = getMondayOfWeek(state.currentDate);
     const sunday = new Date(monday);
@@ -1805,6 +1946,11 @@ function openAuthModal(mode = 'login') {
     submitText.textContent = 'Buat Akun & Sinkronkan';
   }
 
+  const emailField = document.getElementById('authEmail');
+  if (emailField && !emailField.value) {
+    emailField.value = 'matthewajovan@gmail.com';
+  }
+
   modal.classList.remove('hidden');
   document.getElementById('authEmail')?.focus();
 }
@@ -1856,6 +2002,21 @@ async function handleAuthFormSubmit(e) {
     if (activeAuthMode === 'login') {
       const data = await loginWithEmail(email, password);
       state.currentUser = data.user;
+
+      if (isUserAdmin(data.user)) {
+        state.isAdmin = true;
+        localStorage.setItem('plancraft_active_account', 'admin');
+        localStorage.removeItem('plancraft_logged_out');
+        const client = getSupabase();
+        client?.auth?.updateUser({
+          data: {
+            role: 'admin',
+            is_admin: true,
+            display_name: 'jovan matthew adderson'
+          }
+        }).catch(() => {});
+      }
+
       updateUserUI();
       closeAuthModal();
       playUiSound('chime');
@@ -1952,7 +2113,156 @@ async function handleSaveSupabaseConfig() {
 }
 
 // ==============================================================================
-// 19. DATA EXPORT, IMPORT, & RESET
+// 19. ADMINISTRATOR CONTROL CENTER (SUPER ADMIN)
+// ==============================================================================
+async function openAdminModal() {
+  const modal = document.getElementById('adminControlModalOverlay');
+  if (!modal) return;
+
+  const user = state.currentUser;
+  const isAdm = isUserAdmin(user);
+  if (!isAdm) {
+    showToast('⚠️ Akses Ditolak: Hanya akun Administrator yang dapat mengakses panel ini.', 'error');
+    return;
+  }
+
+  // Populate User Meta
+  const nameEl = document.getElementById('adminModalName');
+  const emailEl = document.getElementById('adminModalEmail');
+  const uidEl = document.getElementById('adminModalUid');
+  const avatarEl = document.getElementById('adminModalAvatar');
+  const toggleView = document.getElementById('toggleAdminGlobalView');
+
+  let displayName = user?.user_metadata?.display_name || 'Jovan Matthew Adderson';
+  if (user?.email === 'matthewajovan@gmail.com' && (!user.user_metadata?.display_name || user.user_metadata.display_name === 'matthewajovan')) {
+    displayName = 'Jovan Matthew Adderson';
+  }
+  const email = user?.email || 'matthewajovan@gmail.com';
+  const uid = user?.id || 'a76b1dfe-9c4d-4be5-be10-808f0355bfaa';
+
+  if (nameEl) nameEl.textContent = displayName;
+  if (emailEl) emailEl.textContent = email;
+  if (uidEl) uidEl.textContent = uid;
+  if (avatarEl) avatarEl.textContent = '👑';
+  if (toggleView) toggleView.checked = state.adminModeAllSchedules;
+
+  playUiSound('pop');
+  modal.classList.remove('hidden');
+
+  // Load Realtime Cloud Stats
+  await refreshAdminStats();
+}
+
+function closeAdminModal() {
+  document.getElementById('adminControlModalOverlay')?.classList.add('hidden');
+}
+
+async function refreshAdminStats() {
+  const statSched = document.getElementById('adminStatSchedules');
+  const statNotes = document.getElementById('adminStatNotes');
+  const statUsers = document.getElementById('adminStatUsers');
+  const statPing = document.getElementById('adminStatPing');
+
+  if (statSched) statSched.textContent = '...';
+  if (statNotes) statNotes.textContent = '...';
+  if (statUsers) statUsers.textContent = '...';
+  if (statPing) statPing.textContent = 'Mengukur...';
+
+  const startTime = performance.now();
+  try {
+    const stats = await fetchAdminDatabaseStats();
+    const duration = Math.round(performance.now() - startTime);
+
+    if (statSched) statSched.textContent = stats.totalSchedules;
+    if (statNotes) statNotes.textContent = stats.totalNotes;
+    if (statUsers) statUsers.textContent = stats.distinctUsers;
+    if (statPing) statPing.textContent = `${duration} ms (Online)`;
+  } catch (err) {
+    console.warn('Gagal memuat statistik admin:', err);
+    if (statPing) statPing.textContent = 'Error';
+  }
+}
+
+async function toggleAdminGlobalMode() {
+  state.adminModeAllSchedules = !state.adminModeAllSchedules;
+  const toggle = document.getElementById('toggleAdminGlobalView');
+  if (toggle) toggle.checked = state.adminModeAllSchedules;
+
+  playUiSound('pop');
+  if (state.adminModeAllSchedules) {
+    showToast('👑 Mode Pengawas Diaktifkan: Menampilkan seluruh jadwal dari cloud.', 'success');
+  } else {
+    showToast('👤 Mode Pribadi: Menampilkan jadwal milik Anda saja.', 'info');
+  }
+
+  if (state.currentUser) {
+    await loadUserData(state.currentUser.id);
+  }
+}
+
+async function exportAdminMasterBackup() {
+  try {
+    showToast('Menyiapkan master backup database cloud...', 'info');
+    const allSchedules = await fetchAllSchedulesAdmin();
+    const stats = await fetchAdminDatabaseStats();
+
+    const masterData = {
+      app: 'PlanCraft PRO',
+      exportType: 'ADMIN_MASTER_BACKUP',
+      exportedAt: new Date().toISOString(),
+      adminAccount: {
+        email: state.currentUser?.email || 'matthewajovan@gmail.com',
+        uid: state.currentUser?.id || 'a76b1dfe-9c4d-4be5-be10-808f0355bfaa'
+      },
+      stats,
+      schedules: allSchedules
+    };
+
+    const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(masterData, null, 2));
+    const dlAnchor = document.createElement('a');
+    dlAnchor.setAttribute('href', dataStr);
+    dlAnchor.setAttribute('download', `plancraft-master-backup-${new Date().toISOString().slice(0, 10)}.json`);
+    document.body.appendChild(dlAnchor);
+    dlAnchor.click();
+    dlAnchor.remove();
+
+    playUiSound('complete');
+    triggerConfetti();
+    showToast(`Master backup berhasil diunduh (${allSchedules.length} jadwal cloud)!`, 'success');
+  } catch (err) {
+    console.error('Gagal export master backup:', err);
+    showToast('Gagal mengunduh master backup: ' + err.message, 'error');
+  }
+}
+
+function copyAdminSqlToClipboard() {
+  const sql = `-- ==============================================================================
+-- AKTIVASI ROLE ADMIN: JOVAN MATTHEW ADDERSON
+-- ==============================================================================
+UPDATE auth.users
+SET raw_app_meta_data = COALESCE(raw_app_meta_data, '{}'::jsonb) || '{"role": "admin", "is_admin": true}'::jsonb,
+    raw_user_meta_data = COALESCE(raw_user_meta_data, '{}'::jsonb) || '{"role": "admin", "is_admin": true}'::jsonb
+WHERE id = 'a76b1dfe-9c4d-4be5-be10-808f0355bfaa'
+   OR email = 'matthewajovan@gmail.com';`;
+
+  navigator.clipboard.writeText(sql).then(() => {
+    playUiSound('pop');
+    showToast('📋 Query SQL aktivasi admin berhasil disalin ke clipboard!', 'success');
+  }).catch(() => {
+    showToast('Gagal menyalin query. Silakan salin dari file supabase-schema.sql', 'warning');
+  });
+}
+
+function showAdminBroadcastPrompt() {
+  const msg = prompt('Masukkan pesan pengumuman sistem untuk ditampilkan ke pengguna:');
+  if (msg && msg.trim()) {
+    showToast(`📢 PENGUMUMAN ADMIN: ${msg.trim()}`, 'info');
+    playUiSound('chime');
+  }
+}
+
+// ==============================================================================
+// 20. DATA EXPORT, IMPORT, & RESET
 // ==============================================================================
 function exportDataJSON() {
   playUiSound('pop');
@@ -2253,6 +2563,7 @@ function setupEventListeners() {
   document.getElementById('tabBtnLogin')?.addEventListener('click', () => openAuthModal('login'));
   document.getElementById('tabBtnRegister')?.addEventListener('click', () => openAuthModal('register'));
   document.getElementById('authForm')?.addEventListener('submit', handleAuthFormSubmit);
+  document.getElementById('btnQuickAdminLogin')?.addEventListener('click', () => activateJovanAdminSession(true));
 
   // Toggle Password Eye
   document.getElementById('btnTogglePasswordVisibility')?.addEventListener('click', () => {
@@ -2273,6 +2584,22 @@ function setupEventListeners() {
   document.getElementById('btnCloseSupabaseConfig')?.addEventListener('click', closeSupabaseConfigModal);
   document.getElementById('btnCancelSupabaseConfig')?.addEventListener('click', closeSupabaseConfigModal);
   document.getElementById('btnSaveSupabaseConfig')?.addEventListener('click', handleSaveSupabaseConfig);
+
+  // Admin Control Panel Event Listeners
+  document.getElementById('btnSidebarAdminPanel')?.addEventListener('click', openAdminModal);
+  document.getElementById('btnProfileOpenAdmin')?.addEventListener('click', () => {
+    closeProfileModal();
+    openAdminModal();
+  });
+  document.getElementById('btnCloseAdminModal')?.addEventListener('click', closeAdminModal);
+  document.getElementById('adminControlModalOverlay')?.addEventListener('click', (e) => {
+    if (e.target === document.getElementById('adminControlModalOverlay')) closeAdminModal();
+  });
+  document.getElementById('toggleAdminGlobalView')?.addEventListener('change', toggleAdminGlobalMode);
+  document.getElementById('btnAdminExportMaster')?.addEventListener('click', exportAdminMasterBackup);
+  document.getElementById('btnAdminCopySql')?.addEventListener('click', copyAdminSqlToClipboard);
+  document.getElementById('btnAdminTestPing')?.addEventListener('click', refreshAdminStats);
+  document.getElementById('btnAdminBroadcast')?.addEventListener('click', showAdminBroadcastPrompt);
 
   // Sound Toggle
   document.getElementById('btnToggleSound')?.addEventListener('click', toggleSound);
@@ -2379,6 +2706,7 @@ function setupEventListeners() {
       closeImportModal();
       closeAuthModal();
       closeProfileModal();
+      closeAdminModal();
       closeSupabaseConfigModal();
       document.getElementById('pomodoroModalOverlay')?.classList.add('hidden');
     } else if (!isTyping) {

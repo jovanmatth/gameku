@@ -299,3 +299,102 @@ export async function seedInitialSchedulesForUser(userId, defaultSchedules) {
     console.warn('Gagal men-seed jadwal awal untuk user baru:', error);
   }
 }
+
+// ------------------------------------------------------------------------------
+// ADMINISTRATOR ROLES & DATA METHODS
+// ------------------------------------------------------------------------------
+
+/** Memeriksa apakah user aktif memiliki hak akses Administrator */
+export function isUserAdmin(user) {
+  if (!user) return false;
+  const email = (user.email || '').toLowerCase().trim();
+  const uid = user.id || '';
+  const appRole = user.app_metadata?.role;
+  const userRole = user.user_metadata?.role;
+  const isAdminClaim = user.app_metadata?.is_admin || user.user_metadata?.is_admin;
+
+  return (
+    email === 'matthewajovan@gmail.com' ||
+    uid === 'a76b1dfe-9c4d-4be5-be10-808f0355bfaa' ||
+    appRole === 'admin' ||
+    userRole === 'admin' ||
+    Boolean(isAdminClaim)
+  );
+}
+
+/** Mengambil seluruh jadwal dari semua akun di Supabase (Khusus Administrator) */
+export async function fetchAllSchedulesAdmin() {
+  const client = getSupabase();
+  if (!client) return [];
+
+  const { data, error } = await client
+    .from('schedules')
+    .select('*')
+    .order('date', { ascending: true });
+
+  if (error) {
+    console.error('Gagal mengambil semua jadwal (admin):', error);
+    throw error;
+  }
+
+  return (data || []).map(row => ({
+    id: row.id,
+    userId: row.user_id,
+    title: row.title,
+    category: row.category,
+    date: row.date,
+    startTime: row.start_time,
+    endTime: row.end_time,
+    priority: row.priority,
+    status: row.status,
+    location: row.location || '',
+    description: row.description || '',
+    checklist: Array.isArray(row.checklist) ? row.checklist : []
+  }));
+}
+
+/** Menghapus jadwal apapun di Supabase (Khusus Administrator) */
+export async function deleteAnyScheduleAdmin(scheduleId) {
+  const client = getSupabase();
+  if (!client || !scheduleId) return;
+
+  const { error } = await client
+    .from('schedules')
+    .delete()
+    .eq('id', scheduleId);
+
+  if (error) {
+    console.error('Gagal menghapus jadwal (admin):', error);
+    throw error;
+  }
+}
+
+/** Mengambil ringkasan statistik database Supabase untuk Panel Admin */
+export async function fetchAdminDatabaseStats() {
+  const client = getSupabase();
+  if (!client) return { totalSchedules: 0, totalNotes: 0, distinctUsers: 0 };
+
+  try {
+    const [schedRes, notesRes] = await Promise.all([
+      client.from('schedules').select('id, user_id'),
+      client.from('day_notes').select('id, user_id')
+    ]);
+
+    const scheds = schedRes.data || [];
+    const notes = notesRes.data || [];
+
+    const userIds = new Set();
+    scheds.forEach(s => s.user_id && userIds.add(s.user_id));
+    notes.forEach(n => n.user_id && userIds.add(n.user_id));
+
+    return {
+      totalSchedules: scheds.length,
+      totalNotes: notes.length,
+      distinctUsers: Math.max(userIds.size, 1)
+    };
+  } catch (err) {
+    console.warn('Gagal memuat statistik admin:', err);
+    return { totalSchedules: 0, totalNotes: 0, distinctUsers: 0 };
+  }
+}
+

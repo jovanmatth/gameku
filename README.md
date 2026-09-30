@@ -43,6 +43,29 @@ Hanya butuh 3 langkah singkat:
 
 ---
 
+## 👑 Hak Akses Administrator (Super Admin)
+
+Akun **Jovan Matthew Adderson** (`matthewajovan@gmail.com` / UID `a76b1dfe-9c4d-4be5-be10-808f0355bfaa`) telah dikonfigurasi sebagai **Super Administrator**:
+- 👑 **Lencana Administrator**: Tanda kehormatan bercahaya di Sidebar, Header, dan Modal Profil Akun.
+- ⚡ **Pusat Kontrol Administrator**: Panel eksklusif untuk memantau statistik cloud Supabase (total jadwal, catatan harian, pengguna aktif, dan tes latensi database).
+- 👁️ **Mode Pengawas (Global Cloud View)**: Fitur switch untuk melihat seluruh jadwal dari semua akun di kalender Anda.
+- 💾 **Master Backup JSON**: Mengunduh backup seluruh isi database jadwal Supabase dengan 1-klik.
+- ⌨️ **Command Palette Shortcut**: Tekan <kbd>Ctrl</kbd> + <kbd>K</kbd> lalu pilih *Pusat Kontrol Administrator*.
+
+### ⚡ Query SQL Aktivasi di Supabase Dashboard:
+Untuk mengaktifkan perizinan database level server (RLS) di Supabase:
+1. Buka [Supabase Dashboard](https://supabase.com) -> Masuk ke proyek Anda -> Buka **SQL Editor**.
+2. Jalankan perintah SQL berikut:
+```sql
+update auth.users
+set raw_app_meta_data = coalesce(raw_app_meta_data, '{}'::jsonb) || '{"role": "admin", "is_admin": true}'::jsonb,
+    raw_user_meta_data = coalesce(raw_user_meta_data, '{}'::jsonb) || '{"role": "admin", "is_admin": true}'::jsonb
+where id = 'a76b1dfe-9c4d-4be5-be10-808f0355bfaa'
+   or email = 'matthewajovan@gmail.com';
+```
+
+---
+
 ## ✨ Fitur Lengkap Aplikasi
 
 1. **Autentikasi & Profil Pengguna**:

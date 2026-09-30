@@ -1,1290 +1,2424 @@
-/* ==========================================================================
-   OutMedia - Unified Hybrid Platform Application Engine
-   Integrates TikTok Vertical Feed + Discord Servers, Channels, WebRTC Voice & DMs
-   ========================================================================== */
+/**
+ * ==============================================================================
+ * PlanCraft PRO — Ultra-Aesthetic Engine & Logic (v2.5 + Supabase Cloud)
+ * ==============================================================================
+ * Didesain dengan arsitektur modular, rapih, bersih, dan SANGAT MUDAH DI-EDIT!
+ * 
+ * Modul Terintegrasi:
+ * 1. STATE & STORAGE MANAGEMENT (User Session & Supabase Cloud Sync)
+ * 2. SUPABASE AUTH & USER ISOLATION (Login, Register, Logout per Akun)
+ * 3. WEB AUDIO SYNTHESIZER (Efek Suara UI Lembut)
+ * 4. CANVAS CONFETTI ENGINE (Perayaan Tugas Selesai)
+ * 5. REAL-TIME DIGITAL CLOCK & DYNAMIC GREETING
+ * 6. COMMAND PALETTE (RAYCAST / LINEAR STYLE: CTRL+K)
+ * 7. POMODORO FOCUS TIMER ENGINE
+ * 8. DATE ENGINE & FORMATTING
+ * 9. 5 VIEW RENDERERS (Bulan, Minggu, Hari, Kanban, Agenda)
+ * 10. MODALS & CHECKLIST BUILDER
+ * 11. IMPORT, EXPORT, & SHORTCUTS
+ * ==============================================================================
+ */
 
-import { INITIAL_VIDEOS, CURRENT_USER } from './videos-data.js';
-import { 
-  INITIAL_SERVERS, 
-  INITIAL_FRIENDS, 
-  INITIAL_FRIEND_REQUESTS, 
-  INITIAL_CHANNEL_MESSAGES, 
-  INITIAL_DIRECT_MESSAGES 
-} from './discord-data.js';
+import { CATEGORIES, PRIORITIES, STATUSES, getDefaultSchedules } from './schedule-data.js';
+import {
+  initSupabase,
+  isSupabaseConfigured,
+  getSupabaseCredentials,
+  saveSupabaseCredentials,
+  registerWithEmail,
+  loginWithEmail,
+  logoutUser,
+  getCurrentUser,
+  fetchUserSchedules,
+  saveUserSchedule,
+  deleteUserSchedule,
+  fetchUserDayNotes,
+  saveUserDayNote,
+  seedInitialSchedulesForUser
+} from './supabase-client.js';
 
-class OutMediaPlatform {
-  constructor() {
-    // State persistence
-    this.user = this.loadState('outmedia_user', CURRENT_USER);
-    this.videos = this.loadState('outmedia_videos', INITIAL_VIDEOS);
-    this.servers = this.loadState('outmedia_servers', INITIAL_SERVERS);
-    this.friends = this.loadState('outmedia_friends', INITIAL_FRIENDS);
-    this.friendRequests = this.loadState('outmedia_friend_requests', INITIAL_FRIEND_REQUESTS);
-    this.channelMessages = this.loadState('outmedia_channel_messages', INITIAL_CHANNEL_MESSAGES);
-    this.directMessages = this.loadState('outmedia_direct_messages', INITIAL_DIRECT_MESSAGES);
+// ==============================================================================
+// 1. STATE APLIKASI
+// ==============================================================================
+const STORAGE_PREFIX = 'plancraft_schedules_';
+const THEME_KEY = 'plancraft_theme_pref';
+const NOTES_PREFIX = 'plancraft_day_notes_';
+const SOUND_KEY = 'plancraft_sound_pref';
 
-    // Active Navigation Context
-    this.activeRailTarget = 'dm'; // 'dm', 'tiktok-feed', or serverId
-    this.activeServerId = null;
-    this.activeChannelId = null;
-    this.activeDmUserId = null;
-    this.activeFriendsFilter = 'ONLINE'; // 'ONLINE', 'ALL', 'PENDING', 'ADD'
+const state = {
+  schedules: [],
+  currentUser: null,           // Objek User dari Supabase Auth
+  isSupabaseConnected: false,  // Status koneksi cloud
+  currentDate: new Date(),     // Viewport kalender saat ini
+  selectedDate: new Date(),    // Tanggal aktif yang dipilih
+  activeView: 'month',         // 'month' | 'week' | 'day' | 'kanban' | 'agenda'
+  activeCategoryFilter: 'all', // 'all' atau id kategori
+  activePriorityFilter: 'all', // 'all' | 'high' | 'medium' | 'low'
+  searchQuery: '',             // String pencarian
+  theme: localStorage.getItem(THEME_KEY) || 'dark',
+  soundEnabled: localStorage.getItem(SOUND_KEY) !== 'false',
+  dayNotes: {}
+};
 
-    // Voice & WebRTC State
-    this.connectedVoiceChannel = null;
-    this.isMuted = false;
-    this.isDeafened = false;
-    this.isSpeaking = false;
-    this.localAudioStream = null;
-    this.audioContext = null;
-    this.audioAnalyser = null;
-    this.vadInterval = null;
+// ==============================================================================
+// 2. SUPABASE INITIALIZATION & USER SESSION
+// ==============================================================================
+async function initSupabaseSession() {
+  initSupabase();
+  const configured = isSupabaseConfigured();
+  state.isSupabaseConnected = configured;
+  updateSupabaseStatusBadges();
 
-    // WebSocket Connection
-    this.ws = null;
-    this.typingTimeout = null;
-
-    // TikTok Feed State
-    this.currentFeedIndex = 0;
-    this.isFeedMuted = true;
-    this.activeFeedType = 'fyp';
-
-    // Synthesizer Audio
-    this.sfxCtx = null;
-
-    this.cacheDom();
-    this.init();
-  }
-
-  // --- Storage Helper ---
-  loadState(key, defaultVal) {
+  if (configured) {
     try {
-      const data = localStorage.getItem(key);
-      return data ? JSON.parse(data) : JSON.parse(JSON.stringify(defaultVal));
-    } catch {
-      return JSON.parse(JSON.stringify(defaultVal));
-    }
-  }
-
-  saveState(key, val) {
-    try {
-      localStorage.setItem(key, JSON.stringify(val));
-    } catch (e) {
-      console.warn('Storage save failed:', e);
-    }
-  }
-
-  // --- DOM Elements Caching ---
-  cacheDom() {
-    this.appLayout = document.getElementById('app-layout');
-    this.toastContainer = document.getElementById('toast-container');
-
-    // Server Rail
-    this.railBtnDm = document.getElementById('rail-btn-dm');
-    this.railBtnFeed = document.getElementById('rail-btn-feed');
-    this.railServersList = document.getElementById('rail-servers-list');
-    this.btnAddServerModal = document.getElementById('btn-add-server-modal');
-
-    // Sidebar
-    this.sidebarHeaderTitle = document.getElementById('sidebar-header-title');
-    this.dmSectionWrapper = document.getElementById('dm-section-wrapper');
-    this.serverChannelsWrapper = document.getElementById('server-channels-wrapper');
-    this.btnNavFriends = document.getElementById('btn-nav-friends');
-    this.badgePendingFriends = document.getElementById('badge-pending-friends');
-    this.dmFriendsList = document.getElementById('dm-friends-list');
-    this.groupTextChannels = document.getElementById('group-text-channels');
-    this.groupVoiceChannels = document.getElementById('group-voice-channels');
-
-    // User Bottom Bar
-    this.userBarName = document.getElementById('user-bar-name');
-    this.userBarAvatar = document.getElementById('user-bar-avatar');
-    this.btnToggleMic = document.getElementById('btn-toggle-mic');
-    this.iconMicOn = document.getElementById('icon-mic-on');
-    this.iconMicOff = document.getElementById('icon-mic-off');
-    this.btnToggleDeafen = document.getElementById('btn-toggle-deafen');
-    this.iconDeafenOn = document.getElementById('icon-deafen-on');
-    this.iconDeafenOff = document.getElementById('icon-deafen-off');
-
-    // Floating Voice Connected Bar
-    this.voiceConnectedBar = document.getElementById('voice-connected-bar');
-    this.connChannelName = document.getElementById('conn-channel-name');
-    this.btnDisconnectVoice = document.getElementById('btn-disconnect-voice');
-
-    // Views
-    this.viewFeed = document.getElementById('view-feed');
-    this.viewFriends = document.getElementById('view-friends');
-    this.viewChat = document.getElementById('view-chat');
-    this.viewVoiceRoom = document.getElementById('view-voice-room');
-
-    // Chat View Elements
-    this.chatHeaderPrefix = document.getElementById('chat-header-prefix');
-    this.chatHeaderName = document.getElementById('chat-header-name');
-    this.chatHeaderTopic = document.getElementById('chat-header-topic');
-    this.btnCallDm = document.getElementById('btn-call-dm');
-    this.chatMessagesContainer = document.getElementById('chat-messages-container');
-    this.typingIndicatorBar = document.getElementById('typing-indicator-bar');
-    this.typingText = document.getElementById('typing-text');
-    this.formSendChat = document.getElementById('form-send-chat');
-    this.inputChatMessage = document.getElementById('input-chat-message');
-
-    // Friends View Elements
-    this.friendTabs = document.querySelectorAll('.friend-tab');
-    this.countOnlineFriends = document.getElementById('count-online-friends');
-    this.countAllFriends = document.getElementById('count-all-friends');
-    this.countPendingFriends = document.getElementById('count-pending-friends');
-    this.inputSearchFriends = document.getElementById('input-search-friends');
-    this.addFriendPanel = document.getElementById('add-friend-panel');
-    this.inputAddFriendUsername = document.getElementById('input-add-friend-username');
-    this.btnSubmitFriendRequest = document.getElementById('btn-submit-friend-request');
-    this.friendsCardsContainer = document.getElementById('friends-cards-container');
-
-    // Voice Room View Elements
-    this.voiceRoomTitle = document.getElementById('voice-room-title');
-    this.voiceRoomGrid = document.getElementById('voice-room-grid');
-    this.btnVoiceLeaveTop = document.getElementById('btn-voice-leave-top');
-    this.dockBtnMic = document.getElementById('dock-btn-mic');
-    this.dockIconMicOn = document.getElementById('dock-icon-mic-on');
-    this.dockIconMicOff = document.getElementById('dock-icon-mic-off');
-    this.dockBtnDeafen = document.getElementById('dock-btn-deafen');
-    this.dockIconDeafenOn = document.getElementById('dock-icon-deafen-on');
-    this.dockIconDeafenOff = document.getElementById('dock-icon-deafen-off');
-    this.dockBtnDisconnect = document.getElementById('dock-btn-disconnect');
-    this.dockBtnShareScreen = document.getElementById('dock-btn-share-screen');
-
-    // TikTok Feed Elements
-    this.feedScroller = document.getElementById('feed-scroller');
-    this.btnSoundToggle = document.getElementById('btn-sound-toggle');
-    this.iconSoundUnmuted = document.getElementById('icon-sound-unmuted');
-    this.iconSoundMuted = document.getElementById('icon-sound-muted');
-    this.tabFeedFollowing = document.getElementById('tab-feed-following');
-    this.tabFeedFyp = document.getElementById('tab-feed-fyp');
-    this.btnFeedCreatePost = document.getElementById('btn-feed-create-post');
-    this.modalCreateVideo = document.getElementById('modal-create-video');
-    this.btnCloseCreateVideoModal = document.getElementById('btn-close-create-video-modal');
-
-    // Modals
-    this.modalCreateServer = document.getElementById('modal-create-server');
-    this.btnCloseServerModal = document.getElementById('btn-close-server-modal');
-    this.btnSubmitCreateServer = document.getElementById('btn-submit-create-server');
-    this.inputNewServerName = document.getElementById('input-new-server-name');
-    this.inputNewServerDesc = document.getElementById('input-new-server-desc');
-
-    this.sheetComments = document.getElementById('sheet-comments');
-    this.btnCloseComments = document.getElementById('btn-close-comments');
-    this.commentsListContainer = document.getElementById('comments-list-container');
-    this.inputNewComment = document.getElementById('input-new-comment');
-    this.btnSendComment = document.getElementById('btn-send-comment');
-  }
-
-  // --- Initialize App ---
-  init() {
-    this.initWebSocket();
-    this.renderServerRail();
-    this.renderDmFriendsSidebar();
-    this.renderFriendsHub();
-    this.renderTikTokFeed();
-    this.setupEventListeners();
-    this.setupTikTokGestures();
-  }
-
-  // --- Web Audio SFX ---
-  playSfx(type) {
-    try {
-      const AudioCtx = window.AudioContext || window.webkitAudioContext;
-      if (!this.sfxCtx && AudioCtx) this.sfxCtx = new AudioCtx();
-      if (!this.sfxCtx) return;
-      if (this.sfxCtx.state === 'suspended') this.sfxCtx.resume();
-
-      const now = this.sfxCtx.currentTime;
-      const osc = this.sfxCtx.createOscillator();
-      const gain = this.sfxCtx.createGain();
-
-      if (type === 'pop') {
-        osc.frequency.setValueAtTime(580, now);
-        osc.frequency.exponentialRampToValueAtTime(880, now + 0.08);
-        gain.gain.setValueAtTime(0.18, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
-        osc.connect(gain);
-        gain.connect(this.sfxCtx.destination);
-        osc.start(now);
-        osc.stop(now + 0.1);
-      } else if (type === 'join') {
-        osc.frequency.setValueAtTime(440, now);
-        osc.frequency.setValueAtTime(659.25, now + 0.08);
-        gain.gain.setValueAtTime(0.15, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
-        osc.connect(gain);
-        gain.connect(this.sfxCtx.destination);
-        osc.start(now);
-        osc.stop(now + 0.2);
-      } else if (type === 'leave') {
-        osc.frequency.setValueAtTime(659.25, now);
-        osc.frequency.setValueAtTime(440, now + 0.08);
-        gain.gain.setValueAtTime(0.15, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
-        osc.connect(gain);
-        gain.connect(this.sfxCtx.destination);
-        osc.start(now);
-        osc.stop(now + 0.2);
-      }
-    } catch {}
-  }
-
-  // --- Toast Notification ---
-  showToast(msg) {
-    const toast = document.createElement('div');
-    toast.className = 'toast-pill';
-    toast.textContent = msg;
-    this.toastContainer.appendChild(toast);
-    setTimeout(() => {
-      toast.style.opacity = '0';
-      toast.style.transform = 'translateY(-10px)';
-      setTimeout(() => toast.remove(), 300);
-    }, 2800);
-  }
-
-  // --- Real-time WebSocket Gateway ---
-  initWebSocket() {
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.host}`;
-    
-    try {
-      this.ws = new WebSocket(wsUrl);
-
-      this.ws.onopen = () => {
-        // Register current presence
-        this.sendWs('presence:init', { userId: this.user.id, status: 'ONLINE' });
-      };
-
-      this.ws.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          this.handleWsMessage(data);
-        } catch (e) {
-          console.warn('WS parse error:', e);
-        }
-      };
-
-      this.ws.onclose = () => {
-        // Auto-reconnect after 3s
-        setTimeout(() => this.initWebSocket(), 3000);
-      };
-    } catch (e) {
-      console.warn('WebSocket init error:', e);
-    }
-  }
-
-  sendWs(type, payload) {
-    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-      this.ws.send(JSON.stringify({ type, payload }));
-    }
-  }
-
-  handleWsMessage(data) {
-    const { type, message, channelId, dmUserId, isTyping, userName, status, userId, isSpeaking, user } = data;
-
-    switch (type) {
-      case 'chat:received': {
-        this.onChatMessageReceived(message, channelId, dmUserId);
-        break;
-      }
-      case 'chat:typing-status': {
-        this.onTypingStatusReceived(userName, channelId, dmUserId, isTyping);
-        break;
-      }
-      case 'presence:update': {
-        const friend = this.friends.find(f => f.id === userId);
-        if (friend) {
-          friend.status = status;
-          this.renderFriendsHub();
-          this.renderDmFriendsSidebar();
-        }
-        break;
-      }
-      case 'voice:user-joined': {
-        if (this.connectedVoiceChannel?.id === channelId) {
-          this.playSfx('join');
-          this.showToast(`${user?.name || 'Seseorang'} bergabung ke saluran suara`);
-          this.renderVoiceRoom();
-        }
-        break;
-      }
-      case 'voice:user-left': {
-        if (this.connectedVoiceChannel?.id === channelId) {
-          this.playSfx('leave');
-          this.renderVoiceRoom();
-        }
-        break;
-      }
-      case 'voice:user-speaking': {
-        this.updatePeerSpeakingState(channelId, userId, isSpeaking);
-        break;
-      }
-      default:
-        break;
-    }
-  }
-
-  // --- Server Rail Rendering ---
-  renderServerRail() {
-    this.railServersList.innerHTML = this.servers.map(server => `
-      <button class="server-rail-icon ${this.activeServerId === server.id ? 'active' : ''}" data-server-id="${server.id}" title="${server.name}">
-        <img src="${server.icon}" alt="${server.name}">
-      </button>
-    `).join('');
-
-    // Attach click listeners to server icons
-    this.railServersList.querySelectorAll('.server-rail-icon').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const srvId = btn.dataset.serverId;
-        this.selectServer(srvId);
-      });
-    });
-  }
-
-  // --- Sidebar Channels & DMs Rendering ---
-  renderDmFriendsSidebar() {
-    this.dmFriendsList.innerHTML = this.friends.map(friend => {
-      const statusClass = `status-${friend.status.toLowerCase()}`;
-      const isActive = this.activeDmUserId === friend.id;
-      return `
-        <div class="dm-friend-row ${isActive ? 'active' : ''}" data-friend-id="${friend.id}">
-          <div class="dm-avatar-wrap">
-            <img src="${friend.avatar}" alt="${friend.name}">
-            <span class="status-dot ${statusClass}"></span>
-          </div>
-          <div class="dm-info">
-            <div class="dm-user-name">${friend.name}</div>
-            <div class="dm-user-activity">${friend.customStatus || friend.activity}</div>
-          </div>
-        </div>
-      `;
-    }).join('');
-
-    this.dmFriendsList.querySelectorAll('.dm-friend-row').forEach(row => {
-      row.addEventListener('click', () => {
-        const friendId = row.dataset.friendId;
-        this.openDirectMessage(friendId);
-      });
-    });
-  }
-
-  renderServerChannels(server) {
-    this.sidebarHeaderTitle.textContent = server.name;
-
-    // Text Channels
-    const textChannels = server.channels.filter(c => c.type === 'TEXT');
-    this.groupTextChannels.innerHTML = textChannels.map(ch => `
-      <div class="channel-item-row ${this.activeChannelId === ch.id ? 'active' : ''}" data-channel-id="${ch.id}">
-        <svg viewBox="0 0 24 24"><line x1="4" y1="9" x2="20" y2="9"></line><line x1="4" y1="15" x2="20" y2="15"></line><line x1="10" y1="3" x2="8" y2="21"></line><line x1="16" y1="3" x2="14" y2="21"></line></svg>
-        <span>${ch.name}</span>
-      </div>
-    `).join('');
-
-    // Voice Channels
-    const voiceChannels = server.channels.filter(c => c.type === 'VOICE');
-    this.groupVoiceChannels.innerHTML = voiceChannels.map(vc => `
-      <div class="channel-item-row voice-channel ${this.connectedVoiceChannel?.id === vc.id ? 'active' : ''}" data-voice-id="${vc.id}">
-        <svg viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
-        <span>${vc.name}</span>
-      </div>
-    `).join('');
-
-    // Attach click events
-    this.groupTextChannels.querySelectorAll('.channel-item-row').forEach(row => {
-      row.addEventListener('click', () => {
-        const chId = row.dataset.channelId;
-        this.openServerChannel(chId);
-      });
-    });
-
-    this.groupVoiceChannels.querySelectorAll('.channel-item-row').forEach(row => {
-      row.addEventListener('click', () => {
-        const vcId = row.dataset.voiceId;
-        const channel = server.channels.find(c => c.id === vcId);
-        this.joinVoiceChannel(channel, server);
-      });
-    });
-  }
-
-  // --- Friends Hub Rendering ---
-  renderFriendsHub() {
-    // Counts
-    const onlineCount = this.friends.filter(f => f.status === 'ONLINE' || f.status === 'IDLE').length;
-    const allCount = this.friends.length;
-    const pendingCount = this.friendRequests.length;
-
-    this.countOnlineFriends.textContent = onlineCount;
-    this.countAllFriends.textContent = allCount;
-    this.countPendingFriends.textContent = pendingCount;
-    this.badgePendingFriends.textContent = pendingCount;
-
-    if (this.activeFriendsFilter === 'ADD') {
-      this.addFriendPanel.style.display = 'block';
-      this.friendsCardsContainer.innerHTML = '';
-      return;
-    }
-
-    this.addFriendPanel.style.display = 'none';
-
-    let displayFriends = this.friends;
-    if (this.activeFriendsFilter === 'ONLINE') {
-      displayFriends = this.friends.filter(f => f.status === 'ONLINE' || f.status === 'IDLE');
-    } else if (this.activeFriendsFilter === 'PENDING') {
-      this.renderPendingRequests();
-      return;
-    }
-
-    const searchQuery = this.inputSearchFriends.value.toLowerCase().trim();
-    if (searchQuery) {
-      displayFriends = displayFriends.filter(f => f.name.toLowerCase().includes(searchQuery) || f.username.toLowerCase().includes(searchQuery));
-    }
-
-    this.friendsCardsContainer.innerHTML = displayFriends.map(friend => `
-      <div class="friend-card-row">
-        <div class="friend-left-info">
-          <div class="friend-card-avatar">
-            <img src="${friend.avatar}" alt="${friend.name}">
-            <span class="status-dot status-${friend.status.toLowerCase()}"></span>
-          </div>
-          <div>
-            <div class="friend-card-name">${friend.name}</div>
-            <div class="friend-card-status">${friend.customStatus || friend.activity}</div>
-          </div>
-        </div>
-
-        <div class="friend-card-actions">
-          <button class="btn-friend-action" data-action="chat" data-friend-id="${friend.id}" title="Kirim Pesan">
-            <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
-          </button>
-          <button class="btn-friend-action call" data-action="call" data-friend-id="${friend.id}" title="Panggilan Suara">
-            <svg viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
-          </button>
-        </div>
-      </div>
-    `).join('');
-
-    this.friendsCardsContainer.querySelectorAll('.btn-friend-action').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const action = btn.dataset.action;
-        const fId = btn.dataset.friendId;
-        if (action === 'chat') {
-          this.openDirectMessage(fId);
-        } else if (action === 'call') {
-          const fakeChannel = { id: `dm-call-${fId}`, name: `Panggilan dengan ${fId}` };
-          this.joinVoiceChannel(fakeChannel, { name: 'Panggilan Pribadi' });
-        }
-      });
-    });
-  }
-
-  renderPendingRequests() {
-    if (this.friendRequests.length === 0) {
-      this.friendsCardsContainer.innerHTML = `
-        <div style="text-align: center; color: var(--text-muted); padding: 40px 10px;">
-          Tidak ada permintaan pertemanan yang tertunda.
-        </div>
-      `;
-      return;
-    }
-
-    this.friendsCardsContainer.innerHTML = this.friendRequests.map(req => `
-      <div class="friend-card-row">
-        <div class="friend-left-info">
-          <div class="friend-card-avatar">
-            <img src="${req.user.avatar}" alt="${req.user.name}">
-          </div>
-          <div>
-            <div class="friend-card-name">${req.user.name}</div>
-            <div class="friend-card-status">Permintaan Pertemanan Masuk • ${req.user.mutualFriends || 0} Teman Bersama</div>
-          </div>
-        </div>
-
-        <div class="friend-card-actions">
-          <button class="btn-friend-action" data-action="accept" data-req-id="${req.id}" title="Terima" style="color: var(--discord-green);">
-            <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12" stroke="currentColor" stroke-width="2.5" fill="none"></polyline></svg>
-          </button>
-          <button class="btn-friend-action" data-action="reject" data-req-id="${req.id}" title="Tolak" style="color: var(--discord-red);">
-            <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18" stroke="currentColor" stroke-width="2.5"></line><line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" stroke-width="2.5"></line></svg>
-          </button>
-        </div>
-      </div>
-    `).join('');
-
-    this.friendsCardsContainer.querySelectorAll('.btn-friend-action').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const action = btn.dataset.action;
-        const reqId = btn.dataset.reqId;
-        const req = this.friendRequests.find(r => r.id === reqId);
-        if (!req) return;
-
-        if (action === 'accept') {
-          this.friends.push({
-            id: req.user.id,
-            name: req.user.name,
-            username: req.user.username,
-            avatar: req.user.avatar,
-            status: 'ONLINE',
-            customStatus: 'Baru saja menjadi teman!'
-          });
-          this.friendRequests = this.friendRequests.filter(r => r.id !== reqId);
-          this.saveState('outmedia_friends', this.friends);
-          this.saveState('outmedia_friend_requests', this.friendRequests);
-          this.showToast(`Berhasil berteman dengan ${req.user.name}! 🎉`);
-          this.renderFriendsHub();
-          this.renderDmFriendsSidebar();
-        } else {
-          this.friendRequests = this.friendRequests.filter(r => r.id !== reqId);
-          this.saveState('outmedia_friend_requests', this.friendRequests);
-          this.showToast('Permintaan pertemanan ditolak.');
-          this.renderFriendsHub();
-        }
-      });
-    });
-  }
-
-  // --- Navigation & View Switching ---
-  switchMainView(viewName) {
-    this.viewFeed.style.display = viewName === 'feed' ? 'flex' : 'none';
-    this.viewFriends.style.display = viewName === 'friends' ? 'flex' : 'none';
-    this.viewChat.style.display = viewName === 'chat' ? 'flex' : 'none';
-    this.viewVoiceRoom.style.display = viewName === 'voice' ? 'flex' : 'none';
-
-    // Video play/pause when entering/leaving feed
-    const activeVid = this.feedScroller.querySelectorAll('.video-item')[this.currentFeedIndex]?.querySelector('video');
-    if (viewName === 'feed') {
-      if (activeVid) activeVid.play().catch(() => {});
-    } else {
-      this.feedScroller.querySelectorAll('video').forEach(v => v.pause());
-    }
-  }
-
-  selectServer(serverId) {
-    this.activeRailTarget = serverId;
-    this.activeServerId = serverId;
-    this.railBtnDm.classList.remove('active');
-    this.railBtnFeed.classList.remove('active');
-    this.renderServerRail();
-
-    const server = this.servers.find(s => s.id === serverId);
-    if (!server) return;
-
-    this.dmSectionWrapper.style.display = 'none';
-    this.serverChannelsWrapper.style.display = 'block';
-    this.renderServerChannels(server);
-
-    // Open first text channel
-    const firstTextCh = server.channels.find(c => c.type === 'TEXT');
-    if (firstTextCh) {
-      this.openServerChannel(firstTextCh.id);
-    }
-  }
-
-  openDirectMessage(friendId) {
-    this.activeDmUserId = friendId;
-    this.activeChannelId = null;
-    this.renderDmFriendsSidebar();
-
-    const friend = this.friends.find(f => f.id === friendId);
-    if (!friend) return;
-
-    this.chatHeaderPrefix.textContent = '@';
-    this.chatHeaderName.textContent = friend.name;
-    this.chatHeaderTopic.textContent = friend.customStatus || friend.activity || 'Percakapan Pribadi';
-    this.btnCallDm.style.display = 'flex';
-    this.inputChatMessage.placeholder = `Kirim pesan ke @${friend.name}`;
-
-    this.switchMainView('chat');
-    this.renderChatMessages();
-  }
-
-  openServerChannel(channelId) {
-    this.activeChannelId = channelId;
-    this.activeDmUserId = null;
-    const server = this.servers.find(s => s.id === this.activeServerId);
-    if (!server) return;
-
-    const channel = server.channels.find(c => c.id === channelId);
-    if (!channel) return;
-
-    this.chatHeaderPrefix.textContent = '#';
-    this.chatHeaderName.textContent = channel.name;
-    this.chatHeaderTopic.textContent = channel.topic || 'Selamat datang di kanal ini!';
-    this.btnCallDm.style.display = 'none';
-    this.inputChatMessage.placeholder = `Kirim pesan ke #${channel.name}`;
-
-    this.renderServerChannels(server);
-    this.switchMainView('chat');
-    this.renderChatMessages();
-  }
-
-  // --- Chat Messages Engine ---
-  renderChatMessages() {
-    let messages = [];
-    if (this.activeChannelId) {
-      messages = this.channelMessages[this.activeChannelId] || [];
-    } else if (this.activeDmUserId) {
-      messages = this.directMessages[this.activeDmUserId] || [];
-    }
-
-    if (messages.length === 0) {
-      const label = this.activeChannelId ? `Selamat datang di #${this.chatHeaderName.textContent}!` : `Mulai obrolan baru dengan ${this.chatHeaderName.textContent}!`;
-      this.chatMessagesContainer.innerHTML = `
-        <div style="margin: auto 0 20px; color: var(--text-muted);">
-          <h2 style="font-size: 24px; color: #fff; margin-bottom: 8px;">${label}</h2>
-          <p style="font-size: 14px;">Ini adalah awal riwayat pesan.</p>
-        </div>
-      `;
-      return;
-    }
-
-    this.chatMessagesContainer.innerHTML = messages.map(msg => {
-      const isMe = msg.userId === this.user.id || msg.senderId === 'user-me';
-      const senderName = isMe ? this.user.name : (msg.userName || this.friends.find(f => f.id === msg.senderId)?.name || 'Teman');
-      const senderAvatar = isMe ? this.user.avatar : (msg.avatar || this.friends.find(f => f.id === msg.senderId)?.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100');
-
-      return `
-        <div class="chat-message-row" data-msg-id="${msg.id}">
-          <img class="chat-msg-avatar" src="${senderAvatar}" alt="${senderName}">
-          <div class="chat-msg-body">
-            <div class="chat-msg-header">
-              <span class="chat-msg-author">${senderName}</span>
-              <span class="chat-msg-time">${msg.time || 'Hari ini'}</span>
-            </div>
-            <div class="chat-msg-content">${msg.content}</div>
-            ${msg.reactions ? `
-              <div class="chat-msg-reactions">
-                ${msg.reactions.map(r => `
-                  <span class="reaction-pill ${r.userReacted ? 'reacted' : ''}" data-emoji="${r.emoji}">
-                    ${r.emoji} ${r.count}
-                  </span>
-                `).join('')}
-              </div>
-            ` : ''}
-          </div>
-        </div>
-      `;
-    }).join('');
-
-    this.chatMessagesContainer.scrollTop = this.chatMessagesContainer.scrollHeight;
-
-    // Reaction pills click
-    this.chatMessagesContainer.querySelectorAll('.reaction-pill').forEach(pill => {
-      pill.addEventListener('click', () => {
-        const emoji = pill.dataset.emoji;
-        const msgId = pill.closest('.chat-message-row').dataset.msgId;
-        this.toggleMessageReaction(msgId, emoji);
-      });
-    });
-  }
-
-  sendChatMessage() {
-    const text = this.inputChatMessage.value.trim();
-    if (!text) return;
-
-    const newMsg = {
-      id: 'msg-' + Date.now(),
-      userId: this.user.id,
-      senderId: 'user-me',
-      userName: this.user.name,
-      avatar: this.user.avatar,
-      content: text,
-      time: `Hari ini pukul ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
-      reactions: []
-    };
-
-    if (this.activeChannelId) {
-      if (!this.channelMessages[this.activeChannelId]) this.channelMessages[this.activeChannelId] = [];
-      this.channelMessages[this.activeChannelId].push(newMsg);
-      this.saveState('outmedia_channel_messages', this.channelMessages);
-      this.sendWs('chat:send', { message: newMsg, channelId: this.activeChannelId });
-    } else if (this.activeDmUserId) {
-      if (!this.directMessages[this.activeDmUserId]) this.directMessages[this.activeDmUserId] = [];
-      this.directMessages[this.activeDmUserId].push(newMsg);
-      this.saveState('outmedia_direct_messages', this.directMessages);
-      this.sendWs('chat:send', { message: newMsg, dmUserId: this.activeDmUserId });
-    }
-
-    this.playSfx('pop');
-    this.inputChatMessage.value = '';
-    this.renderChatMessages();
-  }
-
-  onChatMessageReceived(message, channelId, dmUserId) {
-    if (channelId && channelId === this.activeChannelId) {
-      this.renderChatMessages();
-    } else if (dmUserId && dmUserId === this.activeDmUserId) {
-      this.renderChatMessages();
-    }
-  }
-
-  onTypingStatusReceived(userName, channelId, dmUserId, isTyping) {
-    const isCurrent = (channelId && channelId === this.activeChannelId) || (dmUserId && dmUserId === this.activeDmUserId);
-    if (!isCurrent) return;
-
-    if (isTyping) {
-      this.typingText.textContent = `${userName} sedang mengetik...`;
-      this.typingIndicatorBar.style.display = 'flex';
-    } else {
-      this.typingIndicatorBar.style.display = 'none';
-    }
-  }
-
-  toggleMessageReaction(msgId, emoji) {
-    let list = this.activeChannelId ? this.channelMessages[this.activeChannelId] : this.directMessages[this.activeDmUserId];
-    if (!list) return;
-
-    const msg = list.find(m => m.id === msgId);
-    if (!msg) return;
-
-    if (!msg.reactions) msg.reactions = [];
-    const existing = msg.reactions.find(r => r.emoji === emoji);
-    if (existing) {
-      existing.userReacted = !existing.userReacted;
-      existing.count += existing.userReacted ? 1 : -1;
-      if (existing.count <= 0) msg.reactions = msg.reactions.filter(r => r.emoji !== emoji);
-    } else {
-      msg.reactions.push({ emoji, count: 1, userReacted: true });
-    }
-
-    if (this.activeChannelId) this.saveState('outmedia_channel_messages', this.channelMessages);
-    else this.saveState('outmedia_direct_messages', this.directMessages);
-    this.renderChatMessages();
-  }
-
-  // --- WebRTC Voice Space Engine with Real-Time VAD ---
-  async joinVoiceChannel(channel, server) {
-    this.connectedVoiceChannel = channel;
-    this.connChannelName.textContent = `${channel.name} (${server.name})`;
-    this.voiceRoomTitle.textContent = channel.name;
-    this.voiceConnectedBar.style.display = 'flex';
-    this.playSfx('join');
-
-    // Request actual microphone stream for VAD & audio
-    try {
-      if (navigator.mediaDevices?.getUserMedia) {
-        this.localAudioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        this.setupVoiceActivityDetection(this.localAudioStream);
-      }
-    } catch (err) {
-      console.warn('Microphone permission blocked or unavailable:', err);
-      this.showToast('Mikrofon simulasi diaktifkan.');
-    }
-
-    this.sendWs('voice:join', { channelId: channel.id, user: { id: this.user.id, name: this.user.name, avatar: this.user.avatar } });
-    this.renderVoiceRoom();
-    this.switchMainView('voice');
-    this.showToast(`Tersambung ke ${channel.name} 🔊`);
-  }
-
-  setupVoiceActivityDetection(stream) {
-    try {
-      const AudioCtx = window.AudioContext || window.webkitAudioContext;
-      if (!AudioCtx) return;
-
-      this.audioContext = new AudioCtx();
-      const source = this.audioContext.createMediaStreamSource(stream);
-      this.audioAnalyser = this.audioContext.createAnalyser();
-      this.audioAnalyser.fftSize = 256;
-      source.connect(this.audioAnalyser);
-
-      const bufferLength = this.audioAnalyser.frequencyBinCount;
-      const dataArray = new Uint8Array(bufferLength);
-
-      // VAD Poll Loop (Every 50ms)
-      this.vadInterval = setInterval(() => {
-        if (this.isMuted) {
-          if (this.isSpeaking) this.setSpeakingState(false);
-          return;
-        }
-
-        this.audioAnalyser.getByteFrequencyData(dataArray);
-        let sum = 0;
-        for (let i = 0; i < bufferLength; i++) {
-          sum += dataArray[i];
-        }
-        const average = sum / bufferLength;
-
-        // Threshold for speaking
-        const isNowSpeaking = average > 18;
-        if (isNowSpeaking !== this.isSpeaking) {
-          this.setSpeakingState(isNowSpeaking);
-        }
-      }, 50);
-    } catch (e) {
-      console.warn('VAD AudioContext error:', e);
-    }
-  }
-
-  setSpeakingState(speaking) {
-    this.isSpeaking = speaking;
-    const myCard = document.getElementById('voice-card-me');
-    if (myCard) {
-      myCard.classList.toggle('speaking', speaking);
-    }
-
-    // Broadcast speaking state over WebSocket
-    if (this.connectedVoiceChannel) {
-      this.sendWs('voice:speaking', {
-        channelId: this.connectedVoiceChannel.id,
-        userId: this.user.id,
-        isSpeaking: speaking
-      });
-    }
-  }
-
-  updatePeerSpeakingState(channelId, userId, isSpeaking) {
-    if (this.connectedVoiceChannel?.id !== channelId) return;
-    const card = document.querySelector(`.voice-user-card[data-user-id="${userId}"]`);
-    if (card) {
-      card.classList.toggle('speaking', isSpeaking);
-    }
-  }
-
-  toggleMicrophone() {
-    this.isMuted = !this.isMuted;
-    if (this.localAudioStream) {
-      this.localAudioStream.getAudioTracks().forEach(t => t.enabled = !this.isMuted);
-    }
-
-    this.iconMicOn.style.display = this.isMuted ? 'none' : 'block';
-    this.iconMicOff.style.display = this.isMuted ? 'block' : 'none';
-    this.dockIconMicOn.style.display = this.isMuted ? 'none' : 'block';
-    this.dockIconMicOff.style.display = this.isMuted ? 'block' : 'none';
-
-    if (this.isMuted) this.setSpeakingState(false);
-    this.showToast(this.isMuted ? 'Mikrofon Dibisukan 🔇' : 'Mikrofon Aktif 🎙️');
-    this.renderVoiceRoom();
-  }
-
-  toggleDeafen() {
-    this.isDeafened = !this.isDeafened;
-    this.iconDeafenOn.style.display = this.isDeafened ? 'none' : 'block';
-    this.iconDeafenOff.style.display = this.isDeafened ? 'block' : 'none';
-    this.dockIconDeafenOn.style.display = this.isDeafened ? 'none' : 'block';
-    this.dockIconDeafenOff.style.display = this.isDeafened ? 'block' : 'none';
-
-    if (this.isDeafened && !this.isMuted) {
-      this.toggleMicrophone(); // Deafen also mutes mic
-    }
-    this.showToast(this.isDeafened ? 'Suara Dinonaktifkan' : 'Suara Diaktifkan');
-  }
-
-  disconnectVoice() {
-    if (!this.connectedVoiceChannel) return;
-    this.playSfx('leave');
-
-    if (this.vadInterval) clearInterval(this.vadInterval);
-    if (this.localAudioStream) {
-      this.localAudioStream.getTracks().forEach(t => t.stop());
-      this.localAudioStream = null;
-    }
-    if (this.audioContext) {
-      this.audioContext.close();
-      this.audioContext = null;
-    }
-
-    this.sendWs('voice:leave', { channelId: this.connectedVoiceChannel.id, userId: this.user.id });
-    this.connectedVoiceChannel = null;
-    this.voiceConnectedBar.style.display = 'none';
-
-    // Return to chat or friends view
-    if (this.activeChannelId || this.activeDmUserId) {
-      this.switchMainView('chat');
-    } else {
-      this.switchMainView('friends');
-    }
-
-    this.showToast('Terputus dari saluran suara.');
-  }
-
-  renderVoiceRoom() {
-    // Current user + peers in voice
-    const usersInVoice = [
-      { id: this.user.id, name: `${this.user.name} (Saya)`, avatar: this.user.avatar, isMe: true, isMuted: this.isMuted },
-      { id: 'user-sarah', name: 'Sarah Aurelia', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150', isMe: false, isMuted: false },
-      { id: 'user-chef-ken', name: 'Chef Kenzo', avatar: 'https://images.unsplash.com/photo-1583394838336-acd977736f90?w=150', isMe: false, isMuted: true }
-    ];
-
-    this.voiceRoomGrid.innerHTML = usersInVoice.map(u => `
-      <div class="voice-user-card ${u.isMe && this.isSpeaking ? 'speaking' : ''}" id="${u.isMe ? 'voice-card-me' : ''}" data-user-id="${u.id}">
-        <div class="voice-card-avatar">
-          <img src="${u.avatar}" alt="${u.name}">
-        </div>
-        <span class="voice-card-name">${u.name}</span>
-        ${u.isMuted ? `
-          <div class="voice-card-state-icon">
-            <svg viewBox="0 0 24 24"><line x1="1" y1="1" x2="23" y2="23"></line><path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"></path><path d="M17 16.95A7 7 0 0 1 5 12v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
-          </div>
-        ` : ''}
-      </div>
-    `).join('');
-  }
-
-  // --- TikTok Feed Engine ---
-  renderTikTokFeed() {
-    let list = this.videos;
-    if (this.activeFeedType === 'following') {
-      list = this.videos.filter(v => v.author?.isFollowed);
-      if (list.length === 0) list = this.videos;
-    }
-
-    this.feedScroller.innerHTML = list.map((video, idx) => `
-      <article class="video-item" data-video-id="${video.id}" data-index="${idx}">
-        <div class="video-player-wrapper" data-action="toggle-play">
-          <video 
-            class="feed-video"
-            src="${video.videoUrl}" 
-            poster="${video.posterUrl || ''}"
-            loop 
-            playsinline 
-            preload="metadata"
-            ${this.isFeedMuted ? 'muted' : ''}>
-          </video>
-          <canvas class="video-fallback-canvas" data-theme="${video.theme || 'sunset'}"></canvas>
-
-          <div class="play-pause-indicator">
-            <svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
-          </div>
-        </div>
-
-        <div class="video-overlay-gradient"></div>
-
-        <div class="video-info-overlay">
-          <div class="creator-handle-row">
-            <span class="creator-name">@${video.author?.username}</span>
-            ${video.author?.isVerified ? '<span class="verified-badge">✓</span>' : ''}
-          </div>
-          <p class="video-caption">${video.caption}</p>
-          <div class="video-sound-row">
-            <svg class="sound-icon-note" viewBox="0 0 24 24"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>
-            <div class="sound-marquee-container">
-              <div class="sound-marquee-track">
-                <span>${video.sound?.title || 'Audio Asli'} • ${video.sound?.artist || 'Kreator'} &nbsp;&nbsp;&nbsp;&nbsp;</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <aside class="action-sidebar">
-          <div class="action-avatar-wrapper">
-            <div class="action-avatar">
-              <img src="${video.author?.avatar}" alt="${video.author?.name}">
-            </div>
-            <button class="follow-plus-btn ${video.author?.isFollowed ? 'followed' : ''}" data-action="follow" data-author-id="${video.author?.id}">
-              ${video.author?.isFollowed ? '✓' : '+'}
-            </button>
-          </div>
-
-          <button class="action-item ${video.isLiked ? 'liked' : ''}" data-action="like" data-video-id="${video.id}">
-            <div class="action-icon-circle">
-              <svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
-            </div>
-            <span class="action-count">${video.stats?.likes || 0}</span>
-          </button>
-
-          <button class="action-item" data-action="comment" data-video-id="${video.id}">
-            <div class="action-icon-circle">
-              <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
-            </div>
-            <span class="action-count">${video.stats?.comments || 0}</span>
-          </button>
-
-          <button class="action-item" data-action="share" data-video-id="${video.id}">
-            <div class="action-icon-circle">
-              <svg viewBox="0 0 24 24"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path><polyline points="16 6 12 2 8 6"></polyline><line x1="12" y1="2" x2="12" y2="15"></line></svg>
-            </div>
-            <span class="action-count">Bagikan</span>
-          </button>
-
-          <div class="disc-wrapper">
-            <div class="disc-vinyl">
-              <img src="${video.sound?.cover || video.author?.avatar}">
-            </div>
-          </div>
-        </aside>
-      </article>
-    `).join('');
-
-    this.setupFeedIntersectionObserver();
-  }
-
-  setupFeedIntersectionObserver() {
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach(entry => {
-        const vid = entry.target.querySelector('video');
-        if (entry.isIntersecting) {
-          this.currentFeedIndex = parseInt(entry.target.dataset.index, 10);
-          if (vid && this.viewFeed.style.display !== 'none') {
-            vid.muted = this.isFeedMuted;
-            vid.play().catch(() => {});
-          }
-        } else {
-          if (vid) vid.pause();
-        }
-      });
-    }, { root: this.feedScroller, threshold: 0.65 });
-
-    this.feedScroller.querySelectorAll('.video-item').forEach(el => observer.observe(el));
-  }
-
-  setupTikTokGestures() {
-    let lastTap = 0;
-
-    this.feedScroller.addEventListener('click', (e) => {
-      const now = Date.now();
-      const actionBtn = e.target.closest('[data-action]');
-      if (actionBtn) {
-        this.handleFeedAction(actionBtn);
+      const user = await getCurrentUser();
+      if (user) {
+        state.currentUser = user;
+        updateUserUI();
+        await loadUserData(user.id);
         return;
       }
-
-      const wrapper = e.target.closest('.video-player-wrapper');
-      if (!wrapper) return;
-
-      const videoItem = wrapper.closest('.video-item');
-      const videoId = videoItem.dataset.videoId;
-
-      if (now - lastTap < 300) {
-        // Double tap like!
-        this.triggerDoubleTapHeart(e.clientX, e.clientY, wrapper);
-        const video = this.videos.find(v => v.id === videoId);
-        if (video && !video.isLiked) {
-          video.isLiked = true;
-          video.stats.likes += 1;
-          this.saveState('outmedia_videos', this.videos);
-          this.renderTikTokFeed();
-        }
-        lastTap = 0;
-      } else {
-        lastTap = now;
-        setTimeout(() => {
-          if (Date.now() - lastTap >= 300 && lastTap !== 0) {
-            const vid = wrapper.querySelector('video');
-            const ind = wrapper.querySelector('.play-pause-indicator');
-            if (vid) {
-              if (vid.paused) {
-                vid.play();
-                ind.classList.remove('show');
-              } else {
-                vid.pause();
-                ind.classList.add('show');
-                setTimeout(() => ind.classList.remove('show'), 700);
-              }
-            }
-            lastTap = 0;
-          }
-        }, 300);
-      }
-    });
-  }
-
-  triggerDoubleTapHeart(x, y, container) {
-    this.playSfx('pop');
-    const rect = container.getBoundingClientRect();
-    const heart = document.createElement('div');
-    heart.className = 'floating-heart';
-    heart.style.left = `${x - rect.left}px`;
-    heart.style.top = `${y - rect.top}px`;
-    heart.innerHTML = `<svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>`;
-    container.appendChild(heart);
-    setTimeout(() => heart.remove(), 900);
-  }
-
-  handleFeedAction(btn) {
-    const action = btn.dataset.action;
-    const vidId = btn.dataset.videoId;
-    const video = this.videos.find(v => v.id === vidId);
-
-    if (action === 'like' && video) {
-      video.isLiked = !video.isLiked;
-      video.stats.likes += video.isLiked ? 1 : -1;
-      this.playSfx('pop');
-      this.saveState('outmedia_videos', this.videos);
-      this.renderTikTokFeed();
-    } else if (action === 'comment' && video) {
-      this.sheetComments.classList.add('open');
-      this.renderFeedComments(video);
-    } else if (action === 'share') {
-      navigator.clipboard?.writeText(window.location.href);
-      this.showToast('Tautan video disalin ke clipboard! 📋');
+    } catch (err) {
+      console.warn('Gagal memverifikasi session Supabase:', err);
     }
   }
 
-  renderFeedComments(video) {
-    const list = video.comments || [];
-    this.commentsListContainer.innerHTML = list.map(c => `
-      <div style="display:flex; gap:10px; margin-bottom:12px;">
-        <img src="${c.avatar}" style="width:32px; height:32px; border-radius:50%; object-fit:cover;">
-        <div>
-          <div style="font-size:12px; font-weight:700; color:var(--text-muted);">@${c.author}</div>
-          <div style="font-size:13.5px; color:#fff;">${c.text}</div>
-        </div>
-      </div>
-    `).join('') || '<p style="color:var(--text-muted); text-align:center;">Belum ada komentar.</p>';
-  }
+  // Jika belum login ke akun Supabase, gunakan penyimpanan lokal / guest
+  state.currentUser = null;
+  updateUserUI();
+  loadLocalSchedules('guest');
+}
 
-  // --- Global Event Listeners ---
-  setupEventListeners() {
-    // 1. Server Rail Switchers
-    this.railBtnDm.addEventListener('click', () => {
-      this.activeRailTarget = 'dm';
-      this.activeServerId = null;
-      this.railBtnDm.classList.add('active');
-      this.railBtnFeed.classList.remove('active');
-      this.renderServerRail();
+/** Memuat data jadwal dan catatan khusus milik user ID yang sedang aktif */
+async function loadUserData(userId) {
+  try {
+    showToast('Memuat data jadwal akun Anda dari Supabase...', 'info');
+    const cloudSchedules = await fetchUserSchedules(userId);
 
-      this.dmSectionWrapper.style.display = 'block';
-      this.serverChannelsWrapper.style.display = 'none';
-      this.sidebarHeaderTitle.textContent = 'Percakapan Langsung';
+    if (cloudSchedules === null) {
+      showToast('⚠️ Tabel Supabase belum dibuat di cloud. Salin & jalankan supabase-schema.sql di SQL Editor Supabase.', 'warning');
+      loadLocalSchedules(userId);
+      return;
+    }
 
-      if (this.activeDmUserId) {
-        this.openDirectMessage(this.activeDmUserId);
-      } else {
-        this.switchMainView('friends');
-      }
-    });
+    if (cloudSchedules && cloudSchedules.length > 0) {
+      state.schedules = cloudSchedules;
+    } else {
+      // User baru pertama kali mendaftar: isi dengan jadwal bawaan contoh di akun Supabase-nya
+      const defaults = getDefaultSchedules();
+      await seedInitialSchedulesForUser(userId, defaults);
+      const seeded = await fetchUserSchedules(userId);
+      state.schedules = seeded || defaults;
+    }
 
-    this.railBtnFeed.addEventListener('click', () => {
-      this.activeRailTarget = 'tiktok-feed';
-      this.railBtnFeed.classList.add('active');
-      this.railBtnDm.classList.remove('active');
-      this.renderServerRail();
-      this.switchMainView('feed');
-    });
+    // Simpan cache offline per user
+    localStorage.setItem(`${STORAGE_PREFIX}${userId}`, JSON.stringify(state.schedules));
 
-    // 2. Friends Button in Sidebar
-    this.btnNavFriends.addEventListener('click', () => {
-      this.activeDmUserId = null;
-      this.renderDmFriendsSidebar();
-      this.switchMainView('friends');
-    });
+    // Muat catatan harian per user
+    state.dayNotes = await fetchUserDayNotes(userId);
+    localStorage.setItem(`${NOTES_PREFIX}${userId}`, JSON.stringify(state.dayNotes));
 
-    // 3. Friends Tabs (Online, All, Pending, Add)
-    this.friendTabs.forEach(tab => {
-      tab.addEventListener('click', () => {
-        this.friendTabs.forEach(t => t.classList.remove('active'));
-        tab.classList.add('active');
-        this.activeFriendsFilter = tab.dataset.filter;
-        this.renderFriendsHub();
-      });
-    });
-
-    this.inputSearchFriends.addEventListener('input', () => this.renderFriendsHub());
-
-    // 4. Add Friend Submission
-    this.btnSubmitFriendRequest.addEventListener('click', () => {
-      const username = this.inputAddFriendUsername.value.trim();
-      if (!username) return;
-
-      this.showToast(`Permintaan pertemanan terkirim ke ${username}! ✨`);
-      this.inputAddFriendUsername.value = '';
-      this.friendTabs[0].click();
-    });
-
-    // 5. Chat Input Submit & Typing
-    this.formSendChat.addEventListener('submit', (e) => {
-      e.preventDefault();
-      this.sendChatMessage();
-    });
-
-    this.inputChatMessage.addEventListener('input', () => {
-      this.sendWs('chat:typing', {
-        userName: this.user.name,
-        channelId: this.activeChannelId,
-        dmUserId: this.activeDmUserId,
-        isTyping: true
-      });
-
-      clearTimeout(this.typingTimeout);
-      this.typingTimeout = setTimeout(() => {
-        this.sendWs('chat:typing', {
-          userName: this.user.name,
-          channelId: this.activeChannelId,
-          dmUserId: this.activeDmUserId,
-          isTyping: false
-        });
-      }, 1500);
-    });
-
-    // 6. Voice Controls
-    this.btnToggleMic.addEventListener('click', () => this.toggleMicrophone());
-    this.btnToggleDeafen.addEventListener('click', () => this.toggleDeafen());
-    this.btnDisconnectVoice.addEventListener('click', () => this.disconnectVoice());
-    this.btnVoiceLeaveTop.addEventListener('click', () => this.disconnectVoice());
-    this.dockBtnMic.addEventListener('click', () => this.toggleMicrophone());
-    this.dockBtnDeafen.addEventListener('click', () => this.toggleDeafen());
-    this.dockBtnDisconnect.addEventListener('click', () => this.disconnectVoice());
-
-    this.dockBtnShareScreen.addEventListener('click', async () => {
-      try {
-        if (navigator.mediaDevices?.getDisplayMedia) {
-          const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
-          this.showToast('Layar berhasil dibagikan! 🖥️');
-          screenStream.getVideoTracks()[0].onended = () => {
-            this.showToast('Berhenti berbagi layar.');
-          };
-        }
-      } catch (err) {
-        this.showToast('Fitur berbagi layar dibatalkan.');
-      }
-    });
-
-    // 7. Modals
-    this.btnAddServerModal.addEventListener('click', () => {
-      this.modalCreateServer.classList.add('open');
-    });
-
-    this.btnCloseServerModal.addEventListener('click', () => {
-      this.modalCreateServer.classList.remove('open');
-    });
-
-    this.btnSubmitCreateServer.addEventListener('click', () => {
-      const name = this.inputNewServerName.value.trim() || 'Server Baru';
-      const desc = this.inputNewServerDesc.value.trim() || 'Deskripsi server';
-      const newSrv = {
-        id: 'srv-' + Date.now(),
-        name: name,
-        icon: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=100',
-        description: desc,
-        channels: [
-          { id: 'ch-' + Date.now(), name: 'obrolan-umum', type: 'TEXT', topic: 'Selamat datang!' },
-          { id: 'vc-' + Date.now(), name: 'Voice Room 1', type: 'VOICE' }
-        ]
-      };
-
-      this.servers.push(newSrv);
-      this.saveState('outmedia_servers', this.servers);
-      this.renderServerRail();
-      this.modalCreateServer.classList.remove('open');
-      this.showToast(`Server "${name}" berhasil dibuat! 🚀`);
-      this.selectServer(newSrv.id);
-    });
-
-    // TikTok Feed Mute Toggle
-    this.btnSoundToggle.addEventListener('click', () => {
-      this.isFeedMuted = !this.isFeedMuted;
-      this.iconSoundUnmuted.style.display = this.isFeedMuted ? 'none' : 'block';
-      this.iconSoundMuted.style.display = this.isFeedMuted ? 'block' : 'none';
-      this.feedScroller.querySelectorAll('video').forEach(v => v.muted = this.isFeedMuted);
-    });
-
-    // TikTok Create Post Modal
-    this.btnFeedCreatePost.addEventListener('click', () => {
-      this.modalCreateVideo.classList.add('open');
-    });
-
-    this.btnCloseCreateVideoModal.addEventListener('click', () => {
-      this.modalCreateVideo.classList.remove('open');
-    });
-
-    this.btnCloseComments.addEventListener('click', () => {
-      this.sheetComments.classList.remove('open');
-    });
+    renderApp();
+    showToast(`Data akun berhasil disinkronkan (${state.schedules.length} jadwal)`, 'success');
+  } catch (err) {
+    console.warn('Gagal mengambil data dari Supabase, memuat dari cache lokal:', err);
+    loadLocalSchedules(userId);
   }
 }
 
-// Bootstrap Platform on DOM ready
-document.addEventListener('DOMContentLoaded', () => {
-  window.outMedia = new OutMediaPlatform();
+/** Fallback muat dari cache LocalStorage terisolasi per akun/guest */
+function loadLocalSchedules(accountKey) {
+  try {
+    const saved = localStorage.getItem(`${STORAGE_PREFIX}${accountKey}`);
+    if (saved) {
+      state.schedules = JSON.parse(saved);
+    } else {
+      state.schedules = getDefaultSchedules();
+      localStorage.setItem(`${STORAGE_PREFIX}${accountKey}`, JSON.stringify(state.schedules));
+    }
+
+    const savedNotes = localStorage.getItem(`${NOTES_PREFIX}${accountKey}`);
+    state.dayNotes = savedNotes ? JSON.parse(savedNotes) : {};
+  } catch {
+    state.schedules = getDefaultSchedules();
+    state.dayNotes = {};
+  }
+  renderApp();
+}
+
+/** Simpan jadwal ke Supabase Cloud & cache lokal */
+async function persistSchedule(scheduleData) {
+  // 1. Simpan ke state dan cache lokal
+  const accKey = state.currentUser ? state.currentUser.id : 'guest';
+  localStorage.setItem(`${STORAGE_PREFIX}${accKey}`, JSON.stringify(state.schedules));
+
+  // 2. Jika akun terhubung ke Supabase, simpan langsung ke Supabase dengan RLS
+  if (state.currentUser && isSupabaseConfigured()) {
+    try {
+      await saveUserSchedule(scheduleData, state.currentUser.id);
+    } catch (err) {
+      console.error('Gagal sinkronisasi jadwal ke Supabase:', err);
+      showToast('Tersimpan di lokal. Gagal sinkronisasi Supabase: ' + err.message, 'warning');
+    }
+  }
+}
+
+/** Hapus jadwal dari Supabase Cloud & cache lokal */
+async function removeSchedule(scheduleId) {
+  const accKey = state.currentUser ? state.currentUser.id : 'guest';
+  localStorage.setItem(`${STORAGE_PREFIX}${accKey}`, JSON.stringify(state.schedules));
+
+  if (state.currentUser && isSupabaseConfigured()) {
+    try {
+      await deleteUserSchedule(scheduleId, state.currentUser.id);
+    } catch (err) {
+      console.error('Gagal menghapus dari Supabase:', err);
+    }
+  }
+}
+
+/** Update Tampilan Badge Supabase di Header & Footer */
+function updateSupabaseStatusBadges() {
+  const pillDot = document.getElementById('supabasePillDot');
+  const pillText = document.getElementById('supabasePillText');
+  const brandDot = document.getElementById('brandStatusDot');
+  const footerDot = document.getElementById('footerStatusDot');
+
+  const isConfigured = isSupabaseConfigured();
+  const isLoggedIn = Boolean(state.currentUser);
+
+  if (isLoggedIn) {
+    if (pillDot) pillDot.className = 'supabase-status-indicator status-online';
+    if (pillText) pillText.textContent = 'Supabase Cloud';
+    if (brandDot) brandDot.className = 'brand-live-pulse status-online';
+    if (footerDot) footerDot.className = 'version-dot status-online';
+  } else if (isConfigured) {
+    if (pillDot) pillDot.className = 'supabase-status-indicator status-warning';
+    if (pillText) pillText.textContent = 'Siap Login';
+    if (brandDot) brandDot.className = 'brand-live-pulse status-warning';
+    if (footerDot) footerDot.className = 'version-dot status-warning';
+  } else {
+    if (pillDot) pillDot.className = 'supabase-status-indicator status-offline';
+    if (pillText) pillText.textContent = 'Setup Supabase';
+    if (brandDot) brandDot.className = 'brand-live-pulse status-offline';
+    if (footerDot) footerDot.className = 'version-dot status-offline';
+  }
+}
+
+/** Update Informasi Pengguna di UI (Sidebar, Header, Profile Modal) */
+function updateUserUI() {
+  const sidebarName = document.getElementById('sidebarUserName');
+  const sidebarEmail = document.getElementById('sidebarUserEmail');
+  const sidebarAvatar = document.getElementById('sidebarUserAvatar');
+  const headerAvatar = document.getElementById('headerAvatarEl');
+  const headerEmail = document.getElementById('headerEmailEl');
+
+  if (state.currentUser) {
+    const user = state.currentUser;
+    const name = user.user_metadata?.display_name || user.email?.split('@')[0] || 'User';
+    const email = user.email || '';
+    const initial = name.charAt(0).toUpperCase();
+
+    if (sidebarName) sidebarName.textContent = name;
+    if (sidebarEmail) sidebarEmail.textContent = email;
+    if (sidebarAvatar) sidebarAvatar.textContent = initial;
+    if (headerAvatar) headerAvatar.textContent = initial;
+    if (headerEmail) headerEmail.textContent = name;
+
+    // Update Profile Modal jika dibuka
+    const profName = document.getElementById('profileDisplayName');
+    const profEmail = document.getElementById('profileEmailBadge');
+    const profAvatar = document.getElementById('profileBigAvatar');
+    const profCount = document.getElementById('profileTotalSchedules');
+
+    if (profName) profName.textContent = name;
+    if (profEmail) profEmail.textContent = email;
+    if (profAvatar) profAvatar.textContent = initial;
+    if (profCount) profCount.textContent = state.schedules.length;
+  } else {
+    if (sidebarName) sidebarName.textContent = 'Tamu (Guest Mode)';
+    if (sidebarEmail) sidebarEmail.textContent = 'Klik untuk Masuk Akun';
+    if (sidebarAvatar) sidebarAvatar.textContent = '👤';
+    if (headerAvatar) headerAvatar.textContent = '👤';
+    if (headerEmail) headerEmail.textContent = 'Masuk Akun';
+  }
+
+  updateSupabaseStatusBadges();
+}
+
+// ==============================================================================
+// 3. SYNTHESIZED WEB AUDIO ENGINE
+// ==============================================================================
+let audioCtx = null;
+
+function getAudioContext() {
+  if (!audioCtx) {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (AudioContext) audioCtx = new AudioContext();
+  }
+  if (audioCtx && audioCtx.state === 'suspended') {
+    audioCtx.resume();
+  }
+  return audioCtx;
+}
+
+function playUiSound(type = 'click') {
+  if (!state.soundEnabled) return;
+  try {
+    const ctx = getAudioContext();
+    if (!ctx) return;
+
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    const now = ctx.currentTime;
+
+    if (type === 'click') {
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(600, now);
+      osc.frequency.exponentialRampToValueAtTime(300, now + 0.04);
+      gain.gain.setValueAtTime(0.08, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
+      osc.start(now);
+      osc.stop(now + 0.04);
+    } else if (type === 'pop') {
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(350, now);
+      osc.frequency.exponentialRampToValueAtTime(800, now + 0.06);
+      gain.gain.setValueAtTime(0.1, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+      osc.start(now);
+      osc.stop(now + 0.06);
+    } else if (type === 'complete') {
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(523.25, now);
+      osc.frequency.setValueAtTime(659.25, now + 0.08);
+      gain.gain.setValueAtTime(0.12, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+      osc.start(now);
+      osc.stop(now + 0.25);
+    } else if (type === 'delete') {
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(450, now);
+      osc.frequency.exponentialRampToValueAtTime(150, now + 0.12);
+      gain.gain.setValueAtTime(0.1, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+      osc.start(now);
+      osc.stop(now + 0.12);
+    } else if (type === 'chime') {
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(523.25, now);
+      osc.frequency.setValueAtTime(659.25, now + 0.1);
+      osc.frequency.setValueAtTime(783.99, now + 0.2);
+      gain.gain.setValueAtTime(0.15, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+      osc.start(now);
+      osc.stop(now + 0.45);
+    }
+  } catch {}
+}
+
+// ==============================================================================
+// 4. CANVAS CONFETTI ENGINE
+// ==============================================================================
+function triggerConfetti() {
+  const canvas = document.getElementById('confettiCanvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+
+  const particles = [];
+  const colors = ['#6366f1', '#10b981', '#f59e0b', '#f43f5e', '#0ea5e9', '#a855f7'];
+
+  for (let i = 0; i < 90; i++) {
+    particles.push({
+      x: window.innerWidth * 0.5 + (Math.random() - 0.5) * 300,
+      y: window.innerHeight * 0.5 + (Math.random() - 0.5) * 100,
+      vx: (Math.random() - 0.5) * 16,
+      vy: (Math.random() - 0.7) * 18,
+      size: Math.random() * 8 + 4,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      rotation: Math.random() * 360,
+      rotationSpeed: (Math.random() - 0.5) * 12,
+      opacity: 1
+    });
+  }
+
+  let animationFrame;
+  function updateConfetti() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    let alive = false;
+
+    particles.forEach(p => {
+      p.x += p.vx;
+      p.y += p.vy;
+      p.vy += 0.45;
+      p.vx *= 0.98;
+      p.rotation += p.rotationSpeed;
+      p.opacity -= 0.016;
+
+      if (p.opacity > 0) {
+        alive = true;
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate((p.rotation * Math.PI) / 180);
+        ctx.fillStyle = p.color;
+        ctx.globalAlpha = Math.max(0, p.opacity);
+        ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
+        ctx.restore();
+      }
+    });
+
+    if (alive) {
+      animationFrame = requestAnimationFrame(updateConfetti);
+    } else {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      cancelAnimationFrame(animationFrame);
+    }
+  }
+
+  updateConfetti();
+}
+
+// ==============================================================================
+// 5. REAL-TIME DIGITAL CLOCK & GREETING
+// ==============================================================================
+function initLiveClock() {
+  const clockEl = document.getElementById('liveClockTime');
+  const greetingEl = document.getElementById('liveGreetingText');
+  if (!clockEl || !greetingEl) return;
+
+  function update() {
+    const now = new Date();
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const seconds = String(now.getSeconds()).padStart(2, '0');
+    clockEl.textContent = `${hours}:${minutes}:${seconds}`;
+
+    const h = now.getHours();
+    let greet = 'Semangat Produktif ✨';
+    if (h >= 4 && h < 11) greet = 'Selamat Pagi • Fokus Maksimal ⚡';
+    else if (h >= 11 && h < 15) greet = 'Selamat Siang • Tetap Prima 🚀';
+    else if (h >= 15 && h < 18) greet = 'Selamat Sore • Capai Target 🌅';
+    else greet = 'Selamat Malam • Refleksi Hari 🌙';
+
+    greetingEl.textContent = greet;
+  }
+
+  update();
+  setInterval(update, 1000);
+}
+
+// ==============================================================================
+// 6. POMODORO FOCUS TIMER
+// ==============================================================================
+const pomodoro = {
+  totalSeconds: 25 * 60,
+  remainingSeconds: 25 * 60,
+  isRunning: false,
+  timerInterval: null
+};
+
+function initPomodoro() {
+  const display = document.getElementById('pomodoroTimerDisplay');
+  const badge = document.getElementById('headerTimerBadge');
+  const toggleBtn = document.getElementById('btnToggleTimer');
+  const resetBtn = document.getElementById('btnResetTimer');
+  const statusLabel = document.getElementById('pomodoroStatusLabel');
+
+  function updateDisplay() {
+    const m = Math.floor(pomodoro.remainingSeconds / 60);
+    const s = pomodoro.remainingSeconds % 60;
+    const str = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    if (display) display.textContent = str;
+    if (badge) badge.textContent = pomodoro.isRunning ? `⚡ ${str}` : 'Focus';
+  }
+
+  function startTimer() {
+    if (pomodoro.isRunning) return;
+    pomodoro.isRunning = true;
+    if (document.getElementById('btnTimerText')) {
+      document.getElementById('btnTimerText').textContent = 'Jeda (Pause)';
+    }
+    if (statusLabel) statusLabel.textContent = '🔥 Sedang berjalan... Tetap fokus!';
+    playUiSound('pop');
+
+    pomodoro.timerInterval = setInterval(() => {
+      if (pomodoro.remainingSeconds > 0) {
+        pomodoro.remainingSeconds--;
+        updateDisplay();
+      } else {
+        clearInterval(pomodoro.timerInterval);
+        pomodoro.isRunning = false;
+        if (document.getElementById('btnTimerText')) {
+          document.getElementById('btnTimerText').textContent = 'Mulai Fokus';
+        }
+        if (statusLabel) statusLabel.textContent = '🎉 Sesi Fokus Selesai! Saatnya istirahat.';
+        playUiSound('chime');
+        triggerConfetti();
+        showToast('Waktu sesi fokus telah berakhir! Luar biasa!', 'success');
+      }
+    }, 1000);
+  }
+
+  function pauseTimer() {
+    clearInterval(pomodoro.timerInterval);
+    pomodoro.isRunning = false;
+    if (document.getElementById('btnTimerText')) {
+      document.getElementById('btnTimerText').textContent = 'Lanjutkan';
+    }
+    if (statusLabel) statusLabel.textContent = '⏸️ Sesi dijeda';
+    playUiSound('click');
+    updateDisplay();
+  }
+
+  toggleBtn?.addEventListener('click', () => {
+    if (pomodoro.isRunning) pauseTimer();
+    else startTimer();
+  });
+
+  resetBtn?.addEventListener('click', () => {
+    pauseTimer();
+    pomodoro.remainingSeconds = pomodoro.totalSeconds;
+    if (document.getElementById('btnTimerText')) {
+      document.getElementById('btnTimerText').textContent = 'Mulai Fokus';
+    }
+    if (statusLabel) statusLabel.textContent = 'Fokus pada satu tugas penting';
+    updateDisplay();
+    playUiSound('click');
+  });
+
+  document.querySelectorAll('.pomodoro-mode-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.pomodoro-mode-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const mins = Number(btn.dataset.time);
+      pomodoro.totalSeconds = mins * 60;
+      pomodoro.remainingSeconds = mins * 60;
+      pauseTimer();
+      updateDisplay();
+      playUiSound('click');
+    });
+  });
+
+  updateDisplay();
+}
+
+// ==============================================================================
+// 7. COMMAND PALETTE (RAYCAST / LINEAR STYLE: CTRL+K)
+// ==============================================================================
+let commandSelectedIndex = 0;
+
+function openCommandPalette() {
+  const overlay = document.getElementById('commandPaletteOverlay');
+  const input = document.getElementById('commandPaletteInput');
+  if (!overlay || !input) return;
+
+  playUiSound('pop');
+  overlay.classList.remove('hidden');
+  input.value = '';
+  commandSelectedIndex = 0;
+  renderCommandResults('');
+  input.focus();
+}
+
+function closeCommandPalette() {
+  document.getElementById('commandPaletteOverlay')?.classList.add('hidden');
+}
+
+function renderCommandResults(query = '') {
+  const list = document.getElementById('commandResultsList');
+  if (!list) return;
+  list.innerHTML = '';
+
+  const q = query.toLowerCase().trim();
+
+  const systemActions = [
+    { id: 'act-new', label: 'Tambah Jadwal Baru', icon: '➕', cat: 'Navigasi', action: () => { closeCommandPalette(); openScheduleModal(); } },
+    { id: 'act-auth', label: state.currentUser ? `Profil Akun (${state.currentUser.email})` : 'Masuk atau Daftar Akun Supabase', icon: '🔐', cat: 'Akun', action: () => { closeCommandPalette(); openAuthOrProfile(); } },
+    { id: 'act-supabase-cfg', label: 'Pengaturan Koneksi Supabase', icon: '⚡', cat: 'Pengaturan', action: () => { closeCommandPalette(); openSupabaseConfigModal(); } },
+    { id: 'act-today', label: 'Lompat ke Hari Ini', icon: '📅', cat: 'Navigasi', action: () => { closeCommandPalette(); goToToday(); } },
+    { id: 'act-month', label: 'Beralih ke Tampilan Kalender Bulanan', icon: '📆', cat: 'Tampilan', action: () => { closeCommandPalette(); switchView('month'); } },
+    { id: 'act-week', label: 'Beralih ke Timeline Mingguan', icon: '⏰', cat: 'Tampilan', action: () => { closeCommandPalette(); switchView('week'); } },
+    { id: 'act-day', label: 'Beralih ke Agenda Harian Terfokus', icon: '🎯', cat: 'Tampilan', action: () => { closeCommandPalette(); switchView('day'); } },
+    { id: 'act-kanban', label: 'Beralih ke Papan Status Kanban', icon: '📋', cat: 'Tampilan', action: () => { closeCommandPalette(); switchView('kanban'); } },
+    { id: 'act-agenda', label: 'Beralih ke Daftar Agenda Lengkap', icon: '📝', cat: 'Tampilan', action: () => { closeCommandPalette(); switchView('agenda'); } },
+    { id: 'act-pomodoro', label: 'Buka Focus Session (Pomodoro)', icon: '⏱️', cat: 'Alat', action: () => { closeCommandPalette(); document.getElementById('pomodoroModalOverlay')?.classList.remove('hidden'); } },
+    { id: 'act-theme', label: `Ganti Tema ke Mode ${state.theme === 'dark' ? 'Terang' : 'Gelap'}`, icon: '🌓', cat: 'Pengaturan', action: () => { closeCommandPalette(); toggleTheme(); } },
+    { id: 'act-sound', label: `Efek Suara Antarmuka: ${state.soundEnabled ? 'Nonaktifkan' : 'Aktifkan'}`, icon: '🔊', cat: 'Pengaturan', action: () => { closeCommandPalette(); toggleSound(); } },
+    { id: 'act-export', label: 'Ekspor Data Jadwal (Backup JSON)', icon: '💾', cat: 'Data', action: () => { closeCommandPalette(); exportDataJSON(); } },
+    { id: 'act-reset', label: 'Reset ke Jadwal Default Contoh', icon: '🔄', cat: 'Data', action: () => { closeCommandPalette(); resetToDefaultData(); } }
+  ];
+
+  const matchedActions = systemActions.filter(a => a.label.toLowerCase().includes(q) || a.cat.toLowerCase().includes(q));
+
+  const matchedSchedules = state.schedules.filter(s => {
+    return s.title.toLowerCase().includes(q) || (s.description && s.description.toLowerCase().includes(q));
+  }).slice(0, 6);
+
+  let allItems = [];
+
+  if (matchedActions.length > 0) {
+    const grp = document.createElement('div');
+    grp.className = 'cmd-group-label';
+    grp.textContent = 'PERINTAH SISTEM';
+    list.appendChild(grp);
+
+    matchedActions.forEach(act => {
+      allItems.push(act);
+      const itemEl = createCommandItemEl(act.label, act.icon, act.cat, allItems.length - 1, act.action);
+      list.appendChild(itemEl);
+    });
+  }
+
+  if (matchedSchedules.length > 0) {
+    const grp = document.createElement('div');
+    grp.className = 'cmd-group-label';
+    grp.textContent = 'JADWAL & AGENDA COCOK';
+    list.appendChild(grp);
+
+    matchedSchedules.forEach(sch => {
+      const cat = getCategory(sch.category);
+      const itemData = {
+        label: sch.title,
+        icon: cat.icon,
+        cat: `${sch.date} • ${sch.startTime || ''}`,
+        action: () => { closeCommandPalette(); openPreviewModal(sch); }
+      };
+      allItems.push(itemData);
+      const itemEl = createCommandItemEl(sch.title, cat.icon, `${sch.date} • ${sch.startTime || ''}`, allItems.length - 1, itemData.action);
+      list.appendChild(itemEl);
+    });
+  }
+
+  if (allItems.length === 0) {
+    list.innerHTML = `<div style="padding: 24px; text-align: center; color: var(--text-muted); font-size: 0.85rem;">Tidak ditemukan hasil untuk "${escapeHtml(query)}"</div>`;
+  } else {
+    updateCommandSelection(allItems);
+  }
+}
+
+function createCommandItemEl(title, icon, tag, index, action) {
+  const el = document.createElement('div');
+  el.className = `cmd-item ${index === commandSelectedIndex ? 'selected' : ''}`;
+  el.dataset.index = index;
+
+  el.innerHTML = `
+    <div class="cmd-item-left">
+      <span class="cmd-item-icon">${icon}</span>
+      <span style="font-weight: 600;">${escapeHtml(title)}</span>
+    </div>
+    <span class="cmd-item-action-tag">${escapeHtml(tag)}</span>
+  `;
+
+  el.addEventListener('click', () => {
+    action();
+  });
+
+  return el;
+}
+
+function updateCommandSelection() {
+  const elements = document.querySelectorAll('#commandResultsList .cmd-item');
+  elements.forEach((el, idx) => {
+    el.classList.toggle('selected', idx === commandSelectedIndex);
+  });
+}
+
+// ==============================================================================
+// 8. DATE ENGINE & FORMATTING HELPERS
+// ==============================================================================
+const MONTH_NAMES = [
+  'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+  'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+];
+
+const DAY_NAMES = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+
+function formatDateKey(date) {
+  const d = new Date(date);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function isSameDate(d1, d2) {
+  const a = new Date(d1);
+  const b = new Date(d2);
+  return a.getFullYear() === b.getFullYear() &&
+         a.getMonth() === b.getMonth() &&
+         a.getDate() === b.getDate();
+}
+
+function isDateToday(date) {
+  return isSameDate(date, new Date());
+}
+
+function getCategory(catId) {
+  return CATEGORIES.find(c => c.id === catId) || {
+    id: 'other',
+    name: 'Lainnya',
+    color: '#94a3b8',
+    gradient: 'linear-gradient(135deg, #94a3b8, #64748b)',
+    bgColor: 'rgba(148, 163, 184, 0.15)',
+    borderColor: '#94a3b8',
+    icon: '📌'
+  };
+}
+
+function getPriority(pId) {
+  return PRIORITIES.find(p => p.id === pId) || PRIORITIES[1];
+}
+
+function getStatus(sId) {
+  return STATUSES.find(s => s.id === sId) || STATUSES[2];
+}
+
+function getFilteredSchedules() {
+  return state.schedules.filter(item => {
+    if (state.activeCategoryFilter !== 'all' && item.category !== state.activeCategoryFilter) return false;
+    if (state.activePriorityFilter !== 'all' && item.priority !== state.activePriorityFilter) return false;
+    if (state.searchQuery.trim() !== '') {
+      const q = state.searchQuery.toLowerCase();
+      const matchTitle = item.title && item.title.toLowerCase().includes(q);
+      const matchDesc = item.description && item.description.toLowerCase().includes(q);
+      const matchLoc = item.location && item.location.toLowerCase().includes(q);
+      if (!matchTitle && !matchDesc && !matchLoc) return false;
+    }
+    return true;
+  });
+}
+
+// ==============================================================================
+// 9. MAIN RENDER DISPATCHER
+// ==============================================================================
+function renderApp() {
+  updatePeriodHeader();
+  updateDashboardRibbon();
+  renderMiniCalendar();
+  renderCategoryFilterSidebar();
+  renderActiveFilterBanner();
+
+  switch (state.activeView) {
+    case 'month':
+      renderMonthView();
+      break;
+    case 'week':
+      renderWeekView();
+      break;
+    case 'day':
+      renderDayView();
+      break;
+    case 'kanban':
+      renderKanbanView();
+      break;
+    case 'agenda':
+      renderAgendaView();
+      break;
+  }
+}
+
+function updatePeriodHeader() {
+  const titleEl = document.getElementById('currentPeriodTitle');
+  const subEl = document.getElementById('currentPeriodSubtitle');
+  if (!titleEl) return;
+
+  const y = state.currentDate.getFullYear();
+  const m = state.currentDate.getMonth();
+
+  if (state.activeView === 'month') {
+    titleEl.textContent = `${MONTH_NAMES[m]} ${y}`;
+    subEl.textContent = `Tampilan Kalender 1 Bulan Penuh`;
+  } else if (state.activeView === 'week') {
+    const monday = getMondayOfWeek(state.currentDate);
+    const sunday = new Date(monday);
+    sunday.setDate(sunday.getDate() + 6);
+    titleEl.textContent = `${monday.getDate()} ${MONTH_NAMES[monday.getMonth()].slice(0, 3)} - ${sunday.getDate()} ${MONTH_NAMES[sunday.getMonth()]} ${y}`;
+    subEl.textContent = `Pekan ke-${getWeekNumber(state.currentDate)} Tahun ${y}`;
+  } else if (state.activeView === 'day') {
+    const d = state.selectedDate;
+    titleEl.textContent = `${DAY_NAMES[d.getDay()]}, ${d.getDate()} ${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}`;
+    subEl.textContent = isDateToday(d) ? 'Agenda Hari Ini' : 'Agenda Tanggal Terpilih';
+  } else if (state.activeView === 'kanban') {
+    titleEl.textContent = `Papan Status Alur Kerja`;
+    subEl.textContent = `Kelola Alur Kerja & Progress Jadwal`;
+  } else if (state.activeView === 'agenda') {
+    titleEl.textContent = `Daftar Agenda Terstruktur`;
+    subEl.textContent = `Urutan Kronologis Kegiatan`;
+  }
+}
+
+function updateDashboardRibbon() {
+  const todayKey = formatDateKey(new Date());
+  const allEvents = state.schedules;
+  
+  const todayEvents = allEvents.filter(e => e.date === todayKey);
+  const todayCountEl = document.getElementById('statTodayCount');
+  if (todayCountEl) todayCountEl.textContent = todayEvents.length;
+
+  const completedEvents = allEvents.filter(e => e.status === 'completed');
+  const compCountEl = document.getElementById('statCompletedCount');
+  const compPercentEl = document.getElementById('statProgressPercent');
+  if (compCountEl && compPercentEl) {
+    compCountEl.textContent = completedEvents.length;
+    const pct = allEvents.length > 0 ? Math.round((completedEvents.length / allEvents.length) * 100) : 0;
+    compPercentEl.textContent = `${pct}% Selesai`;
+  }
+
+  const nextEventWrap = document.getElementById('statNextEvent');
+  if (nextEventWrap) {
+    const upcoming = allEvents
+      .filter(e => e.status !== 'completed' && e.date >= todayKey)
+      .sort((a, b) => (a.date + a.startTime).localeCompare(b.date + b.startTime))[0];
+
+    if (upcoming) {
+      const isToday = upcoming.date === todayKey;
+      const dayLabel = isToday ? 'Hari Ini' : 'Besok/Nanti';
+      nextEventWrap.innerHTML = `
+        <span class="next-title" title="${escapeHtml(upcoming.title)}">${escapeHtml(upcoming.title)}</span>
+        <span class="next-time">⏰ ${dayLabel}, ${upcoming.startTime || 'All-Day'}</span>
+      `;
+    } else {
+      nextEventWrap.innerHTML = `
+        <span class="next-title">Tidak ada agenda dekat</span>
+        <span class="next-time">Semua tuntas! 🎉</span>
+      `;
+    }
+  }
+
+  const highPriority = allEvents.filter(e => e.priority === 'high' && e.status !== 'completed');
+  const highCountEl = document.getElementById('statHighPriorityCount');
+  if (highCountEl) highCountEl.textContent = highPriority.length;
+}
+
+function renderActiveFilterBanner() {
+  const banner = document.getElementById('activeFilterBanner');
+  const text = document.getElementById('filterDetailsText');
+  if (!banner || !text) return;
+
+  const hasCat = state.activeCategoryFilter !== 'all';
+  const hasPri = state.activePriorityFilter !== 'all';
+  const hasSearch = state.searchQuery.trim() !== '';
+
+  if (hasCat || hasPri || hasSearch) {
+    banner.classList.remove('hidden');
+    const filters = [];
+    if (hasCat) filters.push(`Kategori: ${getCategory(state.activeCategoryFilter).name}`);
+    if (hasPri) filters.push(`Prioritas: ${getPriority(state.activePriorityFilter).label}`);
+    if (hasSearch) filters.push(`Cari: "${state.searchQuery}"`);
+    text.textContent = filters.join(' • ');
+  } else {
+    banner.classList.add('hidden');
+  }
+}
+
+// ==============================================================================
+// 10. VIEW 1: MONTH VIEW (KALENDER BULANAN)
+// ==============================================================================
+function renderMonthView() {
+  const grid = document.getElementById('monthGrid');
+  if (!grid) return;
+  grid.innerHTML = '';
+
+  const year = state.currentDate.getFullYear();
+  const month = state.currentDate.getMonth();
+
+  const firstDayIndex = new Date(year, month, 1).getDay();
+  const startOffset = (firstDayIndex + 6) % 7;
+
+  const totalDaysInMonth = new Date(year, month + 1, 0).getDate();
+  const prevMonthTotalDays = new Date(year, month, 0).getDate();
+
+  const filtered = getFilteredSchedules();
+  const totalSlots = (startOffset + totalDaysInMonth) > 35 ? 42 : 35;
+
+  for (let i = 0; i < totalSlots; i++) {
+    const cell = document.createElement('div');
+    cell.className = 'month-cell';
+
+    let cellDate;
+    if (i < startOffset) {
+      const dayNum = prevMonthTotalDays - startOffset + i + 1;
+      cellDate = new Date(year, month - 1, dayNum);
+      cell.classList.add('other-month');
+    } else if (i < startOffset + totalDaysInMonth) {
+      const dayNum = i - startOffset + 1;
+      cellDate = new Date(year, month, dayNum);
+    } else {
+      const dayNum = i - (startOffset + totalDaysInMonth) + 1;
+      cellDate = new Date(year, month + 1, dayNum);
+      cell.classList.add('other-month');
+    }
+
+    const dateKey = formatDateKey(cellDate);
+    const isToday = isDateToday(cellDate);
+    if (isToday) cell.classList.add('is-today');
+
+    const cellHeader = document.createElement('div');
+    cellHeader.className = 'cell-header';
+
+    const dayNumber = document.createElement('span');
+    dayNumber.className = 'day-number';
+    dayNumber.textContent = cellDate.getDate();
+
+    const addBtn = document.createElement('button');
+    addBtn.className = 'btn-cell-add';
+    addBtn.innerHTML = '+';
+    addBtn.title = `Tambah jadwal pada ${dateKey}`;
+    addBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      playUiSound('click');
+      openScheduleModal(null, dateKey);
+    });
+
+    cellHeader.appendChild(dayNumber);
+    cellHeader.appendChild(addBtn);
+    cell.appendChild(cellHeader);
+
+    const dayEvents = filtered.filter(item => item.date === dateKey);
+    const eventsList = document.createElement('div');
+    eventsList.className = 'cell-events-list';
+
+    const maxVisibleChips = 3;
+    const visibleEvents = dayEvents.slice(0, maxVisibleChips);
+
+    visibleEvents.forEach(item => {
+      const cat = getCategory(item.category);
+      const pri = getPriority(item.priority);
+
+      const chip = document.createElement('div');
+      chip.className = `event-chip ${item.status === 'completed' ? 'is-completed' : ''}`;
+      chip.style.backgroundColor = cat.bgColor;
+      chip.style.borderLeftColor = cat.color;
+      chip.style.color = 'var(--text-main)';
+      chip.title = `${item.title} (${item.startTime || 'All day'})`;
+
+      chip.innerHTML = `
+        <span class="chip-time">${item.startTime || ''}</span>
+        <span class="chip-title">${escapeHtml(item.title)}</span>
+        <span class="chip-priority-dot" style="background-color: ${pri.color}; color: ${pri.color};" title="Prioritas: ${pri.label}"></span>
+      `;
+
+      chip.addEventListener('click', (e) => {
+        e.stopPropagation();
+        playUiSound('pop');
+        openPreviewModal(item);
+      });
+
+      eventsList.appendChild(chip);
+    });
+
+    if (dayEvents.length > maxVisibleChips) {
+      const overflow = document.createElement('div');
+      overflow.className = 'more-events-pill';
+      overflow.textContent = `+${dayEvents.length - maxVisibleChips} lainnya`;
+      overflow.addEventListener('click', (e) => {
+        e.stopPropagation();
+        playUiSound('click');
+        state.selectedDate = cellDate;
+        switchView('day');
+      });
+      eventsList.appendChild(overflow);
+    }
+
+    cell.appendChild(eventsList);
+
+    cell.addEventListener('click', () => {
+      state.selectedDate = cellDate;
+      renderApp();
+    });
+
+    grid.appendChild(cell);
+  }
+}
+
+// ==============================================================================
+// 11. VIEW 2: WEEK VIEW (TIMELINE MINGGUAN)
+// ==============================================================================
+function getMondayOfWeek(d) {
+  const date = new Date(d);
+  const day = date.getDay();
+  const diff = date.getDate() - day + (day === 0 ? -6 : 1);
+  return new Date(date.setDate(diff));
+}
+
+function getWeekNumber(d) {
+  const target = new Date(d.valueOf());
+  const dayNr = (d.getDay() + 6) % 7;
+  target.setDate(target.getDate() - dayNr + 3);
+  const firstThursday = target.valueOf();
+  target.setMonth(0, 1);
+  if (target.getDay() !== 4) {
+    target.setMonth(0, 1 + ((4 - target.getDay()) + 7) % 7);
+  }
+  return 1 + Math.ceil((firstThursday - target) / 604800000);
+}
+
+function renderWeekView() {
+  const headerRow = document.getElementById('weekHeaderRow');
+  const timeAxis = document.getElementById('timeAxis');
+  const gridColumns = document.getElementById('weekGridColumns');
+  if (!headerRow || !timeAxis || !gridColumns) return;
+
+  headerRow.innerHTML = '<div class="week-day-header"></div>';
+  timeAxis.innerHTML = '';
+  gridColumns.innerHTML = '';
+
+  const monday = getMondayOfWeek(state.currentDate);
+  const weekDays = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(monday);
+    d.setDate(d.getDate() + i);
+    weekDays.push(d);
+  }
+
+  weekDays.forEach(dayDate => {
+    const isToday = isDateToday(dayDate);
+    const dayCol = document.createElement('div');
+    dayCol.className = `week-day-header ${isToday ? 'is-today' : ''}`;
+    dayCol.innerHTML = `
+      <span class="week-day-name">${DAY_NAMES[dayDate.getDay()].slice(0, 3)}</span>
+      <span class="week-day-number">${dayDate.getDate()}</span>
+    `;
+    dayCol.style.cursor = 'pointer';
+    dayCol.addEventListener('click', () => {
+      state.selectedDate = dayDate;
+      switchView('day');
+    });
+    headerRow.appendChild(dayCol);
+  });
+
+  for (let hour = 0; hour < 24; hour++) {
+    const slot = document.createElement('div');
+    slot.className = 'time-axis-slot';
+    slot.textContent = `${String(hour).padStart(2, '0')}:00`;
+    timeAxis.appendChild(slot);
+  }
+
+  const filtered = getFilteredSchedules();
+  const hourHeight = 54;
+
+  weekDays.forEach(dayDate => {
+    const dateKey = formatDateKey(dayDate);
+    const track = document.createElement('div');
+    track.className = 'week-day-track';
+
+    for (let hour = 0; hour < 24; hour++) {
+      const hSlot = document.createElement('div');
+      hSlot.className = 'week-hour-slot';
+      hSlot.title = `Tambah jadwal pada ${dateKey} ${String(hour).padStart(2, '0')}:00`;
+      hSlot.addEventListener('click', () => {
+        const timeStr = `${String(hour).padStart(2, '0')}:00`;
+        openScheduleModal(null, dateKey, timeStr);
+      });
+      track.appendChild(hSlot);
+    }
+
+    if (isDateToday(dayDate)) {
+      const now = new Date();
+      const currentMinutes = now.getHours() * 60 + now.getMinutes();
+      const topOffset = (currentMinutes / 60) * hourHeight;
+
+      const indicator = document.createElement('div');
+      indicator.className = 'current-time-indicator';
+      indicator.style.top = `${topOffset}px`;
+      track.appendChild(indicator);
+    }
+
+    const dayEvents = filtered.filter(item => item.date === dateKey);
+
+    dayEvents.forEach(item => {
+      const cat = getCategory(item.category);
+      const [sh, sm] = (item.startTime || '09:00').split(':').map(Number);
+      const [eh, em] = (item.endTime || '10:00').split(':').map(Number);
+
+      const startMin = (sh || 0) * 60 + (sm || 0);
+      let endMin = (eh || 0) * 60 + (em || 0);
+      if (endMin <= startMin) endMin = startMin + 60;
+
+      const top = (startMin / 60) * hourHeight;
+      const height = Math.max(34, ((endMin - startMin) / 60) * hourHeight - 2);
+
+      const eventCard = document.createElement('div');
+      eventCard.className = `week-event-card ${item.status === 'completed' ? 'is-completed' : ''}`;
+      eventCard.style.top = `${top}px`;
+      eventCard.style.height = `${height}px`;
+      eventCard.style.backgroundColor = cat.bgColor;
+      eventCard.style.borderLeftColor = cat.color;
+      eventCard.style.color = 'var(--text-main)';
+
+      eventCard.innerHTML = `
+        <div style="font-weight: 700; font-size: 0.78rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+          ${cat.icon} ${escapeHtml(item.title)}
+        </div>
+        <div style="font-size: 0.68rem; color: var(--text-muted); font-family: var(--font-mono);">
+          ${item.startTime || ''} - ${item.endTime || ''}
+        </div>
+      `;
+
+      eventCard.addEventListener('click', (e) => {
+        e.stopPropagation();
+        playUiSound('pop');
+        openPreviewModal(item);
+      });
+
+      track.appendChild(eventCard);
+    });
+
+    gridColumns.appendChild(track);
+  });
+}
+
+// ==============================================================================
+// 12. VIEW 3: DAY VIEW (AGENDA HARIAN TERFOKUS)
+// ==============================================================================
+function renderDayView() {
+  const header = document.getElementById('dayViewHeader');
+  const timelineCol = document.getElementById('dayTimelineColumn');
+  const notesTextarea = document.getElementById('dayNotesInput');
+  const tasksList = document.getElementById('dayTasksList');
+  const counterEl = document.getElementById('dayChecklistCounter');
+  if (!header || !timelineCol) return;
+
+  const d = state.selectedDate;
+  const dateKey = formatDateKey(d);
+
+  const dayEvents = getFilteredSchedules().filter(item => item.date === dateKey);
+  const completedCount = dayEvents.filter(e => e.status === 'completed').length;
+
+  header.innerHTML = `
+    <div class="day-header-main">
+      <h2>${DAY_NAMES[d.getDay()]}, ${d.getDate()} ${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}</h2>
+      <p>${dayEvents.length} Agenda Terjadwal • ${completedCount} Tuntas Selesai</p>
+    </div>
+    <button class="btn btn-primary btn-sm" id="btnDayAddEvent">
+      + Jadwal Hari Ini
+    </button>
+  `;
+
+  document.getElementById('btnDayAddEvent')?.addEventListener('click', () => {
+    openScheduleModal(null, dateKey);
+  });
+
+  timelineCol.innerHTML = '';
+  if (dayEvents.length === 0) {
+    timelineCol.innerHTML = `
+      <div style="text-align: center; padding: 48px 20px; color: var(--text-muted);">
+        <p style="font-size: 2.8rem; margin-bottom: 8px;">🏖️</p>
+        <p style="font-weight: 800; color: var(--text-main); font-size: 1.15rem; font-family: var(--font-display);">Belum ada jadwal pada hari ini</p>
+        <p style="font-size: 0.85rem; margin-top: 4px;">Nikmati waktu istirahat atau tambahkan agenda baru.</p>
+        <button class="btn btn-primary btn-sm" style="margin-top: 16px;" onclick="document.getElementById('btnOpenNewSchedule').click()">
+          + Tambah Kegiatan
+        </button>
+      </div>
+    `;
+  } else {
+    dayEvents.sort((a, b) => (a.startTime || '').localeCompare(b.startTime || '')).forEach(item => {
+      const cat = getCategory(item.category);
+      const pri = getPriority(item.priority);
+      const stat = getStatus(item.status);
+
+      const card = document.createElement('div');
+      card.className = `day-schedule-card ${item.status === 'completed' ? 'is-completed' : ''}`;
+      card.style.borderLeftColor = cat.color;
+
+      card.innerHTML = `
+        <div class="day-card-left">
+          <div class="day-time-tag">${item.startTime || 'All day'} - ${item.endTime || 'End'}</div>
+          <div>
+            <div class="day-card-title">${cat.icon} ${escapeHtml(item.title)}</div>
+            <div class="day-card-meta">
+              <span style="color: ${cat.color}; font-weight: 700;">${cat.name}</span>
+              <span>•</span>
+              <span style="color: ${pri.color}; font-weight: 700;">${pri.label}</span>
+              ${item.location ? `<span>•</span> <span>📍 ${escapeHtml(item.location)}</span>` : ''}
+            </div>
+          </div>
+        </div>
+        <div>
+          <button class="btn btn-outline btn-sm btn-quick-status" title="Ganti status">
+            ${stat.icon} ${stat.label}
+          </button>
+        </div>
+      `;
+
+      card.querySelector('.btn-quick-status').addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleScheduleComplete(item.id);
+      });
+
+      card.addEventListener('click', () => {
+        openPreviewModal(item);
+      });
+
+      timelineCol.appendChild(card);
+    });
+  }
+
+  if (notesTextarea) {
+    notesTextarea.value = state.dayNotes[dateKey] || '';
+  }
+
+  if (tasksList) {
+    tasksList.innerHTML = '';
+    const allChecklistItems = [];
+    dayEvents.forEach(evt => {
+      if (evt.checklist && evt.checklist.length > 0) {
+        evt.checklist.forEach((chk, idx) => {
+          allChecklistItems.push({
+            eventId: evt.id,
+            index: idx,
+            text: chk.text,
+            done: chk.done
+          });
+        });
+      }
+    });
+
+    const doneCount = allChecklistItems.filter(c => c.done).length;
+    if (counterEl) {
+      counterEl.textContent = `${doneCount}/${allChecklistItems.length} Selesai`;
+    }
+
+    if (allChecklistItems.length === 0) {
+      tasksList.innerHTML = `<p style="font-size: 0.8rem; color: var(--text-muted);">Tidak ada checklist aktif dari agenda hari ini.</p>`;
+    } else {
+      allChecklistItems.forEach(item => {
+        const row = document.createElement('label');
+        row.className = 'day-task-item';
+        row.innerHTML = `
+          <input type="checkbox" ${item.done ? 'checked' : ''} class="agenda-checkbox">
+          <span style="${item.done ? 'text-decoration: line-through; opacity: 0.6;' : ''}">${escapeHtml(item.text)}</span>
+        `;
+        row.querySelector('input').addEventListener('change', async (e) => {
+          const evt = state.schedules.find(s => s.id === item.eventId);
+          if (evt && evt.checklist && evt.checklist[item.index]) {
+            evt.checklist[item.index].done = e.target.checked;
+            if (e.target.checked) {
+              playUiSound('complete');
+              triggerConfetti();
+            } else {
+              playUiSound('click');
+            }
+            await persistSchedule(evt);
+            renderApp();
+          }
+        });
+        tasksList.appendChild(row);
+      });
+    }
+  }
+}
+
+// ==============================================================================
+// 13. VIEW 4: KANBAN BOARD VIEW
+// ==============================================================================
+function renderKanbanView() {
+  const cols = {
+    todo: document.getElementById('cardsListTodo'),
+    in_progress: document.getElementById('cardsListInProgress'),
+    scheduled: document.getElementById('cardsListScheduled'),
+    completed: document.getElementById('cardsListCompleted')
+  };
+
+  const counts = {
+    todo: document.getElementById('countColTodo'),
+    in_progress: document.getElementById('countColInProgress'),
+    scheduled: document.getElementById('countColScheduled'),
+    completed: document.getElementById('countColCompleted')
+  };
+
+  if (!cols.todo) return;
+  Object.values(cols).forEach(col => { col.innerHTML = ''; });
+
+  const filtered = getFilteredSchedules();
+  const grouped = { todo: [], in_progress: [], scheduled: [], completed: [] };
+  filtered.forEach(item => {
+    const st = item.status || 'scheduled';
+    if (grouped[st]) grouped[st].push(item);
+    else grouped.scheduled.push(item);
+  });
+
+  Object.keys(grouped).forEach(statusKey => {
+    if (counts[statusKey]) {
+      counts[statusKey].textContent = grouped[statusKey].length;
+    }
+
+    grouped[statusKey].forEach(item => {
+      const cat = getCategory(item.category);
+      const pri = getPriority(item.priority);
+
+      const card = document.createElement('div');
+      card.className = 'kanban-card';
+
+      let checkText = '';
+      if (item.checklist && item.checklist.length > 0) {
+        const done = item.checklist.filter(c => c.done).length;
+        checkText = `☑️ ${done}/${item.checklist.length}`;
+      }
+
+      card.innerHTML = `
+        <div class="kanban-card-header">
+          <span class="kanban-cat-badge" style="background-color: ${cat.bgColor}; color: ${cat.color};">
+            ${cat.icon} ${cat.name}
+          </span>
+          <span style="font-size: 0.72rem; font-weight: 700; color: ${pri.color};">${pri.icon}</span>
+        </div>
+        <div class="kanban-card-title">${escapeHtml(item.title)}</div>
+        <div class="kanban-card-footer">
+          <span>📅 ${item.date}</span>
+          ${checkText ? `<span style="font-size: 0.68rem; color: var(--text-muted);">${checkText}</span>` : ''}
+          <button class="kanban-advance-btn" title="Pindah ke tahap berikutnya">
+            <span>Lanjut</span> ➜
+          </button>
+        </div>
+      `;
+
+      card.querySelector('.kanban-advance-btn').addEventListener('click', (e) => {
+        e.stopPropagation();
+        advanceKanbanStatus(item.id);
+      });
+
+      card.addEventListener('click', () => {
+        openPreviewModal(item);
+      });
+
+      cols[statusKey].appendChild(card);
+    });
+  });
+}
+
+async function advanceKanbanStatus(scheduleId) {
+  const item = state.schedules.find(s => s.id === scheduleId);
+  if (!item) return;
+
+  const sequence = ['todo', 'in_progress', 'scheduled', 'completed'];
+  const currentIndex = sequence.indexOf(item.status || 'scheduled');
+  const nextIndex = (currentIndex + 1) % sequence.length;
+  item.status = sequence[nextIndex];
+
+  if (item.status === 'completed') {
+    playUiSound('complete');
+    triggerConfetti();
+  } else {
+    playUiSound('pop');
+  }
+
+  await persistSchedule(item);
+  renderApp();
+  showToast(`Status '${item.title}' diubah ke: ${getStatus(item.status).label}`, 'success');
+}
+
+// ==============================================================================
+// 14. VIEW 5: AGENDA / LIST VIEW
+// ==============================================================================
+function renderAgendaView() {
+  const container = document.getElementById('agendaViewContainer');
+  if (!container) return;
+  container.innerHTML = '';
+
+  const filtered = getFilteredSchedules();
+  if (filtered.length === 0) {
+    container.innerHTML = `
+      <div style="text-align: center; padding: 48px; color: var(--text-muted);">
+        <p style="font-size: 2.8rem; margin-bottom: 10px;">📋</p>
+        <p style="font-weight: 800; color: var(--text-main); font-size: 1.15rem; font-family: var(--font-display);">Tidak ada agenda yang cocok</p>
+        <p style="font-size: 0.85rem; margin-top: 4px;">Coba sesuaikan kata kunci pencarian atau filter kategori Anda.</p>
+      </div>
+    `;
+    return;
+  }
+
+  const sorted = [...filtered].sort((a, b) => {
+    const da = a.date + (a.startTime || '00:00');
+    const db = b.date + (b.startTime || '00:00');
+    return da.localeCompare(db);
+  });
+
+  const todayKey = formatDateKey(new Date());
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const tomorrowKey = formatDateKey(tomorrow);
+
+  const groups = [
+    { title: 'Hari Ini', items: sorted.filter(s => s.date === todayKey) },
+    { title: 'Besok', items: sorted.filter(s => s.date === tomorrowKey) },
+    { title: 'Mendatang', items: sorted.filter(s => s.date > tomorrowKey) },
+    { title: 'Telah Lewat', items: sorted.filter(s => s.date < todayKey) }
+  ];
+
+  groups.forEach(group => {
+    if (group.items.length === 0) return;
+
+    const groupSection = document.createElement('div');
+    groupSection.className = 'agenda-group';
+
+    groupSection.innerHTML = `
+      <div class="agenda-group-header">
+        <h3 class="agenda-group-title">
+          <span>${group.title}</span>
+        </h3>
+        <span class="agenda-group-count">${group.items.length} Agenda</span>
+      </div>
+    `;
+
+    group.items.forEach(item => {
+      const cat = getCategory(item.category);
+      const pri = getPriority(item.priority);
+      const isDone = item.status === 'completed';
+
+      const card = document.createElement('div');
+      card.className = `agenda-card ${isDone ? 'is-completed' : ''}`;
+
+      card.innerHTML = `
+        <div class="agenda-left-section">
+          <input type="checkbox" class="agenda-checkbox" ${isDone ? 'checked' : ''} title="Tandai Selesai">
+          <div class="agenda-time-pill">${item.date} • ${item.startTime || 'All day'}</div>
+          <div>
+            <div class="agenda-card-title">${escapeHtml(item.title)}</div>
+            <div class="agenda-meta-row">
+              <span style="color: ${cat.color}; font-weight: 700;">${cat.icon} ${cat.name}</span>
+              <span>•</span>
+              <span style="color: ${pri.color}; font-weight: 700;">${pri.label}</span>
+              ${item.location ? `<span>•</span> <span>📍 ${escapeHtml(item.location)}</span>` : ''}
+            </div>
+          </div>
+        </div>
+        <div class="agenda-actions-right">
+          <button class="btn btn-outline btn-sm btn-edit-item" title="Edit Agenda">Edit</button>
+          <button class="btn-icon btn-sm text-danger btn-delete-item" title="Hapus Agenda">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+          </button>
+        </div>
+      `;
+
+      card.querySelector('.agenda-checkbox').addEventListener('change', (e) => {
+        e.stopPropagation();
+        toggleScheduleComplete(item.id);
+      });
+
+      card.querySelector('.btn-edit-item').addEventListener('click', (e) => {
+        e.stopPropagation();
+        openScheduleModal(item);
+      });
+
+      card.querySelector('.btn-delete-item').addEventListener('click', (e) => {
+        e.stopPropagation();
+        confirmDeleteSchedule(item.id);
+      });
+
+      card.addEventListener('click', () => {
+        openPreviewModal(item);
+      });
+
+      groupSection.appendChild(card);
+    });
+
+    container.appendChild(groupSection);
+  });
+}
+
+// ==============================================================================
+// 15. MINI CALENDAR & SIDEBAR FILTER
+// ==============================================================================
+function renderMiniCalendar() {
+  const grid = document.getElementById('miniCalGrid');
+  const title = document.getElementById('miniCalTitle');
+  if (!grid || !title) return;
+  grid.innerHTML = '';
+
+  const d = state.currentDate;
+  title.textContent = `${MONTH_NAMES[d.getMonth()].slice(0, 3)} ${d.getFullYear()}`;
+
+  const year = d.getFullYear();
+  const month = d.getMonth();
+
+  const firstDay = new Date(year, month, 1).getDay();
+  const totalDays = new Date(year, month + 1, 0).getDate();
+  const prevDays = new Date(year, month, 0).getDate();
+
+  const allDatesWithEvents = new Set(state.schedules.map(s => s.date));
+
+  for (let i = firstDay - 1; i >= 0; i--) {
+    const el = document.createElement('div');
+    el.className = 'mini-day other-month';
+    el.textContent = prevDays - i;
+    grid.appendChild(el);
+  }
+
+  for (let day = 1; day <= totalDays; day++) {
+    const el = document.createElement('div');
+    el.className = 'mini-day';
+    el.textContent = day;
+
+    const thisDate = new Date(year, month, day);
+    const dateKey = formatDateKey(thisDate);
+
+    if (isDateToday(thisDate)) el.classList.add('is-today');
+    if (isSameDate(thisDate, state.selectedDate)) el.classList.add('is-selected');
+    if (allDatesWithEvents.has(dateKey)) el.classList.add('has-event');
+
+    el.addEventListener('click', () => {
+      playUiSound('click');
+      state.selectedDate = thisDate;
+      state.currentDate = new Date(thisDate);
+      renderApp();
+    });
+
+    grid.appendChild(el);
+  }
+}
+
+function renderCategoryFilterSidebar() {
+  const container = document.getElementById('categoryFilterList');
+  if (!container) return;
+  container.innerHTML = '';
+
+  CATEGORIES.forEach(cat => {
+    const count = state.schedules.filter(s => s.category === cat.id).length;
+    const isActive = state.activeCategoryFilter === cat.id;
+
+    const item = document.createElement('div');
+    item.className = `cat-filter-item ${isActive ? 'active' : ''}`;
+
+    item.innerHTML = `
+      <div class="cat-info-wrap">
+        <span class="cat-dot" style="background-color: ${cat.color}; color: ${cat.color};"></span>
+        <span>${cat.name}</span>
+      </div>
+      <span class="cat-count-badge">${count}</span>
+    `;
+
+    item.addEventListener('click', () => {
+      playUiSound('click');
+      state.activeCategoryFilter = isActive ? 'all' : cat.id;
+      renderApp();
+    });
+
+    container.appendChild(item);
+  });
+}
+
+// ==============================================================================
+// 16. MODAL MANAJER (CREATE, EDIT, PREVIEW)
+// ==============================================================================
+let currentEditingId = null;
+
+function openScheduleModal(itemToEdit = null, defaultDateStr = null, defaultTimeStr = null) {
+  const modal = document.getElementById('scheduleModalOverlay');
+  const titleEl = document.getElementById('modalTitle');
+  const badgeEl = document.getElementById('modalIconBadge');
+  const deleteBtn = document.getElementById('btnDeleteSchedule');
+  const pillSelector = document.getElementById('formCategoryPillSelector');
+  const checklistContainer = document.getElementById('formChecklistContainer');
+
+  if (!modal) return;
+  playUiSound('pop');
+
+  pillSelector.innerHTML = '';
+  CATEGORIES.forEach(cat => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'category-pill-btn';
+    btn.dataset.category = cat.id;
+    btn.innerHTML = `<span>${cat.icon}</span> <span>${cat.name}</span>`;
+
+    btn.addEventListener('click', () => {
+      playUiSound('click');
+      pillSelector.querySelectorAll('.category-pill-btn').forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+    });
+
+    pillSelector.appendChild(btn);
+  });
+
+  checklistContainer.innerHTML = '';
+
+  if (itemToEdit) {
+    currentEditingId = itemToEdit.id;
+    titleEl.textContent = 'Edit Rincian Jadwal';
+    badgeEl.textContent = '✏️';
+    deleteBtn.classList.remove('hidden');
+
+    document.getElementById('formScheduleId').value = itemToEdit.id;
+    document.getElementById('formTitle').value = itemToEdit.title || '';
+    document.getElementById('formDate').value = itemToEdit.date || formatDateKey(new Date());
+    document.getElementById('formStartTime').value = itemToEdit.startTime || '09:00';
+    document.getElementById('formEndTime').value = itemToEdit.endTime || '10:00';
+    document.getElementById('formPriority').value = itemToEdit.priority || 'medium';
+    document.getElementById('formStatus').value = itemToEdit.status || 'scheduled';
+    document.getElementById('formLocation').value = itemToEdit.location || '';
+    document.getElementById('formDescription').value = itemToEdit.description || '';
+
+    const activePill = pillSelector.querySelector(`[data-category="${itemToEdit.category}"]`);
+    if (activePill) activePill.classList.add('selected');
+    else pillSelector.firstElementChild?.classList.add('selected');
+
+    if (itemToEdit.checklist && Array.isArray(itemToEdit.checklist)) {
+      itemToEdit.checklist.forEach(chk => {
+        addChecklistInputRow(chk.text, chk.done);
+      });
+    }
+  } else {
+    currentEditingId = null;
+    titleEl.textContent = 'Tambah Jadwal Baru';
+    badgeEl.textContent = '📅';
+    deleteBtn.classList.add('hidden');
+
+    document.getElementById('scheduleForm').reset();
+    document.getElementById('formScheduleId').value = '';
+    document.getElementById('formDate').value = defaultDateStr || formatDateKey(state.selectedDate || new Date());
+    document.getElementById('formStartTime').value = defaultTimeStr || '09:00';
+    document.getElementById('formEndTime').value = defaultTimeStr ? addHours(defaultTimeStr, 1) : '10:00';
+    document.getElementById('formPriority').value = 'medium';
+    document.getElementById('formStatus').value = 'scheduled';
+
+    pillSelector.firstElementChild?.classList.add('selected');
+  }
+
+  modal.classList.remove('hidden');
+  document.getElementById('formTitle').focus();
+}
+
+function closeScheduleModal() {
+  document.getElementById('scheduleModalOverlay')?.classList.add('hidden');
+}
+
+function addChecklistInputRow(text = '', isDone = false) {
+  const container = document.getElementById('formChecklistContainer');
+  if (!container) return;
+
+  const row = document.createElement('div');
+  row.className = 'checklist-input-row';
+  row.innerHTML = `
+    <input type="checkbox" class="agenda-checkbox" ${isDone ? 'checked' : ''}>
+    <input type="text" class="form-control checklist-text-input" placeholder="Nama sub-tugas..." value="${escapeHtml(text)}">
+    <button type="button" class="btn-icon btn-remove-check" title="Hapus sub-tugas">✕</button>
+  `;
+
+  row.querySelector('.btn-remove-check').addEventListener('click', () => {
+    playUiSound('click');
+    row.remove();
+  });
+
+  container.appendChild(row);
+}
+
+async function handleScheduleFormSubmit(e) {
+  e.preventDefault();
+
+  const title = document.getElementById('formTitle').value.trim();
+  const date = document.getElementById('formDate').value;
+  if (!title || !date) {
+    showToast('Mohon isi judul dan tanggal jadwal.', 'warning');
+    return;
+  }
+
+  const selectedPill = document.querySelector('#formCategoryPillSelector .category-pill-btn.selected');
+  const category = selectedPill ? selectedPill.dataset.category : 'work';
+
+  const checklist = [];
+  document.querySelectorAll('#formChecklistContainer .checklist-input-row').forEach(row => {
+    const txt = row.querySelector('.checklist-text-input').value.trim();
+    const done = row.querySelector('.agenda-checkbox').checked;
+    if (txt) checklist.push({ text: txt, done });
+  });
+
+  const scheduleData = {
+    id: currentEditingId || `sch-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+    title,
+    category,
+    date,
+    startTime: document.getElementById('formStartTime').value || '09:00',
+    endTime: document.getElementById('formEndTime').value || '10:00',
+    priority: document.getElementById('formPriority').value || 'medium',
+    status: document.getElementById('formStatus').value || 'scheduled',
+    location: document.getElementById('formLocation').value.trim(),
+    description: document.getElementById('formDescription').value.trim(),
+    checklist
+  };
+
+  if (currentEditingId) {
+    const idx = state.schedules.findIndex(s => s.id === currentEditingId);
+    if (idx !== -1) state.schedules[idx] = scheduleData;
+    showToast('Jadwal berhasil diperbarui!', 'success');
+  } else {
+    state.schedules.push(scheduleData);
+    showToast('Jadwal baru berhasil ditambahkan!', 'success');
+  }
+
+  playUiSound('complete');
+  await persistSchedule(scheduleData);
+  closeScheduleModal();
+  renderApp();
+}
+
+async function confirmDeleteSchedule(id) {
+  const item = state.schedules.find(s => s.id === id);
+  if (!item) return;
+
+  if (confirm(`Apakah Anda yakin ingin menghapus jadwal "${item.title}"?`)) {
+    playUiSound('delete');
+    state.schedules = state.schedules.filter(s => s.id !== id);
+    await removeSchedule(id);
+    closeScheduleModal();
+    closePreviewModal();
+    renderApp();
+    showToast('Jadwal berhasil dihapus.', 'info');
+  }
+}
+
+let activePreviewItem = null;
+
+function openPreviewModal(item) {
+  activePreviewItem = item;
+  const modal = document.getElementById('previewModalOverlay');
+  const badgesRow = document.getElementById('previewBadgesRow');
+  const body = document.getElementById('previewModalBody');
+  const toggleBtn = document.getElementById('btnTogglePreviewStatus');
+  if (!modal || !badgesRow || !body) return;
+
+  const cat = getCategory(item.category);
+  const pri = getPriority(item.priority);
+  const stat = getStatus(item.status);
+
+  badgesRow.innerHTML = `
+    <span class="kanban-cat-badge" style="background-color: ${cat.bgColor}; color: ${cat.color};">
+      ${cat.icon} ${cat.name}
+    </span>
+    <span class="kanban-cat-badge" style="background-color: var(--border-subtle); color: ${pri.color};">
+      ${pri.icon} ${pri.label}
+    </span>
+    <span class="kanban-cat-badge" style="background-color: var(--border-subtle); color: var(--text-main);">
+      ${stat.icon} ${stat.label}
+    </span>
+  `;
+
+  let checklistHtml = '';
+  if (item.checklist && item.checklist.length > 0) {
+    checklistHtml = `
+      <div style="margin-top: 12px; border-top: 1px solid var(--border-subtle); padding-top: 10px;">
+        <div style="font-size: 0.8rem; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px;">Checklist:</div>
+        <div style="display: flex; flex-direction: column; gap: 6px;">
+          ${item.checklist.map(c => `
+            <div style="font-size: 0.82rem; display: flex; align-items: center; gap: 8px; ${c.done ? 'text-decoration: line-through; opacity: 0.6;' : ''}">
+              <span>${c.done ? '✅' : '⬜'}</span>
+              <span>${escapeHtml(c.text)}</span>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `;
+  }
+
+  body.innerHTML = `
+    <h3 style="font-family: var(--font-display); font-size: 1.25rem; font-weight: 800; line-height: 1.35;">${escapeHtml(item.title)}</h3>
+    <div style="font-size: 0.84rem; color: var(--text-secondary); display: flex; flex-direction: column; gap: 4px; margin-top: 6px;">
+      <div>📅 Tanggal: <strong>${item.date}</strong></div>
+      <div>⏰ Waktu: <strong>${item.startTime || 'All day'} - ${item.endTime || 'End'}</strong></div>
+      ${item.location ? `<div>📍 Lokasi: <strong>${escapeHtml(item.location)}</strong></div>` : ''}
+    </div>
+    ${item.description ? `
+      <div style="margin-top: 12px; background: var(--bg-input); padding: 12px; border-radius: 8px; font-size: 0.84rem; color: var(--text-secondary);">
+        ${escapeHtml(item.description)}
+      </div>
+    ` : ''}
+    ${checklistHtml}
+  `;
+
+  toggleBtn.textContent = item.status === 'completed' ? 'Tandai Belum Selesai' : 'Tandai Selesai';
+  modal.classList.remove('hidden');
+}
+
+function closePreviewModal() {
+  document.getElementById('previewModalOverlay')?.classList.add('hidden');
+  activePreviewItem = null;
+}
+
+async function toggleScheduleComplete(id) {
+  const item = state.schedules.find(s => s.id === id);
+  if (!item) return;
+
+  if (item.status === 'completed') {
+    item.status = 'scheduled';
+    playUiSound('click');
+    showToast(`'${item.title}' ditandai aktif kembali.`, 'info');
+  } else {
+    item.status = 'completed';
+    playUiSound('complete');
+    triggerConfetti();
+    showToast(`'${item.title}' selesai dikerjakan! 🎉`, 'success');
+  }
+
+  await persistSchedule(item);
+  renderApp();
+  if (activePreviewItem && activePreviewItem.id === id) {
+    openPreviewModal(item);
+  }
+}
+
+// ==============================================================================
+// 17. SUPABASE AUTH MODAL & PROFILE LOGIC
+// ==============================================================================
+let activeAuthMode = 'login'; // 'login' | 'register'
+
+function openAuthOrProfile() {
+  if (state.currentUser) {
+    openProfileModal();
+  } else {
+    openAuthModal('login');
+  }
+}
+
+function openAuthModal(mode = 'login') {
+  activeAuthMode = mode;
+  const modal = document.getElementById('authModalOverlay');
+  const title = document.getElementById('authModalTitle');
+  const tabLogin = document.getElementById('tabBtnLogin');
+  const tabReg = document.getElementById('tabBtnRegister');
+  const groupName = document.getElementById('groupDisplayName');
+  const submitText = document.getElementById('authSubmitText');
+  const alertBox = document.getElementById('authAlertBox');
+
+  if (!modal) return;
+  playUiSound('pop');
+
+  alertBox?.classList.add('hidden');
+  document.getElementById('authForm')?.reset();
+
+  if (mode === 'login') {
+    title.textContent = 'Masuk ke Akun Anda';
+    tabLogin.classList.add('active');
+    tabReg.classList.remove('active');
+    groupName.classList.add('hidden');
+    submitText.textContent = 'Masuk Sekarang';
+  } else {
+    title.textContent = 'Daftar Akun Baru';
+    tabLogin.classList.remove('active');
+    tabReg.classList.add('active');
+    groupName.classList.remove('hidden');
+    submitText.textContent = 'Buat Akun & Sinkronkan';
+  }
+
+  modal.classList.remove('hidden');
+  document.getElementById('authEmail')?.focus();
+}
+
+function closeAuthModal() {
+  document.getElementById('authModalOverlay')?.classList.add('hidden');
+}
+
+function openProfileModal() {
+  const modal = document.getElementById('userProfileModalOverlay');
+  if (!modal) return;
+  updateUserUI();
+  playUiSound('pop');
+  modal.classList.remove('hidden');
+}
+
+function closeProfileModal() {
+  document.getElementById('userProfileModalOverlay')?.classList.add('hidden');
+}
+
+async function handleAuthFormSubmit(e) {
+  e.preventDefault();
+  const email = document.getElementById('authEmail')?.value.trim();
+  const password = document.getElementById('authPassword')?.value;
+  const displayName = document.getElementById('authDisplayName')?.value.trim();
+  const alertBox = document.getElementById('authAlertBox');
+  const submitBtn = document.getElementById('btnAuthSubmit');
+  const submitText = document.getElementById('authSubmitText');
+
+  if (!email || !password) {
+    showAuthAlert('Email dan kata sandi wajib diisi.', 'error');
+    return;
+  }
+
+  if (password.length < 6) {
+    showAuthAlert('Kata sandi minimal 6 karakter.', 'error');
+    return;
+  }
+
+  if (!isSupabaseConfigured()) {
+    showAuthAlert('Kredensial Supabase belum terpasang. Klik tombol "Atur Kredensial Supabase" di bawah.', 'error');
+    return;
+  }
+
+  submitBtn.disabled = true;
+  submitText.textContent = 'Memproses... ⏳';
+
+  try {
+    if (activeAuthMode === 'login') {
+      const data = await loginWithEmail(email, password);
+      state.currentUser = data.user;
+      updateUserUI();
+      closeAuthModal();
+      playUiSound('chime');
+      triggerConfetti();
+      showToast(`Selamat datang kembali, ${data.user.email}!`, 'success');
+      await loadUserData(data.user.id);
+    } else {
+      const data = await registerWithEmail(email, password, displayName);
+      if (data.session) {
+        state.currentUser = data.user;
+        updateUserUI();
+        closeAuthModal();
+        playUiSound('chime');
+        triggerConfetti();
+        showToast('Akun berhasil dibuat dan terhubung!', 'success');
+        await loadUserData(data.user.id);
+      } else {
+        // Kasus jika Supabase memerlukan konfirmasi email
+        showAuthAlert('Pendaftaran berhasil! Cek email Anda untuk konfirmasi aktivasi akun, lalu masuk kembali.', 'success');
+      }
+    }
+  } catch (err) {
+    showAuthAlert(err.message || 'Terjadi kesalahan saat otentikasi.', 'error');
+  } finally {
+    submitBtn.disabled = false;
+    submitText.textContent = activeAuthMode === 'login' ? 'Masuk Sekarang' : 'Buat Akun & Sinkronkan';
+  }
+}
+
+function showAuthAlert(message, type = 'error') {
+  const box = document.getElementById('authAlertBox');
+  if (!box) return;
+  box.className = `auth-alert-box auth-alert-${type}`;
+  box.textContent = message;
+  box.classList.remove('hidden');
+}
+
+async function handleLogout() {
+  if (confirm('Apakah Anda yakin ingin keluar dari akun?')) {
+    playUiSound('click');
+    await logoutUser();
+    state.currentUser = null;
+    updateUserUI();
+    closeProfileModal();
+    loadLocalSchedules('guest');
+    showToast('Anda telah keluar dari akun.', 'info');
+    openAuthModal('login');
+  }
+}
+
+// ==============================================================================
+// 18. SUPABASE CONFIGURATION MODAL
+// ==============================================================================
+function openSupabaseConfigModal() {
+  const modal = document.getElementById('supabaseConfigModalOverlay');
+  const urlInput = document.getElementById('cfgSupabaseUrl');
+  const keyInput = document.getElementById('cfgSupabaseAnonKey');
+  if (!modal) return;
+
+  const { url, key } = getSupabaseCredentials();
+  if (urlInput) urlInput.value = url;
+  if (keyInput) keyInput.value = key;
+
+  playUiSound('pop');
+  modal.classList.remove('hidden');
+}
+
+function closeSupabaseConfigModal() {
+  document.getElementById('supabaseConfigModalOverlay')?.classList.add('hidden');
+}
+
+async function handleSaveSupabaseConfig() {
+  const url = document.getElementById('cfgSupabaseUrl')?.value.trim();
+  const key = document.getElementById('cfgSupabaseAnonKey')?.value.trim();
+
+  if (!url || !key) {
+    showToast('Project URL dan Anon Key wajib diisi.', 'warning');
+    return;
+  }
+
+  saveSupabaseCredentials(url, key);
+  closeSupabaseConfigModal();
+  showToast('Kredensial Supabase disimpan! Memeriksa koneksi...', 'info');
+
+  await initSupabaseSession();
+
+  if (isSupabaseConfigured()) {
+    playUiSound('chime');
+    showToast('🟢 Berhasil terhubung ke Supabase! Silakan masuk ke akun Anda.', 'success');
+    if (!state.currentUser) {
+      openAuthModal('login');
+    }
+  }
+}
+
+// ==============================================================================
+// 19. DATA EXPORT, IMPORT, & RESET
+// ==============================================================================
+function exportDataJSON() {
+  playUiSound('pop');
+  const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state.schedules, null, 2));
+  const downloadAnchor = document.createElement('a');
+  downloadAnchor.setAttribute("href", dataStr);
+  downloadAnchor.setAttribute("download", `plancraft-schedules-${formatDateKey(new Date())}.json`);
+  document.body.appendChild(downloadAnchor);
+  downloadAnchor.click();
+  downloadAnchor.remove();
+  showToast('File backup JSON berhasil diunduh!', 'success');
+}
+
+function openImportModal() {
+  playUiSound('pop');
+  document.getElementById('importModalOverlay')?.classList.remove('hidden');
+}
+
+function closeImportModal() {
+  document.getElementById('importModalOverlay')?.classList.add('hidden');
+}
+
+async function applyImportJSON() {
+  const textarea = document.getElementById('importJsonTextarea');
+  const rawText = textarea.value.trim();
+  if (!rawText) {
+    showToast('Teks JSON tidak boleh kosong.', 'warning');
+    return;
+  }
+
+  try {
+    const parsed = JSON.parse(rawText);
+    if (!Array.isArray(parsed)) {
+      throw new Error('Data JSON harus berupa array jadwal.');
+    }
+    state.schedules = parsed;
+    playUiSound('complete');
+
+    // Simpan ke local & cloud
+    const accKey = state.currentUser ? state.currentUser.id : 'guest';
+    localStorage.setItem(`${STORAGE_PREFIX}${accKey}`, JSON.stringify(state.schedules));
+
+    if (state.currentUser && isSupabaseConfigured()) {
+      for (const item of parsed) {
+        await saveUserSchedule(item, state.currentUser.id).catch(() => {});
+      }
+    }
+
+    closeImportModal();
+    renderApp();
+    showToast(`Berhasil mengimpor ${parsed.length} data jadwal!`, 'success');
+  } catch (err) {
+    showToast('Format JSON salah: ' + err.message, 'danger');
+  }
+}
+
+function resetToDefaultData() {
+  if (confirm('Apakah Anda yakin ingin mereset seluruh jadwal ke contoh bawaan awal?')) {
+    playUiSound('pop');
+    state.schedules = getDefaultSchedules();
+    const accKey = state.currentUser ? state.currentUser.id : 'guest';
+    localStorage.setItem(`${STORAGE_PREFIX}${accKey}`, JSON.stringify(state.schedules));
+    renderApp();
+    showToast('Jadwal berhasil di-reset ke data bawaan.', 'success');
+  }
+}
+
+// ==============================================================================
+// 20. THEME & SOUND SETTINGS
+// ==============================================================================
+function initTheme() {
+  document.documentElement.setAttribute('data-theme', state.theme);
+  updateThemeIcon();
+}
+
+function toggleTheme() {
+  state.theme = state.theme === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', state.theme);
+  localStorage.setItem(THEME_KEY, state.theme);
+  updateThemeIcon();
+  playUiSound('pop');
+  showToast(`Tema diganti ke mode ${state.theme === 'dark' ? 'Gelap' : 'Terang'}`, 'info');
+}
+
+function updateThemeIcon() {
+  const sunIcon = document.querySelector('.sun-icon');
+  const moonIcon = document.querySelector('.moon-icon');
+  if (!sunIcon || !moonIcon) return;
+
+  if (state.theme === 'light') {
+    sunIcon.classList.remove('hidden');
+    moonIcon.classList.add('hidden');
+  } else {
+    sunIcon.classList.add('hidden');
+    moonIcon.classList.remove('hidden');
+  }
+}
+
+function toggleSound() {
+  state.soundEnabled = !state.soundEnabled;
+  localStorage.setItem(SOUND_KEY, state.soundEnabled);
+  updateSoundIcon();
+  if (state.soundEnabled) playUiSound('chime');
+  showToast(`Efek suara antarmuka ${state.soundEnabled ? 'diaktifkan' : 'dinonaktifkan'}`, 'info');
+}
+
+function updateSoundIcon() {
+  const onIcon = document.querySelector('.sound-on-icon');
+  const offIcon = document.querySelector('.sound-off-icon');
+  if (!onIcon || !offIcon) return;
+
+  if (state.soundEnabled) {
+    onIcon.classList.remove('hidden');
+    offIcon.classList.add('hidden');
+  } else {
+    onIcon.classList.add('hidden');
+    offIcon.classList.remove('hidden');
+  }
+}
+
+// ==============================================================================
+// 21. TOAST NOTIFICATION UTILITY
+// ==============================================================================
+function showToast(message, type = 'info') {
+  const container = document.getElementById('toastContainer');
+  if (!container) return;
+
+  const toast = document.createElement('div');
+  toast.className = `toast toast-${type}`;
+
+  const iconMap = {
+    success: '✅',
+    info: '💡',
+    warning: '⚠️',
+    danger: '❌'
+  };
+
+  toast.innerHTML = `
+    <span>${iconMap[type] || '🔔'}</span>
+    <span>${escapeHtml(message)}</span>
+  `;
+
+  container.appendChild(toast);
+
+  setTimeout(() => {
+    toast.style.transition = 'opacity 0.3s, transform 0.3s';
+    toast.style.opacity = '0';
+    toast.style.transform = 'translateY(12px)';
+    setTimeout(() => toast.remove(), 300);
+  }, 3400);
+}
+
+// ==============================================================================
+// 22. VIEW SWITCHING & NAVIGATION
+// ==============================================================================
+function switchView(viewName) {
+  playUiSound('click');
+  state.activeView = viewName;
+
+  document.querySelectorAll('.nav-item').forEach(tab => {
+    tab.classList.toggle('active', tab.dataset.view === viewName);
+    tab.setAttribute('aria-selected', tab.dataset.view === viewName);
+  });
+
+  const views = {
+    month: document.getElementById('viewMonth'),
+    week: document.getElementById('viewWeek'),
+    day: document.getElementById('viewDay'),
+    kanban: document.getElementById('viewKanban'),
+    agenda: document.getElementById('viewAgenda')
+  };
+
+  Object.keys(views).forEach(k => {
+    if (views[k]) {
+      if (k === viewName) views[k].classList.remove('hidden');
+      else views[k].classList.add('hidden');
+    }
+  });
+
+  renderApp();
+}
+
+function navigatePeriod(step) {
+  playUiSound('click');
+  if (state.activeView === 'month') {
+    state.currentDate.setMonth(state.currentDate.getMonth() + step);
+  } else if (state.activeView === 'week') {
+    state.currentDate.setDate(state.currentDate.getDate() + (step * 7));
+  } else if (state.activeView === 'day') {
+    state.selectedDate.setDate(state.selectedDate.getDate() + step);
+    state.currentDate = new Date(state.selectedDate);
+  } else {
+    state.currentDate.setMonth(state.currentDate.getMonth() + step);
+  }
+  renderApp();
+}
+
+function goToToday() {
+  playUiSound('click');
+  state.currentDate = new Date();
+  state.selectedDate = new Date();
+  renderApp();
+}
+
+// ==============================================================================
+// 23. SETUP EVENT LISTENERS
+// ==============================================================================
+function setupEventListeners() {
+  // Navigation Tabs
+  document.querySelectorAll('.nav-item').forEach(btn => {
+    btn.addEventListener('click', () => switchView(btn.dataset.view));
+  });
+
+  document.getElementById('btnNavPrev')?.addEventListener('click', () => navigatePeriod(-1));
+  document.getElementById('btnNavNext')?.addEventListener('click', () => navigatePeriod(1));
+  document.getElementById('btnNavToday')?.addEventListener('click', goToToday);
+
+  document.getElementById('miniCalPrev')?.addEventListener('click', () => {
+    playUiSound('click');
+    state.currentDate.setMonth(state.currentDate.getMonth() - 1);
+    renderApp();
+  });
+  document.getElementById('miniCalNext')?.addEventListener('click', () => {
+    playUiSound('click');
+    state.currentDate.setMonth(state.currentDate.getMonth() + 1);
+    renderApp();
+  });
+
+  document.getElementById('btnOpenNewSchedule')?.addEventListener('click', () => openScheduleModal());
+  document.getElementById('btnHeaderAdd')?.addEventListener('click', () => openScheduleModal());
+
+  // Command Palette
+  document.getElementById('btnTriggerCommandPalette')?.addEventListener('click', openCommandPalette);
+  document.getElementById('btnEscCommand')?.addEventListener('click', closeCommandPalette);
+  document.getElementById('commandPaletteOverlay')?.addEventListener('click', (e) => {
+    if (e.target === document.getElementById('commandPaletteOverlay')) closeCommandPalette();
+  });
+
+  const cmdInput = document.getElementById('commandPaletteInput');
+  cmdInput?.addEventListener('input', (e) => {
+    commandSelectedIndex = 0;
+    renderCommandResults(e.target.value);
+  });
+
+  cmdInput?.addEventListener('keydown', (e) => {
+    const items = document.querySelectorAll('#commandResultsList .cmd-item');
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (items.length > 0) {
+        commandSelectedIndex = (commandSelectedIndex + 1) % items.length;
+        updateCommandSelection();
+        items[commandSelectedIndex]?.scrollIntoView({ block: 'nearest' });
+      }
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (items.length > 0) {
+        commandSelectedIndex = (commandSelectedIndex - 1 + items.length) % items.length;
+        updateCommandSelection();
+        items[commandSelectedIndex]?.scrollIntoView({ block: 'nearest' });
+      }
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (items.length > 0 && items[commandSelectedIndex]) {
+        items[commandSelectedIndex].click();
+      }
+    }
+  });
+
+  // Pomodoro
+  document.getElementById('btnOpenPomodoro')?.addEventListener('click', () => {
+    playUiSound('pop');
+    document.getElementById('pomodoroModalOverlay')?.classList.remove('hidden');
+  });
+  document.getElementById('btnClosePomodoro')?.addEventListener('click', () => {
+    document.getElementById('pomodoroModalOverlay')?.classList.add('hidden');
+  });
+
+  // Auth & Profile Triggers
+  document.getElementById('btnHeaderAuth')?.addEventListener('click', openAuthOrProfile);
+  document.getElementById('sidebarUserCard')?.addEventListener('click', openAuthOrProfile);
+  document.getElementById('btnSidebarAuthAction')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    openAuthOrProfile();
+  });
+  document.getElementById('btnCloseAuthModal')?.addEventListener('click', closeAuthModal);
+  document.getElementById('btnCloseProfileModal')?.addEventListener('click', closeProfileModal);
+  document.getElementById('btnContinueGuest')?.addEventListener('click', closeAuthModal);
+  document.getElementById('btnLogout')?.addEventListener('click', handleLogout);
+
+  document.getElementById('btnSyncNow')?.addEventListener('click', async () => {
+    if (state.currentUser) {
+      await loadUserData(state.currentUser.id);
+      closeProfileModal();
+    }
+  });
+
+  // Auth Tabs (Login vs Register)
+  document.getElementById('tabBtnLogin')?.addEventListener('click', () => openAuthModal('login'));
+  document.getElementById('tabBtnRegister')?.addEventListener('click', () => openAuthModal('register'));
+  document.getElementById('authForm')?.addEventListener('submit', handleAuthFormSubmit);
+
+  // Toggle Password Eye
+  document.getElementById('btnTogglePasswordVisibility')?.addEventListener('click', () => {
+    const pwInput = document.getElementById('authPassword');
+    if (!pwInput) return;
+    const isPw = pwInput.type === 'password';
+    pwInput.type = isPw ? 'text' : 'password';
+    document.getElementById('btnTogglePasswordVisibility').textContent = isPw ? '🙈' : '👁️';
+  });
+
+  // Supabase Config Modal Triggers
+  document.getElementById('btnSupabaseBadge')?.addEventListener('click', openSupabaseConfigModal);
+  document.getElementById('btnOpenSupabaseConfig')?.addEventListener('click', openSupabaseConfigModal);
+  document.getElementById('btnOpenSupabaseFromAuth')?.addEventListener('click', () => {
+    closeAuthModal();
+    openSupabaseConfigModal();
+  });
+  document.getElementById('btnCloseSupabaseConfig')?.addEventListener('click', closeSupabaseConfigModal);
+  document.getElementById('btnCancelSupabaseConfig')?.addEventListener('click', closeSupabaseConfigModal);
+  document.getElementById('btnSaveSupabaseConfig')?.addEventListener('click', handleSaveSupabaseConfig);
+
+  // Sound Toggle
+  document.getElementById('btnToggleSound')?.addEventListener('click', toggleSound);
+
+  // Priority Filter
+  document.getElementById('priorityFilterSelect')?.addEventListener('change', (e) => {
+    playUiSound('click');
+    state.activePriorityFilter = e.target.value;
+    renderApp();
+  });
+
+  // Reset Filters
+  document.getElementById('btnResetCategoryFilter')?.addEventListener('click', () => {
+    state.activeCategoryFilter = 'all';
+    renderApp();
+  });
+
+  document.getElementById('btnClearAllFilters')?.addEventListener('click', () => {
+    playUiSound('click');
+    state.activeCategoryFilter = 'all';
+    state.activePriorityFilter = 'all';
+    state.searchQuery = '';
+    const priSelect = document.getElementById('priorityFilterSelect');
+    if (priSelect) priSelect.value = 'all';
+    renderApp();
+  });
+
+  // Theme Toggle
+  document.getElementById('btnThemeToggle')?.addEventListener('click', toggleTheme);
+
+  // Mobile Menu Toggle
+  document.getElementById('btnToggleSidebar')?.addEventListener('click', () => {
+    document.getElementById('sidebar')?.classList.toggle('mobile-open');
+  });
+
+  // Schedule Modal
+  document.getElementById('scheduleForm')?.addEventListener('submit', handleScheduleFormSubmit);
+  document.getElementById('btnCloseModal')?.addEventListener('click', closeScheduleModal);
+  document.getElementById('btnCancelModal')?.addEventListener('click', closeScheduleModal);
+  document.getElementById('btnAddChecklistItem')?.addEventListener('click', () => addChecklistInputRow());
+  document.getElementById('btnDeleteSchedule')?.addEventListener('click', () => {
+    if (currentEditingId) confirmDeleteSchedule(currentEditingId);
+  });
+
+  // Preview Modal
+  document.getElementById('btnClosePreview')?.addEventListener('click', closePreviewModal);
+  document.getElementById('btnTogglePreviewStatus')?.addEventListener('click', () => {
+    if (activePreviewItem) toggleScheduleComplete(activePreviewItem.id);
+  });
+  document.getElementById('btnEditFromPreview')?.addEventListener('click', () => {
+    if (activePreviewItem) {
+      const item = activePreviewItem;
+      closePreviewModal();
+      openScheduleModal(item);
+    }
+  });
+
+  // Data Actions
+  document.getElementById('btnExportData')?.addEventListener('click', exportDataJSON);
+  document.getElementById('btnImportData')?.addEventListener('click', openImportModal);
+  document.getElementById('btnCloseImportModal')?.addEventListener('click', closeImportModal);
+  document.getElementById('btnCancelImport')?.addEventListener('click', closeImportModal);
+  document.getElementById('btnConfirmImport')?.addEventListener('click', applyImportJSON);
+
+  document.getElementById('importFileInput')?.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        document.getElementById('importJsonTextarea').value = evt.target.result;
+      };
+      reader.readAsText(file);
+    }
+  });
+
+  // Day Notes Save
+  document.getElementById('btnSaveDayNotes')?.addEventListener('click', async () => {
+    const txt = document.getElementById('dayNotesInput')?.value || '';
+    const dateKey = formatDateKey(state.selectedDate);
+    state.dayNotes[dateKey] = txt;
+
+    const accKey = state.currentUser ? state.currentUser.id : 'guest';
+    localStorage.setItem(`${NOTES_PREFIX}${accKey}`, JSON.stringify(state.dayNotes));
+
+    if (state.currentUser && isSupabaseConfigured()) {
+      await saveUserDayNote(dateKey, txt, state.currentUser.id);
+    }
+
+    playUiSound('complete');
+    showToast('Catatan harian berhasil disimpan.', 'success');
+  });
+
+  // Global Keyboard Shortcuts
+  window.addEventListener('keydown', (e) => {
+    const isTyping = ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName);
+
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K')) {
+      e.preventDefault();
+      openCommandPalette();
+    } else if (e.key === 'Escape') {
+      closeCommandPalette();
+      closeScheduleModal();
+      closePreviewModal();
+      closeImportModal();
+      closeAuthModal();
+      closeProfileModal();
+      closeSupabaseConfigModal();
+      document.getElementById('pomodoroModalOverlay')?.classList.add('hidden');
+    } else if (!isTyping) {
+      if (e.key === 'n' || e.key === 'N') {
+        e.preventDefault();
+        openScheduleModal();
+      } else if (e.key === 't' || e.key === 'T') {
+        e.preventDefault();
+        goToToday();
+      } else if (e.key === '1') switchView('month');
+      else if (e.key === '2') switchView('week');
+      else if (e.key === '3') switchView('day');
+      else if (e.key === '4') switchView('kanban');
+      else if (e.key === '5') switchView('agenda');
+    }
+  });
+}
+
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function addHours(timeStr, hours) {
+  const [h, m] = (timeStr || '09:00').split(':').map(Number);
+  const nextHour = (h + hours) % 24;
+  return `${String(nextHour).padStart(2, '0')}:${String(m || 0).padStart(2, '0')}`;
+}
+
+// Inisialisasi Aplikasi Saat Memuat
+document.addEventListener('DOMContentLoaded', async () => {
+  initTheme();
+  updateSoundIcon();
+  initLiveClock();
+  initPomodoro();
+  setupEventListeners();
+  await initSupabaseSession();
 });

@@ -1,76 +1,103 @@
-# ⚡ OutMedia - Hybrid TikTok Feed & Discord Voice Spaces
+# 📅 PlanCraft PRO — Smart Scheduler with Supabase Cloud (v2.5)
 
-![License](https://img.shields.io/badge/license-MIT-blue.svg)
-![Node](https://img.shields.io/badge/node-%3E%3D18.0.0-green.svg)
-![WebRTC](https://img.shields.io/badge/WebRTC-Real--Time-orange.svg)
-![WebSocket](https://img.shields.io/badge/WebSocket-RFC6455-brightgreen.svg)
+Aplikasi Scheduling & Manajemen Agenda modern, rapih, elegan, responsif, dan **sangat mudah di-edit**. Dilengkapi dengan **Autentikasi & Database Supabase**, di mana setiap akun memiliki login/password tersendiri dan data jadwal tersimpan aman secara terisolasi per akun (*Row Level Security*).
 
-Platform media sosial hibrida modern yang memadukan keunggulan **TikTok** (video feed vertikal 9:16 snap-scroll) dan **Discord** (Server komunitas, Text Channels, Direct Messages, dan WebRTC Voice Spaces dengan Voice Activity Detection).
+![PlanCraft Scheduler Mockup](preview.jpg)
 
 ---
 
-## ✨ Fitur Utama
+## 🔐 Integrasi Supabase: Autentikasi & Isolasi Data Akun
 
-### 🎬 TikTok Feed Engine
-- **Vertical Snap-Scrolling**: Transisi geser vertikal mulus ala TikTok (`scroll-snap-type: y mandatory`).
-- **Autoplay / Auto-Pause**: Berbasis `IntersectionObserver` hemat memori dan bandwidth.
-- **Double-Tap Floating Heart**: Animasi ledakan hati melayang tepat pada koordinat klik/tap ganda.
-- **Action Sidebar**: Follow (+) button, Like counter dinamis, Comment sheet, Share, dan piringan hitam musik berputar (*spinning vinyl disc*).
-- **Video Creator / Uploader**: Unggah video lokal MP4/WebM, rekam langsung via kamera web, atau pilih preset animasi dengan caption dan musik latar.
-
-### 🔊 Discord Servers & WebRTC Voice Spaces
-- **Server Rail**: Navigasi server vertikal khas Discord ("OutMedia Official", "Gamer Squad ID", "TikTok Creator Lab").
-- **Kanal Teks & Suara**: Pemisahan kanal obrolan teks dan ruang suara.
-- **WebRTC Voice Room**: Pengguna dapat bergabung dan keluar dari saluran suara secara instan.
-- **Voice Activity Detection (VAD)**: Dilengkapi deteksi volume mikrofon nyata via Web Audio API. Avatar pengguna menyala dengan **lingkaran hijau berdenyut (*green glowing halo*)** saat berbicara.
-- **Audio Control Dock**: Mute Microphone, Deafen Audio, dan fitur Berbagi Layar (*Screen Share*).
-
-### 💬 Direct Messages & Friends Hub
-- **Presence Real-Time**: Status Online (hijau), Idle (kuning), DND (merah), dan Offline (abu-abu).
-- **Friends Hub**: Filter tab Teman Online, Semua, Permintaan Masuk (*Pending*), dan Tambah Teman.
-- **Real-Time 1-on-1 Chat**: Pengiriman pesan instan via WebSocket, *typing indicator*, dan reaksi emoji (👍, ❤️, 🔥, 😂).
-
-### 🗄️ Database Schema ([prisma/schema.prisma](prisma/schema.prisma))
-- Skema PostgreSQL / Prisma relasional untuk `User`, `Video`, `Friendship`, `DirectMessage`, `Server`, `ServerMember`, `Channel`, `ChannelMessage`, dan `VoiceState`.
+Aplikasi ini telah terhubung ke **Supabase** dengan fitur:
+- 👤 **Login & Registrasi Akun**: Mendaftar dan masuk menggunakan Email dan Kata Sandi resmi Supabase (`auth.users`).
+- 🛡️ **Row Level Security (RLS)**: Setiap akun **hanya dapat melihat, menambah, mengubah, dan menghapus jadwal miliknya sendiri**. Data akun A tidak akan pernah tertukar dengan akun B!
+- ☁️ **Cloud Real-time Persistence**: Jadwal dan catatan harian langsung tersimpan di database PostgreSQL Supabase di cloud.
+- 📱 **Penyimpanan Multi-Akun**: Jika login dengan akun berbeda di perangkat yang sama, aplikasi otomatis memuat data jadwal milik akun yang baru masuk.
+- 📴 **Mode Tamu (Offline Guest)**: Tetap dapat digunakan secara lokal saat belum login atau saat offline.
 
 ---
 
-## 🚀 Panduan Memulai
+## ⚡ Langkah Mudah Menghubungkan Supabase Anda
 
-### 1. Prasyarat
-- [Node.js](https://nodejs.org/) versi 18 atau lebih baru.
+Hanya butuh 3 langkah singkat:
 
-### 2. Menjalankan Server Lokal
-Clone repositori dan jalankan server langsung tanpa perlu instalasi modul tambahan:
+### 1. Buat Project di Supabase
+1. Buka [https://supabase.com](https://supabase.com) dan buat proyek baru (gratis).
+2. Buka menu **Project Settings** -> **API**.
+3. Salin **Project URL** dan **anon public key**.
+
+### 2. Jalankan Schema Database di Supabase
+1. Buka file [supabase-schema.sql](file:///c:/Users/Student/Documents/gameku/supabase-schema.sql) di folder proyek ini dan salin seluruh kodenya.
+2. Di Dashboard Supabase Anda, buka tab **SQL Editor** -> klik **New query**.
+3. Tempelkan (*paste*) kode SQL tersebut lalu klik tombol **Run**.
+4. Tabel `schedules` dan `day_notes` beserta kebijakan keamanan Row Level Security (RLS) akan aktif otomatis!
+
+### 3. Masukkan Kredensial di Aplikasi
+1. Buka aplikasi di browser: **[http://localhost:3000](http://localhost:3000)**.
+2. Klik tombol **Supabase** di sidebar atau badge status di kanan atas header.
+3. Masukkan **Project URL** dan **Anon Key** Anda, lalu klik **Simpan & Hubungkan**.
+4. Status akan berubah menjadi **🟢 Supabase Cloud**.
+5. Klik **Masuk Akun** untuk mendaftar akun pertama Anda dengan Email & Password!
+
+*(Kredensial juga dapat disimpan di file `.env` mengacu pada contoh [.env.example](file:///c:/Users/Student/Documents/gameku/.env.example)).*
+
+---
+
+## ✨ Fitur Lengkap Aplikasi
+
+1. **Autentikasi & Profil Pengguna**:
+   - Modal Login & Register dengan verifikasi password.
+   - Profil pengguna menampilkan email, total jadwal di cloud, dan tombol sinkronisasi.
+   - Tombol keluar (Logout) yang aman.
+
+2. **5 Tampilan Kalender & Alur Kerja**:
+   - 📅 **Kalender Bulanan (Month View)**: Grid 1 bulan penuh, penanda hari ini, chip kegiatan berkode warna, dan indikator overflow.
+   - 📆 **Timeline Mingguan (Week View)**: Jadwal 7 hari dengan slot per jam (00:00 - 23:00) dan penanda garis waktu sekarang yang berpendar.
+   - ⏰ **Harian Terfokus (Day View)**: Rincian kegiatan per jam, catatan harian (*Day Notes* auto-save), dan checklist target.
+   - 📋 **Papan Status Kanban**: 4 kolom status (*Rencana*, *Sedang Berjalan*, *Terjadwal*, *Selesai*) dengan tombol cepat advance status.
+   - 📝 **Daftar Agenda (Agenda View)**: Garis waktu kronologis terhubung (*Hari Ini*, *Besok*, *Mendatang*, *Riwayat*).
+
+3. **Command Palette Pintar (<kbd>Ctrl</kbd> + <kbd>K</kbd> / <kbd>⌘</kbd> + <kbd>K</kbd>)**:
+   - Navigasi instan bergaya Raycast & Linear.
+   - Cari jadwal apa saja atau jalankan perintah sistem langsung dari keyboard.
+
+4. **Focus Session (Pomodoro Timer)**:
+   - Timer fokus 25 menit, 5 menit (rehat), dan 15 menit (santai).
+
+5. **Efek Audio Sintesis & Selebrasi Confetti**:
+   - Suara UI halus dan interaktif berbasis Web Audio API tanpa perlu file eksternal (bisa dimatikan/dihidupkan dengan 1-klik).
+   - Efek ledakan confetti saat menyelesaikan tugas atau agenda.
+
+6. **Kustomisasi & Ekspor/Impor**:
+   - Kategori berkode warna dan bergradien kustom.
+   - Ekspor data backup ke file `.json`.
+   - Impor data dari file `.json` atau tempel teks.
+
+7. **Shortcut Keyboard Lengkap**:
+   - <kbd>Ctrl</kbd> + <kbd>K</kbd> : Buka Command Palette.
+   - <kbd>N</kbd> : Buka modal tambah jadwal baru.
+   - <kbd>T</kbd> : Lompat ke Hari Ini.
+   - <kbd>1</kbd> - <kbd>5</kbd> : Ganti tampilan (Bulan, Minggu, Hari, Kanban, Agenda).
+   - <kbd>Esc</kbd> : Tutup modal yang sedang terbuka.
+
+---
+
+## 🚀 Cara Menjalankan Server
 
 ```bash
-# Menjalankan server OutMedia
-node server.js
-# atau
 npm start
+# atau
+node server.js
 ```
-
-Buka peramban Anda di:
-👉 **`http://localhost:3000`**
+Akses di browser:
+👉 **[http://localhost:3000](http://localhost:3000)**
 
 ---
 
-## 📂 Struktur Proyek
+## 📂 Struktur Berkas Terkait Supabase
 
-```text
-├── index.html            # Layout utama 3-kolom Discord + Viewport TikTok Feed
-├── style.css             # Tema gelap Discord & TikTok neon aesthetics
-├── app.js                # Logika platform: WebRTC VAD, WebSocket, Chat, Feed
-├── server.js             # Native Node.js HTTP + RFC 6455 WebSocket Server
-├── discord-data.js       # Data awal server, channels, friends, dan riwayat chat
-├── videos-data.js        # Data video feed vertikal awal
-├── prisma/
-│   └── schema.prisma     # Skema database Prisma
-├── package.json          # Konfigurasi package & scripts
-└── .gitignore            # Git ignore rules
-```
-
----
-
-## 📄 Lisensi
-Didistribusikan di bawah Lisensi MIT.
+- [supabase-client.js](file:///c:/Users/Student/Documents/gameku/supabase-client.js): Modul autentikasi Supabase (`signUp`, `signIn`, `signOut`) dan operasi query database ber-RLS.
+- [supabase-schema.sql](file:///c:/Users/Student/Documents/gameku/supabase-schema.sql): Script SQL tabel `schedules`, `day_notes`, dan kebijakan Row Level Security.
+- [.env.example](file:///c:/Users/Student/Documents/gameku/.env.example): Panduan format konfigurasi environment Supabase.
+- [app.js](file:///c:/Users/Student/Documents/gameku/app.js): Logika aplikasi kalender yang terhubung langsung ke sesi akun Supabase aktif.
+- [style.css](file:///c:/Users/Student/Documents/gameku/style.css): Styling antarmuka termasuk modal login, register, dan profil akun.

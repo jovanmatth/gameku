@@ -1,446 +1,877 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="id" data-theme="dark">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>OutMedia - Hybrid TikTok Feed & Discord Voice Spaces</title>
-  <meta name="description" content="Platform media sosial hibrida modern yang menggabungkan feed video vertikal TikTok dengan Discord Voice Channels & Real-Time Messaging.">
-  <meta name="theme-color" content="#1e1f22">
-  
-  <!-- Favicon -->
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%235865f2'><path d='M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994.021-.041.001-.09-.041-.106a13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.929 1.793 8.18 1.793 12.061 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.894.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.028zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z'/></svg>">
-  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PlanCraft PRO — Ultra-Aesthetic Calendar & Smart Scheduler</title>
+  <meta name="description" content="Aplikasi scheduling modern, rapih, elegan dan mudah di-edit. Terintegrasi penuh dengan Supabase Authentication & Database untuk isolasi data jadwal per akun.">
+
+  <!-- Google Fonts: Plus Jakarta Sans, Outfit, & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Supabase Official JS Client CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
   <link rel="stylesheet" href="style.css">
 </head>
-<body class="platform-body">
-
-  <!-- Floating Toast Notification System -->
-  <div class="toast-container" id="toast-container"></div>
-
-  <!-- Master Platform Layout (Discord Multi-Panel + TikTok Viewport) -->
-  <div class="app-layout" id="app-layout">
-
-    <!-- ====================================================================
-         COLUMN 1: DISCORD SERVER RAIL (Leftmost vertical navigation)
-         ==================================================================== -->
-    <aside class="server-rail" id="server-rail">
-      <!-- Direct Messages Home Button -->
-      <button class="server-rail-icon active" data-rail-target="dm" id="rail-btn-dm" title="Pesan Langsung & Teman">
-        <svg viewBox="0 0 24 24">
-          <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994.021-.041.001-.09-.041-.106a13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.929 1.793 8.18 1.793 12.061 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.894.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.028zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/>
-        </svg>
-      </button>
-
-      <!-- Special TikTok Feed Switcher Icon (Neon Pink/Cyan) -->
-      <button class="server-rail-icon special-tiktok" data-rail-target="tiktok-feed" id="rail-btn-feed" title="TikTok FYP Video Feed">
-        <svg viewBox="0 0 24 24">
-          <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64c.29 0 .58.04.86.13V9.4a6.34 6.34 0 0 0-6.42 6.32 6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.34-6.34V7.93a8.16 8.16 0 0 0 4.69 1.48V6.01a4.85 4.85 0 0 1-1.7-.2z"/>
-        </svg>
-        <span class="pulse-indicator-badge"></span>
-      </button>
-
-      <div class="rail-divider"></div>
-
-      <!-- Dynamic Server Icons List -->
-      <div class="servers-list" id="rail-servers-list">
-        <!-- Injected dynamically from discord-data.js -->
-      </div>
-
-      <!-- Add New Server Button -->
-      <button class="server-rail-icon add-server-btn" id="btn-add-server-modal" title="Buat Server Baru">
-        <svg viewBox="0 0 24 24">
-          <line x1="12" y1="5" x2="12" y2="19" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
-          <line x1="5" y1="12" x2="19" y2="12" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
-        </svg>
-      </button>
-    </aside>
-
-    <!-- ====================================================================
-         COLUMN 2: DISCORD CHANNEL / DM SIDEBAR
-         ==================================================================== -->
-    <aside class="sidebar-channels" id="sidebar-channels">
-      
-      <!-- Top Header (Search or Server Title) -->
-      <div class="sidebar-header" id="sidebar-header">
-        <h3 id="sidebar-header-title">Percakapan Langsung</h3>
-      </div>
-
-      <!-- Channels / DMs Body Content -->
-      <div class="sidebar-body-scroll" id="sidebar-body-scroll">
-        
-        <!-- DIRECT MESSAGES LIST (When in DM Mode) -->
-        <div class="dm-section-wrapper" id="dm-section-wrapper">
-          <button class="dm-nav-item active" id="btn-nav-friends">
-            <svg viewBox="0 0 24 24">
-              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-              <circle cx="9" cy="7" r="4"></circle>
-              <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-              <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-            </svg>
-            <span>Teman</span>
-            <span class="badge-pending" id="badge-pending-friends">1</span>
-          </button>
-
-          <div class="sidebar-section-label">
-            <span>PESAN LANGSUNG</span>
-            <button id="btn-quick-new-dm" title="Mulai DM Baru">+</button>
-          </div>
-
-          <div class="dm-friends-list" id="dm-friends-list">
-            <!-- Injected dynamically -->
-          </div>
-        </div>
-
-        <!-- SERVER CHANNELS LIST (When in Server Mode) -->
-        <div class="server-channels-wrapper" id="server-channels-wrapper" style="display: none;">
-          <!-- Text Channels Category -->
-          <div class="channel-category-header">
-            <svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"></polyline></svg>
-            <span>KANAL TEKS</span>
-          </div>
-          <div class="channels-group" id="group-text-channels">
-            <!-- Injected dynamically -->
-          </div>
-
-          <!-- Voice Channels Category -->
-          <div class="channel-category-header" style="margin-top: 14px;">
-            <svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"></polyline></svg>
-            <span>KANAL SUARA (WEBRTC)</span>
-          </div>
-          <div class="channels-group" id="group-voice-channels">
-            <!-- Injected dynamically -->
-          </div>
-        </div>
-
-      </div>
-
-      <!-- VOICE CONNECTED STATUS BAR (Visible when joined to voice) -->
-      <div class="voice-connected-bar" id="voice-connected-bar" style="display: none;">
-        <div class="voice-conn-info">
-          <div class="conn-icon-pulse">
-            <svg viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
-          </div>
-          <div class="conn-names">
-            <span class="conn-status-title">Suara Terhubung</span>
-            <span class="conn-channel-name" id="conn-channel-name">Lounge Suara 1</span>
-          </div>
-        </div>
-        <button class="btn-disconnect-voice" id="btn-disconnect-voice" title="Putuskan Suara">
-          <svg viewBox="0 0 24 24">
-            <path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7 2 2 0 0 1 1.72 2v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.42 19.42 0 0 1-6-6 19.8 19.8 0 0 1-3.12-8.68A2 2 0 0 1 4 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91"></path>
-            <line x1="23" y1="1" x2="1" y2="23"></line>
-          </svg>
-        </button>
-      </div>
-
-      <!-- PERSISTENT USER CONTROLS BAR (Bottom of Sidebar) -->
-      <footer class="sidebar-user-bar">
-        <div class="user-bar-profile" id="user-bar-profile">
-          <div class="user-avatar-wrap">
-            <img id="user-bar-avatar" src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80" alt="Avatar">
-            <span class="status-dot status-online" id="user-bar-status-dot"></span>
-          </div>
-          <div class="user-bar-names">
-            <span class="bar-display-name" id="user-bar-name">Saya (You)</span>
-            <span class="bar-user-tag">#0001</span>
-          </div>
-        </div>
-
-        <div class="user-bar-actions">
-          <!-- Mic Mute Toggle -->
-          <button class="bar-action-btn" id="btn-toggle-mic" title="Nyalakan/Bisukan Mikrofon">
-            <svg id="icon-mic-on" viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
-            <svg id="icon-mic-off" viewBox="0 0 24 24" style="display: none; fill: #f23f43;"><line x1="1" y1="1" x2="23" y2="23"></line><path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"></path><path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
-          </button>
-
-          <!-- Headphone Deafen Toggle -->
-          <button class="bar-action-btn" id="btn-toggle-deafen" title="Tuli / Bisu Suara">
-            <svg id="icon-deafen-on" viewBox="0 0 24 24"><path d="M3 18v-6a9 9 0 0 1 18 0v6"></path><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"></path></svg>
-            <svg id="icon-deafen-off" viewBox="0 0 24 24" style="display: none; fill: #f23f43;"><line x1="1" y1="1" x2="23" y2="23"></line><path d="M3 18v-6a9 9 0 0 1 18 0v6"></path><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"></path></svg>
-          </button>
-
-          <!-- Settings Cog -->
-          <button class="bar-action-btn" id="btn-open-settings" title="Pengaturan Akun">
-            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
-          </button>
-        </div>
-      </footer>
-    </aside>
-
-    <!-- ====================================================================
-         COLUMN 3: MAIN VIEWPORT (TikTok Feed / Chat / Friends / Voice Space)
-         ==================================================================== -->
-    <main class="main-viewport" id="main-viewport">
-
-      <!-- ------------------------------------------------------------------
-           VIEW 1: TIKTOK FEED (Fullscreen Short-Form Video Stream)
-           ------------------------------------------------------------------ -->
-      <section class="viewport-section" id="view-feed" style="display: none;">
-        <!-- Top Feed Header (Following / FYP / Live & Audio) -->
-        <header class="tiktok-feed-header">
-          <button class="live-badge-btn" id="btn-live-stream" title="Siaran Langsung">
-            <span class="pulse-dot"></span>
-            <span>LIVE</span>
-          </button>
-
-          <div class="feed-tabs">
-            <button class="feed-tab" data-feed-type="following" id="tab-feed-following">Mengikuti</button>
-            <button class="feed-tab active" data-feed-type="fyp" id="tab-feed-fyp">Untuk Anda</button>
-          </div>
-
-          <div class="header-right-actions">
-            <button class="sound-toggle-btn" id="btn-sound-toggle" title="Suara Video">
-              <svg id="icon-sound-unmuted" viewBox="0 0 24 24" style="display:none;"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
-              <svg id="icon-sound-muted" viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><line x1="23" y1="9" x2="17" y2="15"></line><line x1="17" y1="9" x2="23" y2="15"></line></svg>
-            </button>
-          </div>
-        </header>
-
-        <!-- Vertical Snap Scroller Feed Container -->
-        <div class="feed-scroller" id="feed-scroller">
-          <!-- Video Cards injected by app.js -->
-        </div>
-
-        <!-- Floating Create Video Button (+) for Feed -->
-        <button class="feed-floating-create" id="btn-feed-create-post" title="Unggah Video Baru">
-          <div class="create-btn-shape">
-            <svg viewBox="0 0 24 24">
-              <line x1="12" y1="5" x2="12" y2="19" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
-              <line x1="5" y1="12" x2="19" y2="12" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
-            </svg>
-          </div>
-        </button>
-      </section>
-
-      <!-- ------------------------------------------------------------------
-           VIEW 2: DISCORD FRIENDS HUB (Online, All, Pending, Add Friend)
-           ------------------------------------------------------------------ -->
-      <section class="viewport-section active" id="view-friends">
-        <!-- Friends Top Header -->
-        <header class="chat-top-header friends-header">
-          <div class="friends-header-left">
-            <div class="chat-header-title">
-              <svg viewBox="0 0 24 24" class="header-icon"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
-              <span>Teman</span>
-            </div>
-            <div class="header-divider-v"></div>
-            <div class="friends-filter-tabs">
-              <button class="friend-tab active" data-filter="ONLINE">Online (<span id="count-online-friends">3</span>)</button>
-              <button class="friend-tab" data-filter="ALL">Semua (<span id="count-all-friends">4</span>)</button>
-              <button class="friend-tab" data-filter="PENDING">Menunggu (<span id="count-pending-friends">1</span>)</button>
-              <button class="friend-tab add-friend-tab" data-filter="ADD">Tambah Teman</button>
-            </div>
-          </div>
-        </header>
-
-        <!-- Friends List Content Body -->
-        <div class="friends-content-body" id="friends-content-body">
-          <!-- Search box -->
-          <div class="friends-search-box">
-            <input type="text" id="input-search-friends" placeholder="Cari teman Anda...">
-            <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-          </div>
-
-          <!-- Add Friend Input Panel (Shown when Add Friend Tab active) -->
-          <div class="add-friend-banner-panel" id="add-friend-panel" style="display: none;">
-            <h3>TAMBAH TEMAN</h3>
-            <p>Anda dapat menambahkan teman menggunakan nama pengguna atau tag mereka.</p>
-            <div class="add-friend-input-wrapper">
-              <input type="text" id="input-add-friend-username" placeholder="Masukkan nama pengguna (cth: budiprogamer)...">
-              <button id="btn-submit-friend-request">Kirim Permintaan</button>
-            </div>
-          </div>
-
-          <!-- List of Friends cards -->
-          <div class="friends-cards-container" id="friends-cards-container">
-            <!-- Injected dynamically -->
-          </div>
-        </div>
-      </section>
-
-      <!-- ------------------------------------------------------------------
-           VIEW 3: DISCORD CHAT (Text Channels & 1-on-1 Direct Messages)
-           ------------------------------------------------------------------ -->
-      <section class="viewport-section" id="view-chat" style="display: none;">
-        <!-- Chat Top Bar Header -->
-        <header class="chat-top-header">
-          <div class="chat-header-title">
-            <span class="header-hash" id="chat-header-prefix">#</span>
-            <span id="chat-header-name">obrolan-santai</span>
-            <span class="chat-header-topic" id="chat-header-topic">Bebas ngobrol apa saja di sini!</span>
-          </div>
-
-          <div class="chat-header-actions">
-            <!-- Voice Call button if in DM -->
-            <button class="header-action-btn" id="btn-call-dm" title="Mulai Panggilan Suara">
-              <svg viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
-            </button>
-            <button class="header-action-btn" title="Pesan Disematkan">
-              <svg viewBox="0 0 24 24"><line x1="12" y1="17" x2="12" y2="22"></line><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"></path></svg>
-            </button>
-          </div>
-        </header>
-
-        <!-- Message History Scroller -->
-        <div class="chat-messages-container" id="chat-messages-container">
-          <!-- Injected dynamically -->
-        </div>
-
-        <!-- Typing Indicator -->
-        <div class="typing-indicator-bar" id="typing-indicator-bar" style="display: none;">
-          <div class="typing-dots"><span></span><span></span><span></span></div>
-          <span id="typing-text">Seseorang sedang mengetik...</span>
-        </div>
-
-        <!-- Chat Input Form -->
-        <form class="chat-input-area" id="form-send-chat">
-          <button type="button" class="chat-btn-attach" title="Unggah File">
-            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>
-          </button>
-          <input type="text" id="input-chat-message" placeholder="Kirim pesan di sini..." autocomplete="off">
-          <button type="button" class="chat-btn-emoji" id="btn-quick-emoji" title="Pilih Emoji">😊</button>
-          <button type="submit" class="chat-btn-send" title="Kirim">
-            <svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
-          </button>
-        </form>
-      </section>
-
-      <!-- ------------------------------------------------------------------
-           VIEW 4: DISCORD VOICE SPACE (WebRTC Voice Room Grid & VAD)
-           ------------------------------------------------------------------ -->
-      <section class="viewport-section" id="view-voice-room" style="display: none;">
-        <!-- Voice Space Header -->
-        <header class="chat-top-header">
-          <div class="chat-header-title">
-            <svg viewBox="0 0 24 24" class="header-icon" style="color: #23a55a;"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
-            <span id="voice-room-title">Lounge Suara 1</span>
-            <span class="live-voice-tag">WEBRTC REAL-TIME</span>
-          </div>
-
-          <div class="chat-header-actions">
-            <button class="btn-voice-leave-top" id="btn-voice-leave-top">Keluar Saluran</button>
-          </div>
-        </header>
-
-        <!-- Voice Room Participants Grid -->
-        <div class="voice-room-grid" id="voice-room-grid">
-          <!-- Voice cards injected dynamically -->
-        </div>
-
-        <!-- Voice Control Dock -->
-        <div class="voice-control-dock">
-          <button class="dock-btn" id="dock-btn-mic" title="Mikrofon">
-            <svg id="dock-icon-mic-on" viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
-            <svg id="dock-icon-mic-off" viewBox="0 0 24 24" style="display: none; fill: #f23f43;"><line x1="1" y1="1" x2="23" y2="23"></line><path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"></path><path d="M17 16.95A7 7 0 0 1 5 12v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
-          </button>
-          <button class="dock-btn" id="dock-btn-deafen" title="Audio Suara">
-            <svg id="dock-icon-deafen-on" viewBox="0 0 24 24"><path d="M3 18v-6a9 9 0 0 1 18 0v6"></path><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"></path></svg>
-            <svg id="dock-icon-deafen-off" viewBox="0 0 24 24" style="display: none; fill: #f23f43;"><line x1="1" y1="1" x2="23" y2="23"></line><path d="M3 18v-6a9 9 0 0 1 18 0v6"></path><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"></path></svg>
-          </button>
-          <button class="dock-btn" id="dock-btn-share-screen" title="Bagikan Layar">
-            <svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
-          </button>
-          <button class="dock-btn btn-danger" id="dock-btn-disconnect" title="Putuskan Panggilan">
-            <svg viewBox="0 0 24 24"><path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7 2 2 0 0 1 1.72 2v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.42 19.42 0 0 1-6-6 19.8 19.8 0 0 1-3.12-8.68A2 2 0 0 1 4 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91"></path><line x1="23" y1="1" x2="1" y2="23"></line></svg>
-          </button>
-        </div>
-      </section>
-
-    </main>
-
+<body>
+  <!-- Ambient Background Lighting Mesh Orbs -->
+  <div class="ambient-glow-layer" aria-hidden="true">
+    <div class="ambient-glow glow-indigo"></div>
+    <div class="ambient-glow glow-cyan"></div>
+    <div class="ambient-glow glow-purple"></div>
   </div>
 
-  <!-- ====================================================================
-       BOTTOM SHEET: TIKTOK KOMENTAR
-       ==================================================================== -->
-  <div class="bottom-sheet-backdrop" id="sheet-comments">
-    <div class="bottom-sheet-content">
-      <div class="sheet-header">
-        <span class="sheet-title" id="comments-sheet-title">Komentar</span>
-        <button class="sheet-close-btn" id="btn-close-comments">✕</button>
+  <!-- Confetti Canvas for Task Completion Celebrations -->
+  <canvas id="confettiCanvas" class="confetti-canvas"></canvas>
+
+  <div class="app-layout" id="appLayout">
+    
+    <!-- ==================================================================== -->
+    <!-- 1. SIDEBAR NAVIGATION & CONTROLS                                     -->
+    <!-- ==================================================================== -->
+    <aside class="sidebar" id="sidebar">
+      <!-- Brand & Studio Header -->
+      <div class="brand-container">
+        <div class="brand-logo-wrap">
+          <div class="brand-logo">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="4" width="18" height="18" rx="4" ry="4"></rect>
+              <line x1="16" y1="2" x2="16" y2="6"></line>
+              <line x1="8" y1="2" x2="8" y2="6"></line>
+              <line x1="3" y1="10" x2="21" y2="10"></line>
+              <circle cx="12" cy="15" r="2" fill="currentColor"></circle>
+            </svg>
+          </div>
+          <div class="brand-live-pulse" id="brandStatusDot" title="Sistem Aktif & Terhubung"></div>
+        </div>
+        <div class="brand-info">
+          <div class="brand-title-row">
+            <h1 class="brand-title">PlanCraft</h1>
+            <span class="pro-tag">PRO</span>
+          </div>
+          <span class="brand-subtitle">Supabase Cloud Sync</span>
+        </div>
       </div>
-      <div class="comments-list" id="comments-list-container"></div>
-      <div class="comment-input-bar">
-        <input type="text" id="input-new-comment" placeholder="Tambahkan komentar ramah...">
-        <button class="comment-send-btn" id="btn-send-comment">Kirim</button>
+
+      <!-- User Profile Ribbon in Sidebar -->
+      <div class="sidebar-user-card" id="sidebarUserCard">
+        <div class="user-card-inner">
+          <div class="user-avatar-circle" id="sidebarUserAvatar">👤</div>
+          <div class="user-card-details">
+            <span class="user-name-title" id="sidebarUserName">Tamu (Guest Mode)</span>
+            <span class="user-email-subtitle" id="sidebarUserEmail">Klik untuk Masuk Akun</span>
+          </div>
+          <button id="btnSidebarAuthAction" class="btn-sidebar-auth" title="Kelola Akun / Masuk">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path><polyline points="10 17 15 12 10 7"></polyline><line x1="15" y1="12" x2="3" y2="12"></line></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Quick Action Buttons -->
+      <div class="sidebar-action-wrap">
+        <button id="btnOpenNewSchedule" class="btn btn-primary btn-block btn-new-schedule" title="Tambah Jadwal Baru (Tekan N)">
+          <div class="btn-shine"></div>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+          <span>Jadwal Baru</span>
+          <kbd class="shortcut-key">N</kbd>
+        </button>
+
+        <button id="btnTriggerCommandPalette" class="btn-command-trigger" title="Buka Command Palette (Ctrl+K)">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+          <span>Perintah Cepat...</span>
+          <span class="cmd-shortcut">⌘K</span>
+        </button>
+      </div>
+
+      <!-- Mini Calendar Navigation Widget -->
+      <div class="mini-calendar-widget" id="miniCalendarWidget">
+        <div class="mini-cal-header">
+          <span id="miniCalTitle" class="mini-cal-title">Bulan Ini</span>
+          <div class="mini-cal-nav">
+            <button id="miniCalPrev" class="btn-icon-subtle" title="Bulan Sebelumnya" aria-label="Bulan Sebelumnya">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"></polyline></svg>
+            </button>
+            <button id="miniCalNext" class="btn-icon-subtle" title="Bulan Berikutnya" aria-label="Bulan Berikutnya">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            </button>
+          </div>
+        </div>
+        <div class="mini-cal-weekdays">
+          <span>M</span><span>S</span><span>S</span><span>R</span><span>K</span><span>J</span><span>S</span>
+        </div>
+        <div class="mini-cal-grid" id="miniCalGrid">
+          <!-- Populated by JavaScript -->
+        </div>
+      </div>
+
+      <!-- View Navigation Selector -->
+      <div class="nav-section">
+        <div class="nav-section-title">NAVIGASI TAMPILAN</div>
+        <nav class="nav-menu" role="tablist">
+          <button class="nav-item active" data-view="month" id="navViewMonth" role="tab" aria-selected="true">
+            <div class="nav-icon-box">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="4" width="18" height="18" rx="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+              </svg>
+            </div>
+            <span>Kalender Bulanan</span>
+            <kbd class="view-num">1</kbd>
+          </button>
+
+          <button class="nav-item" data-view="week" id="navViewWeek" role="tab" aria-selected="false">
+            <div class="nav-icon-box">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="4" width="18" height="18" rx="2"></rect>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+                <line x1="9" y1="4" x2="9" y2="22"></line>
+                <line x1="15" y1="4" x2="15" y2="22"></line>
+              </svg>
+            </div>
+            <span>Timeline Mingguan</span>
+            <kbd class="view-num">2</kbd>
+          </button>
+
+          <button class="nav-item" data-view="day" id="navViewDay" role="tab" aria-selected="false">
+            <div class="nav-icon-box">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12 6 12 12 16 14"></polyline>
+              </svg>
+            </div>
+            <span>Harian Terfokus</span>
+            <kbd class="view-num">3</kbd>
+          </button>
+
+          <button class="nav-item" data-view="kanban" id="navViewKanban" role="tab" aria-selected="false">
+            <div class="nav-icon-box">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="3" width="5" height="18" rx="1"></rect>
+                <rect x="10" y="3" width="5" height="12" rx="1"></rect>
+                <rect x="17" y="3" width="5" height="15" rx="1"></rect>
+              </svg>
+            </div>
+            <span>Papan Kanban</span>
+            <kbd class="view-num">4</kbd>
+          </button>
+
+          <button class="nav-item" data-view="agenda" id="navViewAgenda" role="tab" aria-selected="false">
+            <div class="nav-icon-box">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="8" y1="6" x2="21" y2="6"></line>
+                <line x1="8" y1="12" x2="21" y2="12"></line>
+                <line x1="8" y1="18" x2="21" y2="18"></line>
+                <line x1="3" y1="6" x2="3.01" y2="6"></line>
+                <line x1="3" y1="12" x2="3.01" y2="12"></line>
+                <line x1="3" y1="18" x2="3.01" y2="18"></line>
+              </svg>
+            </div>
+            <span>Daftar Agenda</span>
+            <kbd class="view-num">5</kbd>
+          </button>
+        </nav>
+      </div>
+
+      <!-- Categories Filter Section -->
+      <div class="nav-section">
+        <div class="nav-section-header">
+          <span class="nav-section-title">KATEGORI JADWAL</span>
+          <button id="btnResetCategoryFilter" class="btn-link" title="Tampilkan Semua Kategori">Semua</button>
+        </div>
+        <div class="category-filter-list" id="categoryFilterList">
+          <!-- Populated by JavaScript with glowing dots -->
+        </div>
+      </div>
+
+      <!-- Sidebar Footer Data Actions -->
+      <div class="sidebar-footer">
+        <div class="data-actions-row">
+          <button id="btnExportData" class="btn-data-action" title="Export Backup JSON">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+            <span>Export</span>
+          </button>
+          <button id="btnImportData" class="btn-data-action" title="Import Backup JSON">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+            <span>Import</span>
+          </button>
+          <button id="btnOpenSupabaseConfig" class="btn-data-action text-supabase" title="Atur Koneksi Supabase">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"></path><path d="M2 17l10 5 10-5"></path><path d="M2 12l10 5 10-5"></path></svg>
+            <span>Supabase</span>
+          </button>
+        </div>
+        <div class="version-tag">
+          <span class="version-dot" id="footerStatusDot"></span> PlanCraft v2.5 PRO • Supabase Sync
+        </div>
+      </div>
+    </aside>
+
+    <!-- ==================================================================== -->
+    <!-- 2. MAIN CONTENT AREA                                                 -->
+    <!-- ==================================================================== -->
+    <main class="main-content" id="mainContent">
+      
+      <!-- Top Navigation & Controls Header (Floating Glass) -->
+      <header class="top-header" id="topHeader">
+        <!-- Left: Date Navigator -->
+        <div class="header-left">
+          <button id="btnToggleSidebar" class="btn-icon mobile-menu-toggle" aria-label="Toggle Sidebar">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+          </button>
+          
+          <div class="date-navigator">
+            <button id="btnNavToday" class="btn btn-outline btn-today" title="Lompat ke Hari Ini (Tekan T)">Hari Ini</button>
+            <div class="btn-nav-group">
+              <button id="btnNavPrev" class="btn-icon" title="Periode Sebelumnya" aria-label="Periode Sebelumnya">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"></polyline></svg>
+              </button>
+              <button id="btnNavNext" class="btn-icon" title="Periode Berikutnya" aria-label="Periode Berikutnya">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
+              </button>
+            </div>
+            <div class="date-display-wrap">
+              <h2 id="currentPeriodTitle" class="current-period-title">September 2026</h2>
+              <span id="currentPeriodSubtitle" class="current-period-subtitle">Tampilan Kalender Bulanan</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Center: Live Clock & Smart Greeting Pill -->
+        <div class="header-center">
+          <div class="live-clock-card" id="liveClockCard">
+            <span class="live-pulse-dot"></span>
+            <span id="liveClockTime" class="live-time-text">00:00:00</span>
+            <span class="live-divider">•</span>
+            <span id="liveGreetingText" class="live-greeting-text">Semangat Produktif ✨</span>
+          </div>
+        </div>
+
+        <!-- Right: Actions, Supabase Auth & Utilities -->
+        <div class="header-right">
+          <!-- Supabase Connection Badge -->
+          <button id="btnSupabaseBadge" class="btn-supabase-pill" title="Status Koneksi Database Supabase">
+            <span class="supabase-status-indicator status-warning" id="supabasePillDot"></span>
+            <span id="supabasePillText" class="supabase-pill-label">Supabase</span>
+          </button>
+
+          <!-- User Profile / Auth Button -->
+          <button id="btnHeaderAuth" class="btn-header-user" title="Klik untuk Masuk atau Kelola Akun">
+            <div class="header-avatar" id="headerAvatarEl">👤</div>
+            <span class="header-user-email" id="headerEmailEl">Masuk Akun</span>
+          </button>
+
+          <!-- Pomodoro Focus Timer Quick Trigger -->
+          <button id="btnOpenPomodoro" class="btn-tool-pill" title="Buka Focus Timer (Pomodoro)">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 15 15"></polyline></svg>
+            <span id="headerTimerBadge" class="timer-badge-text">Focus</span>
+          </button>
+
+          <!-- Audio Sound Effects Toggle -->
+          <button id="btnToggleSound" class="btn-icon" title="Efek Suara Antarmuka (Aktif/Nonaktif)" aria-label="Efek Suara">
+            <svg class="sound-on-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
+            <svg class="sound-off-icon hidden" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><line x1="23" y1="9" x2="17" y2="15"></line><line x1="17" y1="9" x2="23" y2="15"></line></svg>
+          </button>
+
+          <!-- Priority Filter Select -->
+          <div class="filter-dropdown-wrap">
+            <select id="priorityFilterSelect" class="custom-select" aria-label="Filter Tingkat Prioritas">
+              <option value="all">Semua Prioritas</option>
+              <option value="high">🔴 Prioritas Tinggi</option>
+              <option value="medium">🟡 Prioritas Sedang</option>
+              <option value="low">🟢 Prioritas Rendah</option>
+            </select>
+          </div>
+
+          <!-- Theme Mode Switcher -->
+          <button id="btnThemeToggle" class="btn-icon theme-toggle-btn" title="Ganti Mode Gelap/Terang" aria-label="Ganti Tema">
+            <svg class="sun-icon hidden" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+            <svg class="moon-icon" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+          </button>
+
+          <!-- Quick Header Add Button -->
+          <button id="btnHeaderAdd" class="btn btn-primary btn-header-add" title="Tambah Jadwal Baru (Tekan N)">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            <span class="btn-text">Tambah</span>
+          </button>
+        </div>
+      </header>
+
+      <!-- Dashboard Highlights Ribbon (Stats & Overview) -->
+      <section class="dashboard-ribbon" id="dashboardRibbon">
+        <div class="stat-card stat-card-primary">
+          <div class="stat-icon-wrap icon-primary">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+          </div>
+          <div class="stat-info">
+            <span class="stat-label">Jadwal Hari Ini</span>
+            <div class="stat-value-group">
+              <span id="statTodayCount" class="stat-number">0</span>
+              <span class="stat-subtext">agenda</span>
+            </div>
+          </div>
+          <div class="stat-glow"></div>
+        </div>
+
+        <div class="stat-card stat-card-success">
+          <div class="stat-icon-wrap icon-success">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+          </div>
+          <div class="stat-info">
+            <span class="stat-label">Tingkat Penyelesaian</span>
+            <div class="stat-value-group">
+              <span id="statCompletedCount" class="stat-number">0</span>
+              <span id="statProgressPercent" class="stat-badge">0% Selesai</span>
+            </div>
+          </div>
+          <div class="stat-glow"></div>
+        </div>
+
+        <div class="stat-card stat-card-warning">
+          <div class="stat-icon-wrap icon-warning">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+          </div>
+          <div class="stat-info">
+            <span class="stat-label">Agenda Mendatang</span>
+            <div id="statNextEvent" class="stat-next-event">
+              <span class="next-title">Memuat agenda...</span>
+              <span class="next-time">--:--</span>
+            </div>
+          </div>
+          <div class="stat-glow"></div>
+        </div>
+
+        <div class="stat-card stat-card-danger">
+          <div class="stat-icon-wrap icon-danger">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+          </div>
+          <div class="stat-info">
+            <span class="stat-label">Prioritas Tinggi</span>
+            <div class="stat-value-group">
+              <span id="statHighPriorityCount" class="stat-number text-danger">0</span>
+              <span class="stat-subtext">perlu fokus</span>
+            </div>
+          </div>
+          <div class="stat-glow"></div>
+        </div>
+      </section>
+
+      <!-- Active Filter Banner (Visible when filters applied) -->
+      <div id="activeFilterBanner" class="active-filter-banner hidden">
+        <div class="filter-banner-content">
+          <span class="filter-indicator-dot"></span>
+          <span class="filter-banner-text">Menampilkan hasil filter: <strong id="filterDetailsText">Semua</strong></span>
+        </div>
+        <button id="btnClearAllFilters" class="btn-text-action">Reset Filter</button>
+      </div>
+
+      <!-- ================================================================== -->
+      <!-- VIEW CONTAINERS                                                    -->
+      <!-- ================================================================== -->
+      <div class="views-wrapper" id="viewsWrapper">
+        
+        <!-- 1. MONTH VIEW -->
+        <section id="viewMonth" class="calendar-view view-active">
+          <div class="month-weekdays-header">
+            <div class="weekday-col">Senin</div>
+            <div class="weekday-col">Selasa</div>
+            <div class="weekday-col">Rabu</div>
+            <div class="weekday-col">Kamis</div>
+            <div class="weekday-col">Jumat</div>
+            <div class="weekday-col weekend">Sabtu</div>
+            <div class="weekday-col weekend">Minggu</div>
+          </div>
+          <div class="month-grid" id="monthGrid">
+            <!-- Populated dynamically by app.js -->
+          </div>
+        </section>
+
+        <!-- 2. WEEK VIEW -->
+        <section id="viewWeek" class="calendar-view hidden">
+          <div class="week-header-row" id="weekHeaderRow">
+            <!-- Day column headers populated by JS -->
+          </div>
+          <div class="week-body-container" id="weekBodyContainer">
+            <div class="time-axis" id="timeAxis">
+              <!-- Hours 00:00 to 23:00 -->
+            </div>
+            <div class="week-grid-columns" id="weekGridColumns">
+              <!-- 7 day column tracks populated by JS -->
+            </div>
+          </div>
+        </section>
+
+        <!-- 3. DAY VIEW -->
+        <section id="viewDay" class="calendar-view hidden">
+          <div class="day-view-container">
+            <div class="day-view-header" id="dayViewHeader">
+              <!-- Date title, mood, and total day events -->
+            </div>
+            <div class="day-view-content">
+              <div class="day-timeline-column" id="dayTimelineColumn">
+                <!-- 24 hour slots with detailed schedule cards -->
+              </div>
+              <div class="day-sidebar-column">
+                <div class="day-quick-notes-card">
+                  <div class="notes-header">
+                    <h3 class="card-mini-title">Catatan Harian Akun</h3>
+                    <span id="notesSavedIndicator" class="notes-saved-badge">Tersimpan otomatis ✨</span>
+                  </div>
+                  <textarea id="dayNotesInput" class="day-notes-textarea" placeholder="Tuliskan catatan penting, refleksi, atau ide hari ini..."></textarea>
+                  <button id="btnSaveDayNotes" class="btn btn-outline btn-sm">Simpan Catatan</button>
+                </div>
+                <div class="day-checklist-card" id="dayChecklistCard">
+                  <div class="checklist-card-header">
+                    <h3 class="card-mini-title">Target Sub-Tugas Hari Ini</h3>
+                    <span id="dayChecklistCounter" class="checklist-badge">0 Selesai</span>
+                  </div>
+                  <div class="day-tasks-list" id="dayTasksList">
+                    <!-- Populated by JS -->
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 4. KANBAN STATUS VIEW -->
+        <section id="viewKanban" class="calendar-view hidden">
+          <div class="kanban-board-container" id="kanbanBoard">
+            <div class="kanban-column" data-status="todo" id="kanbanColTodo">
+              <div class="kanban-col-header header-todo">
+                <div class="col-title-wrap">
+                  <span class="col-icon">📋</span>
+                  <h3 class="col-title">Rencana (To Do)</h3>
+                </div>
+                <span class="col-count" id="countColTodo">0</span>
+              </div>
+              <div class="kanban-cards-list" id="cardsListTodo"></div>
+            </div>
+
+            <div class="kanban-column" data-status="in_progress" id="kanbanColInProgress">
+              <div class="kanban-col-header header-progress">
+                <div class="col-title-wrap">
+                  <span class="col-icon">⚡</span>
+                  <h3 class="col-title">Sedang Berjalan</h3>
+                </div>
+                <span class="col-count" id="countColInProgress">0</span>
+              </div>
+              <div class="kanban-cards-list" id="cardsListInProgress"></div>
+            </div>
+
+            <div class="kanban-column" data-status="scheduled" id="kanbanColScheduled">
+              <div class="kanban-col-header header-scheduled">
+                <div class="col-title-wrap">
+                  <span class="col-icon">📅</span>
+                  <h3 class="col-title">Terjadwal</h3>
+                </div>
+                <span class="col-count" id="countColScheduled">0</span>
+              </div>
+              <div class="kanban-cards-list" id="cardsListScheduled"></div>
+            </div>
+
+            <div class="kanban-column" data-status="completed" id="kanbanColCompleted">
+              <div class="kanban-col-header header-completed">
+                <div class="col-title-wrap">
+                  <span class="col-icon">✅</span>
+                  <h3 class="col-title">Selesai</h3>
+                </div>
+                <span class="col-count" id="countColCompleted">0</span>
+              </div>
+              <div class="kanban-cards-list" id="cardsListCompleted"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 5. AGENDA / LIST VIEW -->
+        <section id="viewAgenda" class="calendar-view hidden">
+          <div class="agenda-view-container" id="agendaViewContainer">
+            <!-- Populated dynamically with connecting gradient line -->
+          </div>
+        </section>
+
+      </div>
+    </main>
+  </div>
+
+  <!-- ====================================================================== -->
+  <!-- MODAL: SUPABASE AUTHENTICATION (LOGIN & REGISTER)                      -->
+  <!-- ====================================================================== -->
+  <div class="modal-overlay hidden" id="authModalOverlay" role="dialog" aria-modal="true">
+    <div class="modal-card modal-card-sm auth-modal-card">
+      <div class="modal-header">
+        <div class="modal-title-wrap">
+          <span class="modal-icon-badge">🔐</span>
+          <h3 class="modal-title" id="authModalTitle">Masuk ke Akun Anda</h3>
+        </div>
+        <button id="btnCloseAuthModal" class="btn-icon modal-close-btn" aria-label="Tutup Modal Login">✕</button>
+      </div>
+
+      <!-- Auth Tabs Switcher -->
+      <div class="auth-tabs-bar">
+        <button type="button" class="auth-tab-btn active" id="tabBtnLogin">Masuk (Login)</button>
+        <button type="button" class="auth-tab-btn" id="tabBtnRegister">Daftar Akun Baru</button>
+      </div>
+
+      <form id="authForm" class="modal-form" novalidate>
+        <!-- Display Name (Hanya tampil pada tab Register) -->
+        <div class="form-group hidden" id="groupDisplayName">
+          <label for="authDisplayName" class="form-label">Nama Lengkap / Panggilan</label>
+          <input type="text" id="authDisplayName" class="form-control" placeholder="Contoh: Alex Pratama">
+        </div>
+
+        <!-- Email Input -->
+        <div class="form-group">
+          <label for="authEmail" class="form-label required">Alamat Email</label>
+          <input type="email" id="authEmail" class="form-control" placeholder="nama@email.com" required autocomplete="email">
+        </div>
+
+        <!-- Password Input -->
+        <div class="form-group">
+          <label for="authPassword" class="form-label required">Kata Sandi (Password)</label>
+          <div class="password-input-wrap">
+            <input type="password" id="authPassword" class="form-control" placeholder="Minimal 6 karakter" required autocomplete="current-password">
+            <button type="button" id="btnTogglePasswordVisibility" class="btn-password-eye" title="Lihat/Sembunyikan Password">👁️</button>
+          </div>
+          <span class="field-hint" id="passwordHint">Gunakan kombinasi yang aman untuk melindungi data jadwal Anda.</span>
+        </div>
+
+        <!-- Error & Info Box -->
+        <div id="authAlertBox" class="auth-alert-box hidden"></div>
+
+        <!-- Submit Button -->
+        <button type="submit" id="btnAuthSubmit" class="btn btn-primary btn-block btn-auth-submit">
+          <span id="authSubmitText">Masuk Sekarang</span>
+        </button>
+
+        <div class="auth-footer-links">
+          <button type="button" id="btnContinueGuest" class="btn-link btn-xs text-muted">Lanjutkan sebagai Tamu (Mode Lokal)</button>
+          <button type="button" id="btnOpenSupabaseFromAuth" class="btn-link btn-xs text-supabase">Atur Kredensial Supabase</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ====================================================================== -->
+  <!-- MODAL: USER PROFILE & SESSION DROPDOWN                                 -->
+  <!-- ====================================================================== -->
+  <div class="modal-overlay hidden" id="userProfileModalOverlay" role="dialog" aria-modal="true">
+    <div class="modal-card modal-card-sm profile-modal-card">
+      <div class="modal-header">
+        <div class="modal-title-wrap">
+          <span class="modal-icon-badge">👤</span>
+          <h3 class="modal-title">Profil Akun Supabase</h3>
+        </div>
+        <button id="btnCloseProfileModal" class="btn-icon modal-close-btn" aria-label="Tutup Profil">✕</button>
+      </div>
+
+      <div class="profile-modal-body">
+        <div class="profile-header-center">
+          <div class="profile-avatar-big" id="profileBigAvatar">👤</div>
+          <h4 class="profile-display-name" id="profileDisplayName">Nama Pengguna</h4>
+          <span class="profile-email-badge" id="profileEmailBadge">email@domain.com</span>
+        </div>
+
+        <div class="profile-stats-grid">
+          <div class="profile-stat-box">
+            <span class="stat-box-num" id="profileTotalSchedules">0</span>
+            <span class="stat-box-lbl">Jadwal di Cloud</span>
+          </div>
+          <div class="profile-stat-box">
+            <span class="stat-box-num status-online" id="profileDbStatus">Aktif</span>
+            <span class="stat-box-lbl">Supabase RLS</span>
+          </div>
+        </div>
+
+        <div class="profile-actions-list">
+          <button id="btnSyncNow" class="btn btn-outline btn-block">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2v6h-6"></path><path d="M3 12a9 9 0 0 1 15-6.7L21 8"></path><path d="M3 22v-6h6"></path><path d="M21 12a9 9 0 0 1-15 6.7L3 16"></path></svg>
+            <span>Sinkronkan Ulang Cloud</span>
+          </button>
+          <button id="btnLogout" class="btn btn-danger btn-block">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+            <span>Keluar dari Akun (Logout)</span>
+          </button>
+        </div>
       </div>
     </div>
   </div>
 
-  <!-- ====================================================================
-       MODAL: BUAT SERVER DISCORD BARU
-       ==================================================================== -->
-  <div class="modal-dialog" id="modal-create-server">
+  <!-- ====================================================================== -->
+  <!-- MODAL: SUPABASE CONFIGURATION (URL & ANON KEY)                         -->
+  <!-- ====================================================================== -->
+  <div class="modal-overlay hidden" id="supabaseConfigModalOverlay" role="dialog" aria-modal="true">
+    <div class="modal-card modal-card-sm">
+      <div class="modal-header">
+        <div class="modal-title-wrap">
+          <span class="modal-icon-badge">⚡</span>
+          <h3 class="modal-title">Koneksi Database Supabase</h3>
+        </div>
+        <button id="btnCloseSupabaseConfig" class="btn-icon modal-close-btn" aria-label="Tutup Modal">✕</button>
+      </div>
+
+      <div class="modal-body-content">
+        <p class="modal-hint">
+          Masukkan <strong>Project URL</strong> dan <strong>Anon Key</strong> dari dashboard Supabase Anda (<em>Settings -> API</em>):
+        </p>
+
+        <div class="form-group">
+          <label for="cfgSupabaseUrl" class="form-label required">Supabase Project URL</label>
+          <input type="url" id="cfgSupabaseUrl" class="form-control" placeholder="https://xyzproject.supabase.co" required>
+        </div>
+
+        <div class="form-group">
+          <label for="cfgSupabaseAnonKey" class="form-label required">Supabase Anon Key (Public Key)</label>
+          <input type="password" id="cfgSupabaseAnonKey" class="form-control" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." required>
+        </div>
+
+        <div class="supabase-schema-info-card">
+          <div class="schema-info-title">📋 Schema Database (Tabel & RLS)</div>
+          <p class="schema-info-text">
+            File <code>supabase-schema.sql</code> sudah dibuat di folder proyek Anda. Salin dan jalankan di <em>SQL Editor</em> Supabase untuk mengaktifkan Row Level Security.
+          </p>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" id="btnCancelSupabaseConfig" class="btn btn-outline">Batal</button>
+        <button type="button" id="btnSaveSupabaseConfig" class="btn btn-primary">Simpan & Hubungkan</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====================================================================== -->
+  <!-- COMMAND PALETTE MODAL (RAYCAST / LINEAR STYLE: CTRL+K)                 -->
+  <!-- ====================================================================== -->
+  <div class="command-palette-overlay hidden" id="commandPaletteOverlay" role="dialog" aria-modal="true">
+    <div class="command-palette-card">
+      <div class="command-input-wrap">
+        <svg class="cmd-search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+        <input type="text" id="commandPaletteInput" placeholder="Ketik perintah atau cari jadwal apa saja..." autocomplete="off">
+        <kbd class="cmd-esc-badge" id="btnEscCommand">ESC</kbd>
+      </div>
+      <div class="command-results-list" id="commandResultsList">
+        <!-- Filled dynamically by JS -->
+      </div>
+      <div class="command-palette-footer">
+        <div class="cmd-hints">
+          <span><kbd>↑</kbd><kbd>↓</kbd> Pilih</span>
+          <span><kbd>↵</kbd> Eksekusi</span>
+          <span><kbd>Esc</kbd> Tutup</span>
+        </div>
+        <span class="cmd-powered">PlanCraft Command v2.5</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====================================================================== -->
+  <!-- POMODORO FOCUS TIMER MODAL                                             -->
+  <!-- ====================================================================== -->
+  <div class="modal-overlay hidden" id="pomodoroModalOverlay" role="dialog" aria-modal="true">
+    <div class="modal-card modal-card-sm pomodoro-card">
+      <div class="modal-header">
+        <div class="modal-title-wrap">
+          <span class="modal-icon-badge">⏱️</span>
+          <h3 class="modal-title">Focus Session (Pomodoro)</h3>
+        </div>
+        <button id="btnClosePomodoro" class="btn-icon modal-close-btn" aria-label="Tutup Timer">✕</button>
+      </div>
+      <div class="pomodoro-body">
+        <div class="pomodoro-timer-display" id="pomodoroTimerDisplay">25:00</div>
+        <p class="pomodoro-tagline" id="pomodoroStatusLabel">Fokus pada satu tugas penting</p>
+        
+        <div class="pomodoro-modes-bar">
+          <button class="pomodoro-mode-btn active" data-time="25">25 Menit (Fokus)</button>
+          <button class="pomodoro-mode-btn" data-time="5">5 Menit (Rehat)</button>
+          <button class="pomodoro-mode-btn" data-time="15">15 Menit (Santai)</button>
+        </div>
+
+        <div class="pomodoro-controls">
+          <button id="btnToggleTimer" class="btn btn-primary btn-pomodoro-start">
+            <span id="btnTimerText">Mulai Fokus</span>
+          </button>
+          <button id="btnResetTimer" class="btn btn-outline">Reset</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====================================================================== -->
+  <!-- MODAL: CREATE / EDIT SCHEDULE                                          -->
+  <!-- ====================================================================== -->
+  <div class="modal-overlay hidden" id="scheduleModalOverlay" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
     <div class="modal-card">
       <div class="modal-header">
-        <h3>Buat Server Komunitas</h3>
-        <button class="sheet-close-btn" id="btn-close-server-modal">✕</button>
-      </div>
-      <div class="modal-body">
-        <p class="modal-subtitle">Server adalah tempat Anda dan teman-teman berkumpul, ngobrol santai, dan berbagi klip video.</p>
-        <div class="create-input-group">
-          <label for="input-new-server-name">NAMA SERVER</label>
-          <input type="text" id="input-new-server-name" placeholder="cth: Gamer Squad OutMedia">
+        <div class="modal-title-wrap">
+          <span class="modal-icon-badge" id="modalIconBadge">📅</span>
+          <h3 id="modalTitle" class="modal-title">Tambah Jadwal Baru</h3>
         </div>
-        <div class="create-input-group">
-          <label for="input-new-server-desc">DESKRIPSI SINGKAT</label>
-          <input type="text" id="input-new-server-desc" placeholder="Tentang server ini...">
-        </div>
-        <button class="btn-primary-action" id="btn-submit-create-server">Buat Sekarang</button>
+        <button id="btnCloseModal" class="btn-icon modal-close-btn" aria-label="Tutup Modal">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
       </div>
-    </div>
-  </div>
 
-  <!-- ====================================================================
-       MODAL: BUAT / UNGGAH VIDEO TIKTOK (+)
-       ==================================================================== -->
-  <div class="modal-dialog" id="modal-create-video">
-    <div class="modal-card" style="max-width: 480px;">
-      <div class="modal-header">
-        <h3>Unggah Postingan Video</h3>
-        <button class="sheet-close-btn" id="btn-close-create-video-modal">✕</button>
-      </div>
-      <div class="modal-body">
-        <div class="create-source-tabs">
-          <button class="source-tab-btn active" data-source="file" id="tab-src-file">Unggah File</button>
-          <button class="source-tab-btn" data-source="camera" id="tab-src-camera">Kamera</button>
-          <button class="source-tab-btn" data-source="template" id="tab-src-template">Preset Generator</button>
+      <form id="scheduleForm" class="modal-form" novalidate>
+        <input type="hidden" id="formScheduleId" value="">
+
+        <!-- Title Input -->
+        <div class="form-group">
+          <label for="formTitle" class="form-label required">Nama Jadwal / Kegiatan</label>
+          <input type="text" id="formTitle" class="form-control" placeholder="Contoh: Meeting Proyek Web, Sesi Lari Pagi..." required autofocus>
         </div>
 
-        <div class="create-preview-area" id="create-preview-area">
-          <input type="file" id="video-file-input" accept="video/*" style="display:none;">
-          <div class="create-preview-placeholder" id="create-placeholder">
-            <span>Pilih File Video (MP4/WebM)</span>
+        <!-- Category Radio/Pill Selector -->
+        <div class="form-group">
+          <label class="form-label required">Kategori</label>
+          <div class="category-pill-selector" id="formCategoryPillSelector">
+            <!-- Generated from CATEGORIES config with gradients -->
           </div>
-          <video id="create-video-preview" playsinline loop muted controls></video>
-          <div class="camera-stream-wrapper" id="camera-stream-wrapper">
-            <video id="camera-live-video" autoplay playsinline muted></video>
-            <button class="record-btn-overlay" id="btn-record-camera">
-              <div class="record-btn-inner" id="record-camera-indicator"></div>
+        </div>
+
+        <!-- Date & Time Row -->
+        <div class="form-row-grid">
+          <div class="form-group">
+            <label for="formDate" class="form-label required">Tanggal</label>
+            <input type="date" id="formDate" class="form-control" required>
+          </div>
+          <div class="form-group">
+            <label for="formStartTime" class="form-label">Waktu Mulai</label>
+            <input type="time" id="formStartTime" class="form-control" value="09:00">
+          </div>
+          <div class="form-group">
+            <label for="formEndTime" class="form-label">Waktu Selesai</label>
+            <input type="time" id="formEndTime" class="form-control" value="10:00">
+          </div>
+        </div>
+
+        <!-- Priority & Status Row -->
+        <div class="form-row-grid">
+          <div class="form-group">
+            <label for="formPriority" class="form-label">Tingkat Prioritas</label>
+            <select id="formPriority" class="form-control">
+              <option value="high">🔴 Tinggi (High Priority)</option>
+              <option value="medium" selected>🟡 Sedang (Medium)</option>
+              <option value="low">🟢 Rendah (Low)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="formStatus" class="form-label">Status Jadwal</label>
+            <select id="formStatus" class="form-control">
+              <option value="scheduled" selected>📅 Terjadwal (Scheduled)</option>
+              <option value="in_progress">⚡ Sedang Berjalan (In Progress)</option>
+              <option value="todo">📋 Rencana (To Do)</option>
+              <option value="completed">✅ Selesai (Completed)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Location or Link -->
+        <div class="form-group">
+          <label for="formLocation" class="form-label">Lokasi atau Tautan (Link)</label>
+          <input type="text" id="formLocation" class="form-control" placeholder="Contoh: Google Meet, Zoom, Studio Lt. 2, Lapangan...">
+        </div>
+
+        <!-- Description / Notes -->
+        <div class="form-group">
+          <label for="formDescription" class="form-label">Catatan & Keterangan</label>
+          <textarea id="formDescription" class="form-control form-textarea" rows="3" placeholder="Tambahkan rincian atau poin agenda penting..."></textarea>
+        </div>
+
+        <!-- Checklist Sub-Tasks -->
+        <div class="form-group">
+          <div class="checklist-header">
+            <label class="form-label">Daftar Sub-Tugas (Checklist)</label>
+            <button type="button" id="btnAddChecklistItem" class="btn-link btn-xs">+ Tambah Item</button>
+          </div>
+          <div class="form-checklist-container" id="formChecklistContainer">
+            <!-- Dynamic checklist items -->
+          </div>
+        </div>
+
+        <!-- Modal Footer Buttons -->
+        <div class="modal-footer">
+          <button type="button" id="btnDeleteSchedule" class="btn btn-danger btn-delete-modal hidden">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+            <span>Hapus</span>
+          </button>
+          <div class="footer-right-buttons">
+            <button type="button" id="btnCancelModal" class="btn btn-outline">Batal</button>
+            <button type="submit" id="btnSaveSchedule" class="btn btn-primary">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+              <span>Simpan Jadwal</span>
             </button>
           </div>
         </div>
+      </form>
+    </div>
+  </div>
 
-        <div class="create-input-group">
-          <label for="create-caption-input">CAPTION & TAGAR</label>
-          <textarea id="create-caption-input" placeholder="Tulis sesuatu yang menarik..."></textarea>
+  <!-- ====================================================================== -->
+  <!-- MODAL: QUICK EVENT DETAILS PREVIEW                                     -->
+  <!-- ====================================================================== -->
+  <div class="modal-overlay hidden" id="previewModalOverlay" role="dialog" aria-modal="true">
+    <div class="modal-card modal-card-sm preview-card">
+      <div class="preview-header">
+        <div class="preview-badges-row" id="previewBadgesRow"></div>
+        <button id="btnClosePreview" class="btn-icon" aria-label="Tutup Preview">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+      </div>
+      <div class="preview-body" id="previewModalBody">
+        <!-- Filled dynamically -->
+      </div>
+      <div class="preview-footer">
+        <button id="btnTogglePreviewStatus" class="btn btn-outline btn-sm">
+          <span>Tandai Selesai</span>
+        </button>
+        <div class="preview-actions-right">
+          <button id="btnEditFromPreview" class="btn btn-primary btn-sm">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+            <span>Edit</span>
+          </button>
         </div>
-
-        <div class="create-input-group">
-          <label for="create-sound-select">PILIH MUSIK</label>
-          <select id="create-sound-select">
-            <option value="Audio Asli - Kreator">Audio Asli Kreator</option>
-            <option value="Chill Lo-Fi Sunset - OutMedia">Chill Lo-Fi Sunset</option>
-            <option value="Electro Bass Drop - DJ Hype">Electro Bass Drop</option>
-          </select>
-        </div>
-
-        <button class="btn-primary-action" id="btn-publish-video">Posting ke Feed FYP 🚀</button>
       </div>
     </div>
   </div>
 
-  <!-- JavaScript Modules -->
+  <!-- ====================================================================== -->
+  <!-- MODAL: IMPORT DATA JSON                                                -->
+  <!-- ====================================================================== -->
+  <div class="modal-overlay hidden" id="importModalOverlay" role="dialog" aria-modal="true">
+    <div class="modal-card modal-card-sm">
+      <div class="modal-header">
+        <h3 class="modal-title">Import Data Jadwal (JSON)</h3>
+        <button id="btnCloseImportModal" class="btn-icon" aria-label="Tutup Modal Import">✕</button>
+      </div>
+      <div class="modal-body-content">
+        <p class="modal-hint">Tempelkan teks data JSON atau unggah file backup .json jadwal Anda:</p>
+        <textarea id="importJsonTextarea" class="form-control form-textarea" rows="8" placeholder='[ { "id": "...", "title": "..." } ]'></textarea>
+        <div class="file-upload-row">
+          <label class="btn btn-outline btn-sm file-input-label">
+            <span>Pilih File .json</span>
+            <input type="file" id="importFileInput" accept=".json" class="hidden-file-input">
+          </label>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" id="btnCancelImport" class="btn btn-outline">Batal</button>
+        <button type="button" id="btnConfirmImport" class="btn btn-primary">Terapkan Import</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====================================================================== -->
+  <!-- TOAST NOTIFICATIONS CONTAINER                                          -->
+  <!-- ====================================================================== -->
+  <div class="toast-container" id="toastContainer" aria-live="polite"></div>
+
+  <!-- Scripts -->
   <script type="module" src="app.js"></script>
 </body>
 </html>

@@ -1,10 +1,24 @@
 {
-  "name": "outmedia-social-media",
-  "version": "1.0.0",
-  "description": "Aplikasi media sosial seperti TikTok dengan antarmuka modern",
+  "name": "plancraft-scheduler",
+  "version": "2.0.0",
+  "description": "Aplikasi scheduling modern, rapih, elegan, dan sangat mudah di-edit",
   "type": "module",
+  "main": "server.js",
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js"
+  },
+  "keywords": [
+    "scheduler",
+    "calendar",
+    "agenda",
+    "task-manager",
+    "modern-ui"
+  ],
+  "author": "PlanCraft Team",
+  "license": "MIT",
+  "dependencies": {
+    "@supabase/server": "^1.8.1",
+    "@supabase/supabase-js": "^2.117.2"
   }
 }

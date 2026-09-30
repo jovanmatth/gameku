@@ -67,7 +67,12 @@ function sanitizeAllStoredSchedules() {
         if (raw) {
           const items = JSON.parse(raw);
           if (Array.isArray(items)) {
-            const nonDummy = items.filter(s => !isOldDummySchedule(s));
+            const nonDummy = items.filter(s => !isOldDummySchedule(s)).map(s => {
+              if (s.category === 'holiday' || s.isHoliday || (typeof s.id === 'string' && s.id.includes('idn-'))) {
+                return { ...s, priority: 'none', isHoliday: true };
+              }
+              return s;
+            });
             const hasIdn = nonDummy.some(s => s.category === 'holiday' || (typeof s.id === 'string' && s.id.includes('idn-')));
             const defaults = getDefaultSchedules();
             const finalItems = hasIdn ? nonDummy : [...defaults, ...nonDummy];
@@ -216,21 +221,26 @@ async function loadUserData(userId) {
 
     let cloudSchedules = null;
     if (state.isAdmin && state.adminModeAllSchedules) {
-      showToast('👑 Mode Pengawas: Mengambil seluruh jadwal cloud...', 'info');
       cloudSchedules = await fetchAllSchedulesAdmin();
     } else {
-      showToast('Memuat data jadwal akun Anda dari Supabase...', 'info');
       cloudSchedules = await fetchUserSchedules(userId);
     }
 
     if (cloudSchedules === null) {
-      showToast('⚠️ Tabel Supabase belum dibuat di cloud. Salin & jalankan supabase-schema.sql di SQL Editor Supabase.', 'warning');
+      console.warn('Tabel Supabase belum dibuat di cloud. Memuat data dari cache lokal.');
       loadLocalSchedules(userId);
       return;
     }
 
     // Filter jadwal di cloud agar tidak memuat contoh/dummy lama
-    let cleanCloud = (cloudSchedules || []).filter(s => !isOldDummySchedule(s));
+    let cleanCloud = (cloudSchedules || [])
+      .filter(s => !isOldDummySchedule(s))
+      .map(s => {
+        if (s.category === 'holiday' || s.isHoliday || (typeof s.id === 'string' && s.id.includes('idn-'))) {
+          return { ...s, priority: 'none', isHoliday: true };
+        }
+        return s;
+      });
 
     // Periksa apakah event resmi Kalender Indonesia sudah masuk
     const hasIndonesianEvents = cleanCloud.some(s => s.category === 'holiday' || (typeof s.id === 'string' && s.id.includes('idn-')));
@@ -240,7 +250,12 @@ async function loadUserData(userId) {
       await seedInitialSchedulesForUser(userId, defaults).catch(() => {});
       const seeded = await fetchUserSchedules(userId).catch(() => null);
       if (seeded && seeded.length > 0) {
-        cleanCloud = seeded.filter(s => !isOldDummySchedule(s));
+        cleanCloud = seeded.filter(s => !isOldDummySchedule(s)).map(s => {
+          if (s.category === 'holiday' || s.isHoliday || (typeof s.id === 'string' && s.id.includes('idn-'))) {
+            return { ...s, priority: 'none', isHoliday: true };
+          }
+          return s;
+        });
       } else {
         cleanCloud = [...defaults, ...cleanCloud];
       }
@@ -256,7 +271,6 @@ async function loadUserData(userId) {
     localStorage.setItem(`${NOTES_PREFIX}${userId}`, JSON.stringify(state.dayNotes));
 
     renderApp();
-    showToast(`🇮🇩 Kalender Indonesia & jadwal akun disinkronkan (${state.schedules.length} kegiatan)`, 'success');
   } catch (err) {
     console.warn('Gagal mengambil data dari Supabase, memuat dari cache lokal:', err);
     loadLocalSchedules(userId);
@@ -269,7 +283,12 @@ function loadLocalSchedules(accountKey) {
     const saved = localStorage.getItem(`${STORAGE_PREFIX}${accountKey}`);
     let list = saved ? JSON.parse(saved) : null;
     if (list && Array.isArray(list)) {
-      list = list.filter(s => !isOldDummySchedule(s));
+      list = list.filter(s => !isOldDummySchedule(s)).map(s => {
+        if (s.category === 'holiday' || s.isHoliday || (typeof s.id === 'string' && s.id.includes('idn-'))) {
+          return { ...s, priority: 'none', isHoliday: true };
+        }
+        return s;
+      });
       const hasIndonesianEvents = list.some(s => s.category === 'holiday' || (typeof s.id === 'string' && s.id.includes('idn-')));
       if (!hasIndonesianEvents) {
         list = [...getDefaultSchedules(), ...list];
@@ -875,7 +894,10 @@ function getCategory(catId) {
 }
 
 function getPriority(pId) {
-  return PRIORITIES.find(p => p.id === pId) || PRIORITIES[1];
+  if (pId === 'none' || !pId) {
+    return { id: 'none', label: 'Tanggal Merah', color: '#ef4444', icon: '🇮🇩' };
+  }
+  return PRIORITIES.find(p => p.id === pId) || { id: 'none', label: 'Bukan Tugas', color: 'transparent', icon: '' };
 }
 
 function getStatus(sId) {
@@ -885,7 +907,11 @@ function getStatus(sId) {
 function getFilteredSchedules() {
   return state.schedules.filter(item => {
     if (state.activeCategoryFilter !== 'all' && item.category !== state.activeCategoryFilter) return false;
-    if (state.activePriorityFilter !== 'all' && item.priority !== state.activePriorityFilter) return false;
+    if (state.activePriorityFilter !== 'all') {
+      // Event libur / tanggal merah TIDAK masuk prioritas tugas apapun
+      if (item.category === 'holiday' || item.isHoliday || item.priority === 'none') return false;
+      if (item.priority !== state.activePriorityFilter) return false;
+    }
     if (state.searchQuery.trim() !== '') {
       const q = state.searchQuery.toLowerCase();
       const matchTitle = item.title && item.title.toLowerCase().includes(q);
@@ -960,24 +986,26 @@ function updateDashboardRibbon() {
   const todayKey = formatDateKey(new Date());
   const allEvents = state.schedules;
   
-  const todayEvents = allEvents.filter(e => e.date === todayKey);
+  // Hanya hitung tugas aktif (bukan tanggal merah / hari libur)
+  const taskEvents = allEvents.filter(e => e.category !== 'holiday' && !e.isHoliday);
+  const todayTasks = taskEvents.filter(e => e.date === todayKey);
   const todayCountEl = document.getElementById('statTodayCount');
-  if (todayCountEl) todayCountEl.textContent = todayEvents.length;
+  if (todayCountEl) todayCountEl.textContent = todayTasks.length;
 
-  const completedEvents = allEvents.filter(e => e.status === 'completed');
+  const completedEvents = taskEvents.filter(e => e.status === 'completed');
   const compCountEl = document.getElementById('statCompletedCount');
   const compPercentEl = document.getElementById('statProgressPercent');
   if (compCountEl && compPercentEl) {
     compCountEl.textContent = completedEvents.length;
-    const pct = allEvents.length > 0 ? Math.round((completedEvents.length / allEvents.length) * 100) : 0;
+    const pct = taskEvents.length > 0 ? Math.round((completedEvents.length / taskEvents.length) * 100) : 0;
     compPercentEl.textContent = `${pct}% Selesai`;
   }
 
   const nextEventWrap = document.getElementById('statNextEvent');
   if (nextEventWrap) {
-    const upcoming = allEvents
+    const upcoming = taskEvents
       .filter(e => e.status !== 'completed' && e.date >= todayKey)
-      .sort((a, b) => (a.date + a.startTime).localeCompare(b.date + b.startTime))[0];
+      .sort((a, b) => (a.date + (a.startTime || '')).localeCompare(b.date + (b.startTime || '')))[0];
 
     if (upcoming) {
       const isToday = upcoming.date === todayKey;
@@ -988,13 +1016,14 @@ function updateDashboardRibbon() {
       `;
     } else {
       nextEventWrap.innerHTML = `
-        <span class="next-title">Tidak ada agenda dekat</span>
+        <span class="next-title">Tidak ada tugas mendesak</span>
         <span class="next-time">Semua tuntas! 🎉</span>
       `;
     }
   }
 
-  const highPriority = allEvents.filter(e => e.priority === 'high' && e.status !== 'completed');
+  // Tugas prioritas tinggi murni (hari libur tidak masuk prioritas)
+  const highPriority = taskEvents.filter(e => e.priority === 'high' && e.status !== 'completed');
   const highCountEl = document.getElementById('statHighPriorityCount');
   if (highCountEl) highCountEl.textContent = highPriority.length;
 }
@@ -1062,12 +1091,23 @@ function renderMonthView() {
     const isToday = isDateToday(cellDate);
     if (isToday) cell.classList.add('is-today');
 
+    const dayEvents = filtered.filter(item => item.date === dateKey);
+    const dayHolidays = dayEvents.filter(item => item.category === 'holiday' || item.isHoliday);
+    const dayTasks = dayEvents.filter(item => item.category !== 'holiday' && !item.isHoliday);
+
+    const isSunday = cellDate.getDay() === 0;
+    const isTanggalMerah = isSunday || dayHolidays.length > 0;
+    if (isTanggalMerah) cell.classList.add('is-tanggal-merah');
+
     const cellHeader = document.createElement('div');
     cellHeader.className = 'cell-header';
 
     const dayNumber = document.createElement('span');
-    dayNumber.className = 'day-number';
+    dayNumber.className = `day-number ${isTanggalMerah ? 'is-tanggal-merah' : ''}`;
     dayNumber.textContent = cellDate.getDate();
+    if (dayHolidays.length > 0) {
+      dayNumber.title = `🇮🇩 Tanggal Merah: ${dayHolidays.map(h => h.title).join(', ')}`;
+    }
 
     const addBtn = document.createElement('button');
     addBtn.className = 'btn-cell-add';
@@ -1083,12 +1123,33 @@ function renderMonthView() {
     cellHeader.appendChild(addBtn);
     cell.appendChild(cellHeader);
 
-    const dayEvents = filtered.filter(item => item.date === dateKey);
+    // Tempat Khusus: Tanggal Merah & Libur Nasional di bagian atas cell
+    if (dayHolidays.length > 0) {
+      const holidayWrap = document.createElement('div');
+      holidayWrap.className = 'cell-holiday-wrap';
+      dayHolidays.forEach(h => {
+        const hBadge = document.createElement('div');
+        hBadge.className = 'cell-holiday-badge';
+        hBadge.title = `🇮🇩 Tanggal Merah: ${h.title} (Klik untuk info detail)`;
+        hBadge.innerHTML = `
+          <span class="tm-flag">🇮🇩</span>
+          <span class="tm-text">${escapeHtml(h.title)}</span>
+        `;
+        hBadge.addEventListener('click', (e) => {
+          e.stopPropagation();
+          playUiSound('pop');
+          openPreviewModal(h);
+        });
+        holidayWrap.appendChild(hBadge);
+      });
+      cell.appendChild(holidayWrap);
+    }
+
     const eventsList = document.createElement('div');
     eventsList.className = 'cell-events-list';
 
-    const maxVisibleChips = 3;
-    const visibleEvents = dayEvents.slice(0, maxVisibleChips);
+    const maxVisibleChips = dayHolidays.length > 0 ? 2 : 3;
+    const visibleEvents = dayTasks.slice(0, maxVisibleChips);
 
     visibleEvents.forEach(item => {
       const cat = getCategory(item.category);
@@ -1116,10 +1177,10 @@ function renderMonthView() {
       eventsList.appendChild(chip);
     });
 
-    if (dayEvents.length > maxVisibleChips) {
+    if (dayTasks.length > maxVisibleChips) {
       const overflow = document.createElement('div');
       overflow.className = 'more-events-pill';
-      overflow.textContent = `+${dayEvents.length - maxVisibleChips} lainnya`;
+      overflow.textContent = `+${dayTasks.length - maxVisibleChips} lainnya`;
       overflow.addEventListener('click', (e) => {
         e.stopPropagation();
         playUiSound('click');
@@ -1182,11 +1243,17 @@ function renderWeekView() {
 
   weekDays.forEach(dayDate => {
     const isToday = isDateToday(dayDate);
+    const dateKey = formatDateKey(dayDate);
+    const dayHolidays = state.schedules.filter(s => s.date === dateKey && (s.category === 'holiday' || s.isHoliday));
+    const isSunday = dayDate.getDay() === 0;
+    const isTanggalMerah = isSunday || dayHolidays.length > 0;
+
     const dayCol = document.createElement('div');
-    dayCol.className = `week-day-header ${isToday ? 'is-today' : ''}`;
+    dayCol.className = `week-day-header ${isToday ? 'is-today' : ''} ${isTanggalMerah ? 'is-tanggal-merah' : ''}`;
     dayCol.innerHTML = `
       <span class="week-day-name">${DAY_NAMES[dayDate.getDay()].slice(0, 3)}</span>
       <span class="week-day-number">${dayDate.getDate()}</span>
+      ${dayHolidays.length > 0 ? `<span class="week-holiday-tag" title="🇮🇩 Tanggal Merah: ${escapeHtml(dayHolidays[0].title)}">🇮🇩 Libur</span>` : ''}
     `;
     dayCol.style.cursor = 'pointer';
     dayCol.addEventListener('click', () => {
@@ -1233,9 +1300,10 @@ function renderWeekView() {
       track.appendChild(indicator);
     }
 
-    const dayEvents = filtered.filter(item => item.date === dateKey);
+    // Hanya render tugas murni di timeline jam, bukan tanggal merah
+    const dayTasks = filtered.filter(item => item.date === dateKey && item.category !== 'holiday' && !item.isHoliday);
 
-    dayEvents.forEach(item => {
+    dayTasks.forEach(item => {
       const cat = getCategory(item.category);
       const [sh, sm] = (item.startTime || '09:00').split(':').map(Number);
       const [eh, em] = (item.endTime || '10:00').split(':').map(Number);
@@ -1292,12 +1360,20 @@ function renderDayView() {
   const dateKey = formatDateKey(d);
 
   const dayEvents = getFilteredSchedules().filter(item => item.date === dateKey);
-  const completedCount = dayEvents.filter(e => e.status === 'completed').length;
+  const dayHolidays = dayEvents.filter(item => item.category === 'holiday' || item.isHoliday);
+  const dayTasks = dayEvents.filter(item => item.category !== 'holiday' && !item.isHoliday);
+  const completedCount = dayTasks.filter(e => e.status === 'completed').length;
+
+  const isSunday = d.getDay() === 0;
+  const isTanggalMerah = isSunday || dayHolidays.length > 0;
 
   header.innerHTML = `
     <div class="day-header-main">
-      <h2>${DAY_NAMES[d.getDay()]}, ${d.getDate()} ${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}</h2>
-      <p>${dayEvents.length} Agenda Terjadwal • ${completedCount} Tuntas Selesai</p>
+      <h2 style="${isTanggalMerah ? 'color: #ef4444;' : ''}">
+        ${DAY_NAMES[d.getDay()]}, ${d.getDate()} ${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}
+        ${isTanggalMerah ? '<span style="font-size: 0.8rem; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); color: #ef4444; padding: 2px 8px; border-radius: 6px; margin-left: 8px;">🇮🇩 Tanggal Merah</span>' : ''}
+      </h2>
+      <p>${dayTasks.length} Tugas Terjadwal • ${completedCount} Tuntas Selesai</p>
     </div>
     <button class="btn btn-primary btn-sm" id="btnDayAddEvent">
       + Jadwal Hari Ini
@@ -1309,19 +1385,54 @@ function renderDayView() {
   });
 
   timelineCol.innerHTML = '';
-  if (dayEvents.length === 0) {
-    timelineCol.innerHTML = `
-      <div style="text-align: center; padding: 48px 20px; color: var(--text-muted);">
+
+  // 1. Tempat Khusus Tanggal Merah di Day View:
+  if (dayHolidays.length > 0) {
+    dayHolidays.forEach(h => {
+      const banner = document.createElement('div');
+      banner.className = 'day-holiday-banner';
+      banner.innerHTML = `
+        <div class="tm-flag-icon">🇮🇩</div>
+        <div class="tm-banner-body">
+          <div class="tm-banner-kicker">TANGGAL MERAH • HARI LIBUR NASIONAL</div>
+          <div class="tm-banner-title">${escapeHtml(h.title)}</div>
+          ${h.description ? `<div class="tm-banner-desc">${escapeHtml(h.description)}</div>` : ''}
+        </div>
+      `;
+      banner.style.cursor = 'pointer';
+      banner.addEventListener('click', () => {
+        openPreviewModal(h);
+      });
+      timelineCol.appendChild(banner);
+    });
+  }
+
+  // 2. Daftar tugas hari ini (hanya tugas biasa):
+  if (dayTasks.length === 0) {
+    const emptyMsg = document.createElement('div');
+    emptyMsg.style.cssText = 'text-align: center; padding: 40px 20px; color: var(--text-muted);';
+    if (dayHolidays.length > 0) {
+      emptyMsg.innerHTML = `
+        <p style="font-size: 2.8rem; margin-bottom: 8px;">🏖️</p>
+        <p style="font-weight: 800; color: #ef4444; font-size: 1.15rem; font-family: var(--font-display);">Selamat Menikmati Hari Libur!</p>
+        <p style="font-size: 0.85rem; margin-top: 4px;">Tidak ada agenda tugas wajib hari ini. Waktu yang tepat untuk beristirahat atau berkumpul bersama keluarga.</p>
+        <button class="btn btn-primary btn-sm" style="margin-top: 16px;" onclick="document.getElementById('btnOpenNewSchedule').click()">
+          + Tambah Kegiatan Pribadi
+        </button>
+      `;
+    } else {
+      emptyMsg.innerHTML = `
         <p style="font-size: 2.8rem; margin-bottom: 8px;">🏖️</p>
         <p style="font-weight: 800; color: var(--text-main); font-size: 1.15rem; font-family: var(--font-display);">Belum ada jadwal pada hari ini</p>
         <p style="font-size: 0.85rem; margin-top: 4px;">Nikmati waktu istirahat atau tambahkan agenda baru.</p>
         <button class="btn btn-primary btn-sm" style="margin-top: 16px;" onclick="document.getElementById('btnOpenNewSchedule').click()">
           + Tambah Kegiatan
         </button>
-      </div>
-    `;
+      `;
+    }
+    timelineCol.appendChild(emptyMsg);
   } else {
-    dayEvents.sort((a, b) => (a.startTime || '').localeCompare(b.startTime || '')).forEach(item => {
+    dayTasks.sort((a, b) => (a.startTime || '').localeCompare(b.startTime || '')).forEach(item => {
       const cat = getCategory(item.category);
       const pri = getPriority(item.priority);
       const stat = getStatus(item.status);
@@ -1439,7 +1550,8 @@ function renderKanbanView() {
   if (!cols.todo) return;
   Object.values(cols).forEach(col => { col.innerHTML = ''; });
 
-  const filtered = getFilteredSchedules();
+  // Kanban hanya untuk alur kerja dan tugas nyata, bukan hari libur / tanggal merah
+  const filtered = getFilteredSchedules().filter(item => item.category !== 'holiday' && !item.isHoliday && item.priority !== 'none');
   const grouped = { todo: [], in_progress: [], scheduled: [], completed: [] };
   filtered.forEach(item => {
     const st = item.status || 'scheduled';
@@ -1571,6 +1683,43 @@ function renderAgendaView() {
     `;
 
     group.items.forEach(item => {
+      const isHoliday = item.category === 'holiday' || item.isHoliday || item.priority === 'none';
+
+      if (isHoliday) {
+        // TAMPILAN KHUSUS TANGGAL MERAH / HARI LIBUR NASIONAL
+        const card = document.createElement('div');
+        card.className = 'agenda-card is-holiday-card';
+        card.style.cursor = 'pointer';
+
+        card.innerHTML = `
+          <div class="agenda-left-section">
+            <span class="agenda-holiday-flag">🇮🇩</span>
+            <div class="agenda-time-pill" style="background: rgba(239, 68, 68, 0.12); color: #ef4444; border-color: rgba(239, 68, 68, 0.3);">
+              ${item.date} • Tanggal Merah
+            </div>
+            <div>
+              <div class="agenda-card-title" style="color: #ef4444; font-weight: 700;">${escapeHtml(item.title)}</div>
+              <div class="agenda-meta-row">
+                <span class="agenda-holiday-badge">🇮🇩 Libur Nasional</span>
+                ${item.description ? `<span>•</span> <span style="font-size: 0.78rem; color: var(--text-secondary);">${escapeHtml(item.description)}</span>` : ''}
+              </div>
+            </div>
+          </div>
+          <div class="agenda-actions-right">
+            <span style="font-size: 0.75rem; font-weight: 700; color: #ef4444; padding: 4px 10px; background: rgba(239, 68, 68, 0.08); border-radius: 6px; border: 1px solid rgba(239, 68, 68, 0.2);">
+              Libur Resmi
+            </span>
+          </div>
+        `;
+
+        card.addEventListener('click', () => {
+          openPreviewModal(item);
+        });
+
+        groupSection.appendChild(card);
+        return;
+      }
+
       const cat = getCategory(item.category);
       const pri = getPriority(item.priority);
       const isDone = item.status === 'completed';
@@ -1646,6 +1795,11 @@ function renderMiniCalendar() {
   const prevDays = new Date(year, month, 0).getDate();
 
   const allDatesWithEvents = new Set(state.schedules.map(s => s.date));
+  const holidayDates = new Set(
+    state.schedules
+      .filter(s => s.category === 'holiday' || s.isHoliday || s.priority === 'none')
+      .map(s => s.date)
+  );
 
   for (let i = firstDay - 1; i >= 0; i--) {
     const el = document.createElement('div');
@@ -1661,7 +1815,13 @@ function renderMiniCalendar() {
 
     const thisDate = new Date(year, month, day);
     const dateKey = formatDateKey(thisDate);
+    const isSunday = thisDate.getDay() === 0;
+    const isHoliday = holidayDates.has(dateKey);
 
+    if (isSunday || isHoliday) {
+      el.classList.add('is-tanggal-merah');
+      if (isHoliday) el.title = `🇮🇩 Tanggal Merah / Libur Nasional`;
+    }
     if (isDateToday(thisDate)) el.classList.add('is-today');
     if (isSameDate(thisDate, state.selectedDate)) el.classList.add('is-selected');
     if (allDatesWithEvents.has(dateKey)) el.classList.add('has-event');
@@ -1832,6 +1992,7 @@ async function handleScheduleFormSubmit(e) {
     if (txt) checklist.push({ text: txt, done });
   });
 
+  const isHolidayCat = category === 'holiday';
   const scheduleData = {
     id: currentEditingId || `sch-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
     title,
@@ -1839,7 +2000,8 @@ async function handleScheduleFormSubmit(e) {
     date,
     startTime: document.getElementById('formStartTime').value || '09:00',
     endTime: document.getElementById('formEndTime').value || '10:00',
-    priority: document.getElementById('formPriority').value || 'medium',
+    priority: isHolidayCat ? 'none' : (document.getElementById('formPriority').value || 'medium'),
+    isHoliday: isHolidayCat,
     status: document.getElementById('formStatus').value || 'scheduled',
     location: document.getElementById('formLocation').value.trim(),
     description: document.getElementById('formDescription').value.trim(),
@@ -1884,7 +2046,46 @@ function openPreviewModal(item) {
   const badgesRow = document.getElementById('previewBadgesRow');
   const body = document.getElementById('previewModalBody');
   const toggleBtn = document.getElementById('btnTogglePreviewStatus');
+  const editBtn = document.getElementById('btnEditFromPreview');
   if (!modal || !badgesRow || !body) return;
+
+  const isHoliday = item.category === 'holiday' || item.isHoliday || item.priority === 'none';
+
+  if (isHoliday) {
+    badgesRow.innerHTML = `
+      <span class="kanban-cat-badge" style="background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.35); font-weight: 800;">
+        🇮🇩 Tanggal Merah
+      </span>
+      <span class="kanban-cat-badge" style="background: var(--border-subtle); color: var(--text-main);">
+        Libur Resmi Nasional
+      </span>
+    `;
+
+    body.innerHTML = `
+      <h3 style="font-family: var(--font-display); font-size: 1.25rem; font-weight: 800; line-height: 1.35; color: #ef4444;">
+        🇮🇩 ${escapeHtml(item.title)}
+      </h3>
+      <div style="font-size: 0.84rem; color: var(--text-secondary); display: flex; flex-direction: column; gap: 4px; margin-top: 6px;">
+        <div>📅 Tanggal: <strong>${item.date}</strong></div>
+        <div>🏷️ Kategori: <strong style="color: #ef4444;">Hari Libur Nasional Indonesia</strong></div>
+        <div>⚡ Prioritas: <em>Tidak masuk prioritas tugas (Tanggal Merah)</em></div>
+      </div>
+      ${item.description ? `
+        <div style="margin-top: 12px; background: rgba(239, 68, 68, 0.06); border: 1px solid rgba(239, 68, 68, 0.2); padding: 12px; border-radius: 8px; font-size: 0.84rem; color: var(--text-secondary); line-height: 1.45;">
+          ${escapeHtml(item.description)}
+        </div>
+      ` : ''}
+    `;
+
+    if (toggleBtn) toggleBtn.style.display = 'none';
+    if (editBtn) editBtn.style.display = 'none';
+    modal.classList.remove('hidden');
+    return;
+  }
+
+  // Item tugas biasa
+  if (toggleBtn) toggleBtn.style.display = '';
+  if (editBtn) editBtn.style.display = '';
 
   const cat = getCategory(item.category);
   const pri = getPriority(item.priority);
@@ -1934,7 +2135,9 @@ function openPreviewModal(item) {
     ${checklistHtml}
   `;
 
-  toggleBtn.textContent = item.status === 'completed' ? 'Tandai Belum Selesai' : 'Tandai Selesai';
+  if (toggleBtn) {
+    toggleBtn.textContent = item.status === 'completed' ? 'Tandai Belum Selesai' : 'Tandai Selesai';
+  }
   modal.classList.remove('hidden');
 }
 

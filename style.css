@@ -3549,4 +3549,156 @@ body.sidebar-collapsed .sidebar {
   color: var(--text-main);
 }
 
+/* ==============================================================================
+   TANGGAL MERAH & HARI LIBUR NASIONAL (INDONESIAN CALENDAR SPECIAL THEME)
+   ============================================================================== */
+
+/* 1. Month View & Mini Calendar: Tanggal Merah Numbers */
+.day-number.is-tanggal-merah,
+.week-day-header.is-tanggal-merah .week-day-number,
+.mini-day.is-tanggal-merah {
+  color: #ef4444 !important;
+  font-weight: 800 !important;
+}
+
+.cell.is-tanggal-merah {
+  background: rgba(239, 68, 68, 0.02) !important;
+  border-top-color: rgba(239, 68, 68, 0.25);
+}
+
+.cell.is-tanggal-merah:hover {
+  background: rgba(239, 68, 68, 0.05) !important;
+}
+
+/* 2. Month View: Holiday Section Banner inside cell */
+.cell-holiday-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-bottom: 5px;
+}
+
+.cell-holiday-badge {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.16) 0%, rgba(185, 28, 28, 0.1) 100%);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  border-left: 3px solid #ef4444;
+  border-radius: 5px;
+  padding: 2.5px 5px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #f87171;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  line-height: 1.25;
+}
+
+.cell-holiday-badge:hover {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.28) 0%, rgba(185, 28, 28, 0.2) 100%);
+  border-color: #ef4444;
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.25);
+  transform: translateY(-1px);
+}
+
+.cell-holiday-badge .tm-flag {
+  font-size: 0.78rem;
+  flex-shrink: 0;
+}
+
+.cell-holiday-badge .tm-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 3. Day View: Dedicated Tanggal Merah Header Card */
+.day-holiday-banner {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 16px;
+  padding: 12px 16px;
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.14) 0%, rgba(185, 28, 28, 0.08) 100%);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  border-left: 4px solid #ef4444;
+  border-radius: var(--radius-md);
+  box-shadow: 0 4px 16px rgba(239, 68, 68, 0.1);
+}
+
+.day-holiday-banner .tm-flag-icon {
+  font-size: 1.8rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.day-holiday-banner .tm-banner-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.day-holiday-banner .tm-banner-kicker {
+  font-size: 0.68rem;
+  font-weight: 800;
+  color: #ef4444;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+}
+
+.day-holiday-banner .tm-banner-title {
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--text-main);
+}
+
+.day-holiday-banner .tm-banner-desc {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  line-height: 1.35;
+}
+
+/* 4. Week View: Holiday Tag in Day Header */
+.week-holiday-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 0.62rem;
+  font-weight: 800;
+  color: #ffffff;
+  background: #ef4444;
+  padding: 2px 6px;
+  border-radius: 10px;
+  margin-top: 2px;
+  letter-spacing: 0.3px;
+}
+
+/* 5. Agenda View: Holiday Card Styling */
+.agenda-card.is-holiday-card {
+  border-left: 3px solid #ef4444 !important;
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.08) 0%, transparent 100%) !important;
+}
+
+.agenda-holiday-flag {
+  font-size: 1.1rem;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.agenda-holiday-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.7rem;
+  font-weight: 800;
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+
 

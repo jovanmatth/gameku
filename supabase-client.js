@@ -83,7 +83,7 @@ export function getSupabase() {
 /** Mendaftar akun baru dengan Email dan Password */
 export async function registerWithEmail(email, password, displayName = '') {
   const client = getSupabase();
-  if (!client) throw new Error('Koneksi Supabase belum dikonfigurasi. Silakan masukkan Project URL & Anon Key di pengaturan.');
+  if (!client) throw new Error('Supabase connection is not configured. Please enter your Project URL & Anon Key in settings.');
 
   const { data, error } = await client.auth.signUp({
     email,
@@ -102,7 +102,7 @@ export async function registerWithEmail(email, password, displayName = '') {
 /** Masuk akun dengan Email dan Password */
 export async function loginWithEmail(email, password) {
   const client = getSupabase();
-  if (!client) throw new Error('Koneksi Supabase belum dikonfigurasi. Silakan masukkan Project URL & Anon Key di pengaturan.');
+  if (!client) throw new Error('Supabase connection is not configured. Please enter your Project URL & Anon Key in settings.');
 
   const { data, error } = await client.auth.signInWithPassword({
     email,

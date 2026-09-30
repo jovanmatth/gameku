@@ -1,12 +1,12 @@
 <!DOCTYPE html>
-<html lang="id" data-theme="dark">
+<html lang="en" data-theme="dark">
 
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PlanCraft PRO — Ultra-Aesthetic Calendar & Smart Scheduler</title>
+  <title>PlanCraft PRO — Smart Schedule & Focus Calendar</title>
   <meta name="description"
-    content="Aplikasi scheduling modern, rapih, elegan dan mudah di-edit. Terintegrasi penuh dengan Supabase Authentication & Database untuk isolasi data jadwal per akun.">
+    content="Modern, sleek, aesthetic calendar and task scheduling web app with Supabase cloud database sync.">
 
   <!-- Google Fonts: Plus Jakarta Sans, Outfit, & JetBrains Mono -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -18,7 +18,7 @@
   <!-- Supabase Official JS Client CDN -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-  <link rel="stylesheet" href="style.css?v=3.2">
+  <link rel="stylesheet" href="style.css?v=3.3">
 </head>
 
 <body>
@@ -51,7 +51,7 @@
               <circle cx="12" cy="15" r="2" fill="currentColor"></circle>
             </svg>
           </div>
-          <div class="brand-live-pulse" id="brandStatusDot" title="Sistem Aktif & Terhubung"></div>
+          <div class="brand-live-pulse" id="brandStatusDot" title="System Active & Connected"></div>
         </div>
         <div class="brand-info">
           <div class="brand-title-row">
@@ -68,12 +68,12 @@
           <div class="user-avatar-circle" id="sidebarUserAvatar">👤</div>
           <div class="user-card-details">
             <div class="user-name-row">
-              <span class="user-name-title" id="sidebarUserName">Tamu (Guest Mode)</span>
-              <span class="admin-badge-pill hidden" id="sidebarAdminBadge" title="Akun Terverifikasi Administrator">👑 ADMIN</span>
+              <span class="user-name-title" id="sidebarUserName">Guest Mode</span>
+              <span class="admin-badge-pill hidden" id="sidebarAdminBadge" title="Verified Administrator Account">👑 ADMIN</span>
             </div>
-            <span class="user-email-subtitle" id="sidebarUserEmail">Klik untuk Masuk Akun</span>
+            <span class="user-email-subtitle" id="sidebarUserEmail">Click to Sign In</span>
           </div>
-          <button id="btnSidebarAuthAction" class="btn-sidebar-auth" title="Kelola Akun / Masuk">
+          <button id="btnSidebarAuthAction" class="btn-sidebar-auth" title="Manage Account / Sign In">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path>
               <polyline points="10 17 15 12 10 7"></polyline>
@@ -83,12 +83,12 @@
         </div>
       </div>
 
-      <!-- Admin Panel Shortcut (Khusus Administrator) -->
+      <!-- Admin Panel Shortcut (Administrator Only) -->
       <div class="sidebar-admin-wrap hidden" id="sidebarAdminWrap">
-        <button id="btnSidebarAdminPanel" class="btn-sidebar-admin" title="Buka Pusat Kontrol Administrator">
+        <button id="btnSidebarAdminPanel" class="btn-sidebar-admin" title="Open Admin Control Center">
           <div class="admin-pulse-glow"></div>
           <span class="admin-crown-icon">👑</span>
-          <span class="admin-btn-label">Pusat Kontrol Admin</span>
+          <span class="admin-btn-label">Admin Control Center</span>
           <span class="admin-btn-tag">SUPER</span>
         </button>
       </div>
@@ -96,23 +96,23 @@
       <!-- Quick Action Buttons -->
       <div class="sidebar-action-wrap">
         <button id="btnOpenNewSchedule" class="btn btn-primary btn-block btn-new-schedule"
-          title="Tambah Jadwal Baru (Tekan N)">
+          title="Create New Schedule (Press N)">
           <div class="btn-shine"></div>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
             stroke-linecap="round" stroke-linejoin="round">
             <line x1="12" y1="5" x2="12" y2="19"></line>
             <line x1="5" y1="12" x2="19" y2="12"></line>
           </svg>
-          <span>Jadwal Baru</span>
+          <span>New Schedule</span>
           <kbd class="shortcut-key">N</kbd>
         </button>
 
-        <button id="btnTriggerCommandPalette" class="btn-command-trigger" title="Buka Command Palette (Ctrl+K)">
+        <button id="btnTriggerCommandPalette" class="btn-command-trigger" title="Open Command Palette (Ctrl+K)">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="11" cy="11" r="8"></circle>
             <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
           </svg>
-          <span>Perintah Cepat...</span>
+          <span>Quick Command...</span>
           <span class="cmd-shortcut">⌘K</span>
         </button>
       </div>
@@ -120,14 +120,14 @@
       <!-- Mini Calendar Navigation Widget -->
       <div class="mini-calendar-widget" id="miniCalendarWidget">
         <div class="mini-cal-header">
-          <span id="miniCalTitle" class="mini-cal-title">Bulan Ini</span>
+          <span id="miniCalTitle" class="mini-cal-title">This Month</span>
           <div class="mini-cal-nav">
-            <button id="miniCalPrev" class="btn-icon-subtle" title="Bulan Sebelumnya" aria-label="Bulan Sebelumnya">
+            <button id="miniCalPrev" class="btn-icon-subtle" title="Previous Month" aria-label="Previous Month">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                 <polyline points="15 18 9 12 15 6"></polyline>
               </svg>
             </button>
-            <button id="miniCalNext" class="btn-icon-subtle" title="Bulan Berikutnya" aria-label="Bulan Berikutnya">
+            <button id="miniCalNext" class="btn-icon-subtle" title="Next Month" aria-label="Next Month">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                 <polyline points="9 18 15 12 9 6"></polyline>
               </svg>
@@ -135,7 +135,7 @@
           </div>
         </div>
         <div class="mini-cal-weekdays">
-          <span>M</span><span>S</span><span>S</span><span>R</span><span>K</span><span>J</span><span>S</span>
+          <span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span>
         </div>
         <div class="mini-cal-grid" id="miniCalGrid">
           <!-- Populated by JavaScript -->
@@ -144,7 +144,7 @@
 
       <!-- View Navigation Selector -->
       <div class="nav-section">
-        <div class="nav-section-title">NAVIGASI TAMPILAN</div>
+        <div class="nav-section-title">VIEW NAVIGATION</div>
         <nav class="nav-menu" role="tablist">
           <button class="nav-item active" data-view="month" id="navViewMonth" role="tab" aria-selected="true">
             <div class="nav-icon-box">
@@ -155,7 +155,7 @@
                 <line x1="3" y1="10" x2="21" y2="10"></line>
               </svg>
             </div>
-            <span>Kalender Bulanan</span>
+            <span>Monthly Calendar</span>
             <kbd class="view-num">1</kbd>
           </button>
 
@@ -168,7 +168,7 @@
                 <line x1="15" y1="4" x2="15" y2="22"></line>
               </svg>
             </div>
-            <span>Timeline Mingguan</span>
+            <span>Weekly Timeline</span>
             <kbd class="view-num">2</kbd>
           </button>
 
@@ -179,7 +179,7 @@
                 <polyline points="12 6 12 12 16 14"></polyline>
               </svg>
             </div>
-            <span>Harian Terfokus</span>
+            <span>Daily Focus</span>
             <kbd class="view-num">3</kbd>
           </button>
 
@@ -191,7 +191,7 @@
                 <rect x="17" y="3" width="5" height="15" rx="1"></rect>
               </svg>
             </div>
-            <span>Papan Kanban</span>
+            <span>Kanban Board</span>
             <kbd class="view-num">4</kbd>
           </button>
 
@@ -206,7 +206,7 @@
                 <line x1="3" y1="18" x2="3.01" y2="18"></line>
               </svg>
             </div>
-            <span>Daftar Agenda</span>
+            <span>Agenda List</span>
             <kbd class="view-num">5</kbd>
           </button>
         </nav>
@@ -215,8 +215,8 @@
       <!-- Categories Filter Section -->
       <div class="nav-section">
         <div class="nav-section-header">
-          <span class="nav-section-title">KATEGORI JADWAL</span>
-          <button id="btnResetCategoryFilter" class="btn-link" title="Tampilkan Semua Kategori">Semua</button>
+          <span class="nav-section-title">SCHEDULE CATEGORIES</span>
+          <button id="btnResetCategoryFilter" class="btn-link" title="Show All Categories">All</button>
         </div>
         <div class="category-filter-list" id="categoryFilterList">
           <!-- Populated by JavaScript with glowing dots -->
@@ -242,7 +242,7 @@
             </svg>
             <span>Import</span>
           </button>
-          <button id="btnOpenSupabaseConfig" class="btn-data-action text-supabase hidden" title="Atur Koneksi Supabase">
+          <button id="btnOpenSupabaseConfig" class="btn-data-action text-supabase hidden" title="Configure Supabase Connection">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
               <path d="M2 17l10 5 10-5"></path>
@@ -266,9 +266,9 @@
       <header class="top-header" id="topHeader">
         <!-- Left: Date Navigator & Quick Tools Dropdown Menu -->
         <div class="header-left">
-          <!-- Quick Menu Dropdown Trigger (Menggantikan tombol hamburger statis) -->
+          <!-- Quick Menu Dropdown Trigger -->
           <div class="header-menu-container" id="headerMenuContainer">
-            <button id="btnHeaderMenu" class="btn-icon header-menu-btn" title="Menu Alat & Pengaturan Cepat" aria-label="Menu Fitur" aria-expanded="false">
+            <button id="btnHeaderMenu" class="btn-icon header-menu-btn" title="Quick Tools & Settings" aria-label="Feature Menu" aria-expanded="false">
               <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round">
                 <line x1="3" y1="12" x2="21" y2="12"></line>
                 <line x1="3" y1="6" x2="21" y2="6"></line>
@@ -276,15 +276,15 @@
               </svg>
             </button>
 
-            <!-- Quick Controls Dropdown Menu (Pindahan Fitur Bar Atas) -->
+            <!-- Quick Controls Dropdown Menu -->
             <div class="header-dropdown-menu hidden" id="headerDropdownMenu" role="menu">
               <div class="hdrop-header">
-                <span class="hdrop-title">Alat & Kontrol Cepat</span>
-                <span class="hdrop-hint">Klik di luar untuk menutup</span>
+                <span class="hdrop-title">Quick Tools & Controls</span>
+                <span class="hdrop-hint">Click outside to close</span>
               </div>
 
               <!-- 1. Toggle Sidebar -->
-              <button class="hdrop-item" id="btnToggleSidebar" role="menuitem" title="Buka atau Sembunyikan Sidebar">
+              <button class="hdrop-item" id="btnToggleSidebar" role="menuitem" title="Toggle Sidebar Navigation">
                 <div class="hdrop-icon-wrap">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
@@ -292,8 +292,8 @@
                   </svg>
                 </div>
                 <div class="hdrop-item-body">
-                  <span class="hdrop-item-title">Navigasi Sidebar</span>
-                  <span class="hdrop-item-desc">Buka atau tutup panel samping</span>
+                  <span class="hdrop-item-title">Sidebar Navigation</span>
+                  <span class="hdrop-item-desc">Show or hide sidebar panel</span>
                 </div>
                 <kbd class="hdrop-shortcut">B</kbd>
               </button>
@@ -306,18 +306,18 @@
                   </svg>
                 </div>
                 <div class="hdrop-item-body">
-                  <span class="hdrop-item-title">Filter Prioritas</span>
-                  <select id="priorityFilterSelect" class="custom-select hdrop-select" aria-label="Filter Tingkat Prioritas">
-                    <option value="all">Semua Prioritas</option>
-                    <option value="high">🔴 Prioritas Tinggi</option>
-                    <option value="medium">🟡 Prioritas Sedang</option>
-                    <option value="low">🟢 Prioritas Rendah</option>
+                  <span class="hdrop-item-title">Priority Filter</span>
+                  <select id="priorityFilterSelect" class="custom-select hdrop-select" aria-label="Filter Priority Level">
+                    <option value="all">All Priorities</option>
+                    <option value="high">🔴 High Priority</option>
+                    <option value="medium">🟡 Medium Priority</option>
+                    <option value="low">🟢 Low Priority</option>
                   </select>
                 </div>
               </div>
 
               <!-- 3. Pomodoro Focus Timer -->
-              <button class="hdrop-item" id="btnOpenPomodoro" role="menuitem" title="Buka Focus Timer (Pomodoro)">
+              <button class="hdrop-item" id="btnOpenPomodoro" role="menuitem" title="Open Focus Timer (Pomodoro)">
                 <div class="hdrop-icon-wrap">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <circle cx="12" cy="12" r="10"></circle>
@@ -326,13 +326,13 @@
                 </div>
                 <div class="hdrop-item-body">
                   <span class="hdrop-item-title">Focus Timer (Pomodoro)</span>
-                  <span class="hdrop-item-desc">Mulai sesi produktivitas terfokus</span>
+                  <span class="hdrop-item-desc">Start focused productivity session</span>
                 </div>
                 <span id="headerTimerBadge" class="hdrop-badge">Focus</span>
               </button>
 
               <!-- 4. Sound FX Toggle -->
-              <button class="hdrop-item" id="btnToggleSound" role="menuitem" title="Efek Suara Antarmuka (Aktif/Nonaktif)">
+              <button class="hdrop-item" id="btnToggleSound" role="menuitem" title="UI Sound Effects (Toggle)">
                 <div class="hdrop-icon-wrap">
                   <svg class="sound-on-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
@@ -345,24 +345,24 @@
                   </svg>
                 </div>
                 <div class="hdrop-item-body">
-                  <span class="hdrop-item-title">Efek Suara UI</span>
-                  <span class="hdrop-item-desc" id="hdropSoundDesc">Audio klik & agenda selesai</span>
+                  <span class="hdrop-item-title">UI Sound Effects</span>
+                  <span class="hdrop-item-desc" id="hdropSoundDesc">Click & task completion audio</span>
                 </div>
               </button>
 
-              <!-- 5. Reset & Sinkronkan Kalender Indonesia -->
-              <button class="hdrop-item" id="btnSyncIndonesiaHolidays" role="menuitem" title="Hapus Jadwal Lama & Muat Kalender Indonesia">
+              <!-- 5. Reload Calendar Holidays -->
+              <button class="hdrop-item" id="btnSyncIndonesiaHolidays" role="menuitem" title="Reload Calendar Holidays & Clean Old Data">
                 <div class="hdrop-icon-wrap" style="color: #ef4444; font-size: 16px;">
-                  🇮🇩
+                  📅
                 </div>
                 <div class="hdrop-item-body">
-                  <span class="hdrop-item-title">Kalender Indonesia</span>
-                  <span class="hdrop-item-desc">Muat Libur Nasional & bersihkan data lama</span>
+                  <span class="hdrop-item-title">Calendar Holidays</span>
+                  <span class="hdrop-item-desc">Reload public holidays & clear cache</span>
                 </div>
               </button>
 
               <!-- 6. Supabase Status Badge (Admin) -->
-              <button class="hdrop-item hidden" id="btnSupabaseBadge" role="menuitem" title="Status Database Supabase (Khusus Admin)">
+              <button class="hdrop-item hidden" id="btnSupabaseBadge" role="menuitem" title="Supabase Database Status (Admin Only)">
                 <div class="hdrop-icon-wrap">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
@@ -372,7 +372,7 @@
                 </div>
                 <div class="hdrop-item-body">
                   <span class="hdrop-item-title">Supabase Cloud (Admin)</span>
-                  <span class="hdrop-item-desc" id="supabasePillText">Status Database Online</span>
+                  <span class="hdrop-item-desc" id="supabasePillText">Database Status Online</span>
                 </div>
                 <span class="supabase-status-indicator status-warning" id="supabasePillDot"></span>
               </button>
@@ -380,15 +380,14 @@
           </div>
 
           <div class="date-navigator">
-            <button id="btnNavToday" class="btn btn-outline btn-today" title="Lompat ke Hari Ini (Tekan T)">Hari
-              Ini</button>
+            <button id="btnNavToday" class="btn btn-outline btn-today" title="Jump to Today (Press T)">Today</button>
             <div class="btn-nav-group">
-              <button id="btnNavPrev" class="btn-icon" title="Periode Sebelumnya" aria-label="Periode Sebelumnya">
+              <button id="btnNavPrev" class="btn-icon" title="Previous Period" aria-label="Previous Period">
                 <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                   <polyline points="15 18 9 12 15 6"></polyline>
                 </svg>
               </button>
-              <button id="btnNavNext" class="btn-icon" title="Periode Berikutnya" aria-label="Periode Berikutnya">
+              <button id="btnNavNext" class="btn-icon" title="Next Period" aria-label="Next Period">
                 <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                   <polyline points="9 18 15 12 9 6"></polyline>
                 </svg>
@@ -396,7 +395,7 @@
             </div>
             <div class="date-display-wrap">
               <h2 id="currentPeriodTitle" class="current-period-title">September 2026</h2>
-              <span id="currentPeriodSubtitle" class="current-period-subtitle">Tampilan Kalender Bulanan</span>
+              <span id="currentPeriodSubtitle" class="current-period-subtitle">Monthly Calendar View</span>
             </div>
           </div>
         </div>
@@ -407,22 +406,22 @@
             <span class="live-pulse-dot"></span>
             <span id="liveClockTime" class="live-time-text">00:00:00</span>
             <span class="live-divider">•</span>
-            <span id="liveGreetingText" class="live-greeting-text">Produktif ✨</span>
+            <span id="liveGreetingText" class="live-greeting-text">Stay Productive ✨</span>
           </div>
         </div>
 
         <!-- Right: Actions, Supabase Auth & Utilities -->
         <div class="header-right">
           <!-- User Profile / Auth Button -->
-          <button id="btnHeaderAuth" class="btn-header-user" title="Klik untuk Masuk atau Kelola Akun">
+          <button id="btnHeaderAuth" class="btn-header-user" title="Click to Sign In or Manage Account">
             <div class="header-avatar" id="headerAvatarEl">👤</div>
-            <span class="header-user-email" id="headerEmailEl">Masuk Akun</span>
+            <span class="header-user-email" id="headerEmailEl">Sign In</span>
             <span id="headerAdminCrown" class="header-admin-crown hidden" title="Status: Administrator">👑</span>
           </button>
 
           <!-- Theme Mode Switcher -->
-          <button id="btnThemeToggle" class="btn-icon theme-toggle-btn" title="Ganti Mode Gelap/Terang"
-            aria-label="Ganti Tema">
+          <button id="btnThemeToggle" class="btn-icon theme-toggle-btn" title="Toggle Dark/Light Mode"
+            aria-label="Toggle Theme">
             <svg class="sun-icon hidden" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor"
               stroke-width="2">
               <circle cx="12" cy="12" r="5"></circle>
@@ -442,12 +441,12 @@
           </button>
 
           <!-- Quick Header Add Button -->
-          <button id="btnHeaderAdd" class="btn btn-primary btn-header-add" title="Tambah Jadwal Baru (Tekan N)">
+          <button id="btnHeaderAdd" class="btn btn-primary btn-header-add" title="Create New Schedule (Press N)">
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
               <line x1="12" y1="5" x2="12" y2="19"></line>
               <line x1="5" y1="12" x2="19" y2="12"></line>
             </svg>
-            <span class="btn-text">Tambah</span>
+            <span class="btn-text">Add</span>
           </button>
         </div>
       </header>
@@ -464,10 +463,10 @@
             </svg>
           </div>
           <div class="stat-info">
-            <span class="stat-label">Jadwal Hari Ini</span>
+            <span class="stat-label">Today's Schedule</span>
             <div class="stat-value-group">
               <span id="statTodayCount" class="stat-number">0</span>
-              <span class="stat-subtext">agenda</span>
+              <span class="stat-subtext">events</span>
             </div>
           </div>
           <div class="stat-glow"></div>
@@ -481,10 +480,10 @@
             </svg>
           </div>
           <div class="stat-info">
-            <span class="stat-label">Tingkat Penyelesaian</span>
+            <span class="stat-label">Completion Rate</span>
             <div class="stat-value-group">
               <span id="statCompletedCount" class="stat-number">0</span>
-              <span id="statProgressPercent" class="stat-badge">0% Selesai</span>
+              <span id="statProgressPercent" class="stat-badge">0% Completed</span>
             </div>
           </div>
           <div class="stat-glow"></div>
@@ -494,13 +493,13 @@
           <div class="stat-icon-wrap icon-warning">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <circle cx="12" cy="12" r="10"></circle>
-              <polyline points="12 6 12 12 16 14"></polyline>
+              <polyline points="12 6 12 12 15 15"></polyline>
             </svg>
           </div>
           <div class="stat-info">
-            <span class="stat-label">Agenda Mendatang</span>
+            <span class="stat-label">Upcoming Event</span>
             <div id="statNextEvent" class="stat-next-event">
-              <span class="next-title">Memuat agenda...</span>
+              <span class="next-title">Loading schedule...</span>
               <span class="next-time">--:--</span>
             </div>
           </div>
@@ -516,10 +515,10 @@
             </svg>
           </div>
           <div class="stat-info">
-            <span class="stat-label">Prioritas Tinggi</span>
+            <span class="stat-label">High Priority</span>
             <div class="stat-value-group">
               <span id="statHighPriorityCount" class="stat-number text-danger">0</span>
-              <span class="stat-subtext">perlu fokus</span>
+              <span class="stat-subtext">needs focus</span>
             </div>
           </div>
           <div class="stat-glow"></div>
@@ -530,8 +529,8 @@
       <div id="activeFilterBanner" class="active-filter-banner hidden">
         <div class="filter-banner-content">
           <span class="filter-indicator-dot"></span>
-          <span class="filter-banner-text">Menampilkan hasil filter: <strong
-              id="filterDetailsText">Semua</strong></span>
+          <span class="filter-banner-text">Showing filter results: <strong
+              id="filterDetailsText">All</strong></span>
         </div>
         <button id="btnClearAllFilters" class="btn-text-action">Reset Filter</button>
       </div>
@@ -544,13 +543,13 @@
         <!-- 1. MONTH VIEW -->
         <section id="viewMonth" class="calendar-view view-active">
           <div class="month-weekdays-header">
-            <div class="weekday-col">Senin</div>
-            <div class="weekday-col">Selasa</div>
-            <div class="weekday-col">Rabu</div>
-            <div class="weekday-col">Kamis</div>
-            <div class="weekday-col">Jumat</div>
-            <div class="weekday-col weekend">Sabtu</div>
-            <div class="weekday-col weekend">Minggu</div>
+            <div class="weekday-col">Monday</div>
+            <div class="weekday-col">Tuesday</div>
+            <div class="weekday-col">Wednesday</div>
+            <div class="weekday-col">Thursday</div>
+            <div class="weekday-col">Friday</div>
+            <div class="weekday-col weekend">Saturday</div>
+            <div class="weekday-col weekend">Sunday</div>
           </div>
           <div class="month-grid" id="monthGrid">
             <!-- Populated dynamically by app.js -->
@@ -585,17 +584,17 @@
               <div class="day-sidebar-column">
                 <div class="day-quick-notes-card">
                   <div class="notes-header">
-                    <h3 class="card-mini-title">Catatan Harian Akun</h3>
-                    <span id="notesSavedIndicator" class="notes-saved-badge">Tersimpan otomatis ✨</span>
+                    <h3 class="card-mini-title">Daily Notes</h3>
+                    <span id="notesSavedIndicator" class="notes-saved-badge">Auto-saved ✨</span>
                   </div>
                   <textarea id="dayNotesInput" class="day-notes-textarea"
-                    placeholder="Tuliskan catatan penting, refleksi, atau ide hari ini..."></textarea>
-                  <button id="btnSaveDayNotes" class="btn btn-outline btn-sm">Simpan Catatan</button>
+                    placeholder="Write important notes, reflections, or ideas today..."></textarea>
+                  <button id="btnSaveDayNotes" class="btn btn-outline btn-sm">Save Notes</button>
                 </div>
                 <div class="day-checklist-card" id="dayChecklistCard">
                   <div class="checklist-card-header">
-                    <h3 class="card-mini-title">Target Sub-Tugas Hari Ini</h3>
-                    <span id="dayChecklistCounter" class="checklist-badge">0 Selesai</span>
+                    <h3 class="card-mini-title">Today's Sub-Tasks</h3>
+                    <span id="dayChecklistCounter" class="checklist-badge">0 Completed</span>
                   </div>
                   <div class="day-tasks-list" id="dayTasksList">
                     <!-- Populated by JS -->
@@ -613,7 +612,7 @@
               <div class="kanban-col-header header-todo">
                 <div class="col-title-wrap">
                   <span class="col-icon">📋</span>
-                  <h3 class="col-title">Rencana (To Do)</h3>
+                  <h3 class="col-title">To Do</h3>
                 </div>
                 <span class="col-count" id="countColTodo">0</span>
               </div>
@@ -624,7 +623,7 @@
               <div class="kanban-col-header header-progress">
                 <div class="col-title-wrap">
                   <span class="col-icon">⚡</span>
-                  <h3 class="col-title">Sedang Berjalan</h3>
+                  <h3 class="col-title">In Progress</h3>
                 </div>
                 <span class="col-count" id="countColInProgress">0</span>
               </div>
@@ -635,7 +634,7 @@
               <div class="kanban-col-header header-scheduled">
                 <div class="col-title-wrap">
                   <span class="col-icon">📅</span>
-                  <h3 class="col-title">Terjadwal</h3>
+                  <h3 class="col-title">Scheduled</h3>
                 </div>
                 <span class="col-count" id="countColScheduled">0</span>
               </div>
@@ -646,7 +645,7 @@
               <div class="kanban-col-header header-completed">
                 <div class="col-title-wrap">
                   <span class="col-icon">✅</span>
-                  <h3 class="col-title">Selesai</h3>
+                  <h3 class="col-title">Completed</h3>
                 </div>
                 <span class="col-count" id="countColCompleted">0</span>
               </div>
@@ -674,42 +673,41 @@
       <div class="modal-header">
         <div class="modal-title-wrap">
           <span class="modal-icon-badge">🔐</span>
-          <h3 class="modal-title" id="authModalTitle">Masuk ke Akun Anda</h3>
+          <h3 class="modal-title" id="authModalTitle">Sign In to Your Account</h3>
         </div>
-        <button id="btnCloseAuthModal" class="btn-icon modal-close-btn" aria-label="Tutup Modal Login">✕</button>
+        <button id="btnCloseAuthModal" class="btn-icon modal-close-btn" aria-label="Close Login Modal">✕</button>
       </div>
 
       <!-- Auth Tabs Switcher -->
       <div class="auth-tabs-bar">
-        <button type="button" class="auth-tab-btn active" id="tabBtnLogin">Masuk (Login)</button>
-        <button type="button" class="auth-tab-btn" id="tabBtnRegister">Daftar Akun Baru</button>
+        <button type="button" class="auth-tab-btn active" id="tabBtnLogin">Sign In</button>
+        <button type="button" class="auth-tab-btn" id="tabBtnRegister">Create Account</button>
       </div>
 
       <form id="authForm" class="modal-form" novalidate>
-        <!-- Display Name (Hanya tampil pada tab Register) -->
+        <!-- Display Name (Visible on Register tab only) -->
         <div class="form-group hidden" id="groupDisplayName">
-          <label for="authDisplayName" class="form-label">Nama Lengkap / Panggilan</label>
-          <input type="text" id="authDisplayName" class="form-control" placeholder="Contoh: Alex Pratama">
+          <label for="authDisplayName" class="form-label">Full Name / Display Name</label>
+          <input type="text" id="authDisplayName" class="form-control" placeholder="e.g., Alex Johnson">
         </div>
 
         <!-- Email Input -->
         <div class="form-group">
-          <label for="authEmail" class="form-label required">Alamat Email</label>
-          <input type="email" id="authEmail" class="form-control" placeholder="nama@email.com" required
+          <label for="authEmail" class="form-label required">Email Address</label>
+          <input type="email" id="authEmail" class="form-control" placeholder="name@email.com" required
             autocomplete="email">
         </div>
 
         <!-- Password Input -->
         <div class="form-group">
-          <label for="authPassword" class="form-label required">Kata Sandi (Password)</label>
+          <label for="authPassword" class="form-label required">Password</label>
           <div class="password-input-wrap">
-            <input type="password" id="authPassword" class="form-control" placeholder="Minimal 6 karakter" required
+            <input type="password" id="authPassword" class="form-control" placeholder="At least 6 characters" required
               autocomplete="current-password">
             <button type="button" id="btnTogglePasswordVisibility" class="btn-password-eye"
-              title="Lihat/Sembunyikan Password">👁️</button>
+              title="Show/Hide Password">👁️</button>
           </div>
-          <span class="field-hint" id="passwordHint">Gunakan kombinasi yang aman untuk melindungi data jadwal
-            Anda.</span>
+          <span class="field-hint" id="passwordHint">Use a strong password to protect your schedule data.</span>
         </div>
 
         <!-- Error & Info Box -->
@@ -717,20 +715,18 @@
 
         <!-- Submit Button -->
         <button type="submit" id="btnAuthSubmit" class="btn btn-primary btn-block btn-auth-submit">
-          <span id="authSubmitText">Masuk Sekarang</span>
+          <span id="authSubmitText">Sign In Now</span>
         </button>
 
         <!-- Quick Super Admin Access Button -->
         <button type="button" id="btnQuickAdminLogin" class="btn btn-warning btn-block" style="margin-top: 10px;"
-          title="Masuk Langsung sebagai Super Administrator (Jovan Matthew Adderson)">
-          <span>👑 Masuk Langsung sebagai Admin (Jovan)</span>
+          title="Sign In Directly as Super Administrator (Jovan Matthew Adderson)">
+          <span>👑 Sign In as Admin (Jovan)</span>
         </button>
 
         <div class="auth-footer-links">
-          <button type="button" id="btnContinueGuest" class="btn-link btn-xs text-muted">Lanjutkan sebagai Tamu (Mode
-            Lokal)</button>
-          <button type="button" id="btnOpenSupabaseFromAuth" class="btn-link btn-xs text-supabase">Atur Kredensial
-            Supabase</button>
+          <button type="button" id="btnContinueGuest" class="btn-link btn-xs text-muted">Continue as Guest (Local Mode)</button>
+          <button type="button" id="btnOpenSupabaseFromAuth" class="btn-link btn-xs text-supabase">Configure Supabase Credentials</button>
         </div>
       </form>
     </div>
@@ -744,15 +740,15 @@
       <div class="modal-header">
         <div class="modal-title-wrap">
           <span class="modal-icon-badge">👤</span>
-          <h3 class="modal-title">Profil Akun Supabase</h3>
+          <h3 class="modal-title">Supabase Account Profile</h3>
         </div>
-        <button id="btnCloseProfileModal" class="btn-icon modal-close-btn" aria-label="Tutup Profil">✕</button>
+        <button id="btnCloseProfileModal" class="btn-icon modal-close-btn" aria-label="Close Profile">✕</button>
       </div>
 
       <div class="profile-modal-body">
         <div class="profile-header-center">
           <div class="profile-avatar-big" id="profileBigAvatar">👤</div>
-          <h4 class="profile-display-name" id="profileDisplayName">Nama Pengguna</h4>
+          <h4 class="profile-display-name" id="profileDisplayName">User Name</h4>
           <span class="profile-email-badge" id="profileEmailBadge">email@domain.com</span>
           <div class="profile-role-badge hidden" id="profileRoleBadge">👑 Super Administrator</div>
         </div>
@@ -760,10 +756,10 @@
         <div class="profile-stats-grid">
           <div class="profile-stat-box">
             <span class="stat-box-num" id="profileTotalSchedules">0</span>
-            <span class="stat-box-lbl">Jadwal di Cloud</span>
+            <span class="stat-box-lbl">Cloud Schedules</span>
           </div>
           <div class="profile-stat-box">
-            <span class="stat-box-num status-online" id="profileDbStatus">Aktif</span>
+            <span class="stat-box-num status-online" id="profileDbStatus">Active</span>
             <span class="stat-box-lbl">Supabase RLS</span>
           </div>
         </div>
@@ -773,7 +769,7 @@
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
             </svg>
-            <span>Buka Pusat Kontrol Admin</span>
+            <span>Open Admin Control Center</span>
           </button>
           <button id="btnSyncNow" class="btn btn-outline btn-block">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -782,7 +778,7 @@
               <path d="M3 22v-6h6"></path>
               <path d="M21 12a9 9 0 0 1-15 6.7L3 16"></path>
             </svg>
-            <span>Sinkronkan Ulang Cloud</span>
+            <span>Sync Cloud Now</span>
           </button>
           <button id="btnLogout" class="btn btn-danger btn-block">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -790,7 +786,7 @@
               <polyline points="16 17 21 12 16 7"></polyline>
               <line x1="21" y1="12" x2="9" y2="12"></line>
             </svg>
-            <span>Keluar dari Akun (Logout)</span>
+            <span>Sign Out (Logout)</span>
           </button>
         </div>
       </div>
@@ -805,14 +801,14 @@
       <div class="modal-header">
         <div class="modal-title-wrap">
           <span class="modal-icon-badge">⚡</span>
-          <h3 class="modal-title">Koneksi Database Supabase</h3>
+          <h3 class="modal-title">Supabase Database Connection</h3>
         </div>
-        <button id="btnCloseSupabaseConfig" class="btn-icon modal-close-btn" aria-label="Tutup Modal">✕</button>
+        <button id="btnCloseSupabaseConfig" class="btn-icon modal-close-btn" aria-label="Close Modal">✕</button>
       </div>
 
       <div class="modal-body-content">
         <p class="modal-hint">
-          Masukkan <strong>Project URL</strong> dan <strong>Anon Key</strong> dari dashboard Supabase Anda (<em>Settings
+          Enter your <strong>Project URL</strong> and <strong>Anon Key</strong> from your Supabase dashboard (<em>Settings
             -> API</em>):
         </p>
 
@@ -829,17 +825,17 @@
         </div>
 
         <div class="supabase-schema-info-card">
-          <div class="schema-info-title">📋 Schema Database (Tabel & RLS)</div>
+          <div class="schema-info-title">📋 Database Schema (Tables & RLS)</div>
           <p class="schema-info-text">
-            File <code>supabase-schema.sql</code> sudah dibuat di folder proyek Anda. Salin dan jalankan di <em>SQL
-              Editor</em> Supabase untuk mengaktifkan Row Level Security.
+            The <code>supabase-schema.sql</code> file is in your project directory. Copy and run it in the Supabase <em>SQL
+              Editor</em> to enable Row Level Security.
           </p>
         </div>
       </div>
 
       <div class="modal-footer">
-        <button type="button" id="btnCancelSupabaseConfig" class="btn btn-outline">Batal</button>
-        <button type="button" id="btnSaveSupabaseConfig" class="btn btn-primary">Simpan & Hubungkan</button>
+        <button type="button" id="btnCancelSupabaseConfig" class="btn btn-outline">Cancel</button>
+        <button type="button" id="btnSaveSupabaseConfig" class="btn btn-primary">Save & Connect</button>
       </div>
     </div>
   </div>
@@ -855,7 +851,7 @@
           <circle cx="11" cy="11" r="8"></circle>
           <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
         </svg>
-        <input type="text" id="commandPaletteInput" placeholder="Ketik perintah atau cari jadwal apa saja..."
+        <input type="text" id="commandPaletteInput" placeholder="Type a command or search any schedule..."
           autocomplete="off">
         <kbd class="cmd-esc-badge" id="btnEscCommand">ESC</kbd>
       </div>
@@ -864,9 +860,9 @@
       </div>
       <div class="command-palette-footer">
         <div class="cmd-hints">
-          <span><kbd>↑</kbd><kbd>↓</kbd> Pilih</span>
-          <span><kbd>↵</kbd> Eksekusi</span>
-          <span><kbd>Esc</kbd> Tutup</span>
+          <span><kbd>↑</kbd><kbd>↓</kbd> Select</span>
+          <span><kbd>↵</kbd> Execute</span>
+          <span><kbd>Esc</kbd> Close</span>
         </div>
         <span class="cmd-powered">PlanCraft Command v2.5</span>
       </div>
@@ -883,21 +879,21 @@
           <span class="modal-icon-badge">⏱️</span>
           <h3 class="modal-title">Focus Session (Pomodoro)</h3>
         </div>
-        <button id="btnClosePomodoro" class="btn-icon modal-close-btn" aria-label="Tutup Timer">✕</button>
+        <button id="btnClosePomodoro" class="btn-icon modal-close-btn" aria-label="Close Timer">✕</button>
       </div>
       <div class="pomodoro-body">
         <div class="pomodoro-timer-display" id="pomodoroTimerDisplay">25:00</div>
-        <p class="pomodoro-tagline" id="pomodoroStatusLabel">Fokus pada satu tugas penting</p>
+        <p class="pomodoro-tagline" id="pomodoroStatusLabel">Focus on one important task</p>
 
         <div class="pomodoro-modes-bar">
-          <button class="pomodoro-mode-btn active" data-time="25">25 Menit (Fokus)</button>
-          <button class="pomodoro-mode-btn" data-time="5">5 Menit (Rehat)</button>
-          <button class="pomodoro-mode-btn" data-time="15">15 Menit (Santai)</button>
+          <button class="pomodoro-mode-btn active" data-time="25">25 Mins (Focus)</button>
+          <button class="pomodoro-mode-btn" data-time="5">5 Mins (Break)</button>
+          <button class="pomodoro-mode-btn" data-time="15">15 Mins (Relax)</button>
         </div>
 
         <div class="pomodoro-controls">
           <button id="btnToggleTimer" class="btn btn-primary btn-pomodoro-start">
-            <span id="btnTimerText">Mulai Fokus</span>
+            <span id="btnTimerText">Start Focus</span>
           </button>
           <button id="btnResetTimer" class="btn btn-outline">Reset</button>
         </div>
@@ -914,9 +910,9 @@
       <div class="modal-header">
         <div class="modal-title-wrap">
           <span class="modal-icon-badge" id="modalIconBadge">📅</span>
-          <h3 id="modalTitle" class="modal-title">Tambah Jadwal Baru</h3>
+          <h3 id="modalTitle" class="modal-title">Create New Schedule</h3>
         </div>
-        <button id="btnCloseModal" class="btn-icon modal-close-btn" aria-label="Tutup Modal">
+        <button id="btnCloseModal" class="btn-icon modal-close-btn" aria-label="Close Modal">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
             <line x1="18" y1="6" x2="6" y2="18"></line>
             <line x1="6" y1="6" x2="18" y2="18"></line>
@@ -929,14 +925,14 @@
 
         <!-- Title Input -->
         <div class="form-group">
-          <label for="formTitle" class="form-label required">Nama Jadwal / Kegiatan</label>
+          <label for="formTitle" class="form-label required">Schedule / Event Title</label>
           <input type="text" id="formTitle" class="form-control"
-            placeholder="Contoh: Meeting Proyek Web, Sesi Lari Pagi..." required autofocus>
+            placeholder="e.g., Team Sync Meeting, Morning Run..." required autofocus>
         </div>
 
         <!-- Category Radio/Pill Selector -->
         <div class="form-group">
-          <label class="form-label required">Kategori</label>
+          <label class="form-label required">Category</label>
           <div class="category-pill-selector" id="formCategoryPillSelector">
             <!-- Generated from CATEGORIES config with gradients -->
           </div>
@@ -945,15 +941,15 @@
         <!-- Date & Time Row -->
         <div class="form-row-grid">
           <div class="form-group">
-            <label for="formDate" class="form-label required">Tanggal</label>
+            <label for="formDate" class="form-label required">Date</label>
             <input type="date" id="formDate" class="form-control" required>
           </div>
           <div class="form-group">
-            <label for="formStartTime" class="form-label">Waktu Mulai</label>
+            <label for="formStartTime" class="form-label">Start Time</label>
             <input type="time" id="formStartTime" class="form-control" value="09:00">
           </div>
           <div class="form-group">
-            <label for="formEndTime" class="form-label">Waktu Selesai</label>
+            <label for="formEndTime" class="form-label">End Time</label>
             <input type="time" id="formEndTime" class="form-control" value="10:00">
           </div>
         </div>
@@ -961,43 +957,43 @@
         <!-- Priority & Status Row -->
         <div class="form-row-grid">
           <div class="form-group">
-            <label for="formPriority" class="form-label">Tingkat Prioritas</label>
+            <label for="formPriority" class="form-label">Priority Level</label>
             <select id="formPriority" class="form-control">
-              <option value="high">🔴 Tinggi (High Priority)</option>
-              <option value="medium" selected>🟡 Sedang (Medium)</option>
-              <option value="low">🟢 Rendah (Low)</option>
+              <option value="high">🔴 High Priority</option>
+              <option value="medium" selected>🟡 Medium</option>
+              <option value="low">🟢 Low</option>
             </select>
           </div>
           <div class="form-group">
-            <label for="formStatus" class="form-label">Status Jadwal</label>
+            <label for="formStatus" class="form-label">Schedule Status</label>
             <select id="formStatus" class="form-control">
-              <option value="scheduled" selected>📅 Terjadwal (Scheduled)</option>
-              <option value="in_progress">⚡ Sedang Berjalan (In Progress)</option>
-              <option value="todo">📋 Rencana (To Do)</option>
-              <option value="completed">✅ Selesai (Completed)</option>
+              <option value="scheduled" selected>📅 Scheduled</option>
+              <option value="in_progress">⚡ In Progress</option>
+              <option value="todo">📋 To Do</option>
+              <option value="completed">✅ Completed</option>
             </select>
           </div>
         </div>
 
         <!-- Location or Link -->
         <div class="form-group">
-          <label for="formLocation" class="form-label">Lokasi atau Tautan (Link)</label>
+          <label for="formLocation" class="form-label">Location or Link</label>
           <input type="text" id="formLocation" class="form-control"
-            placeholder="Contoh: Google Meet, Zoom, Studio Lt. 2, Lapangan...">
+            placeholder="e.g., Google Meet, Zoom, Conference Room, Studio...">
         </div>
 
         <!-- Description / Notes -->
         <div class="form-group">
-          <label for="formDescription" class="form-label">Catatan & Keterangan</label>
+          <label for="formDescription" class="form-label">Notes & Description</label>
           <textarea id="formDescription" class="form-control form-textarea" rows="3"
-            placeholder="Tambahkan rincian atau poin agenda penting..."></textarea>
+            placeholder="Add details, links, or important agenda points..."></textarea>
         </div>
 
         <!-- Checklist Sub-Tasks -->
         <div class="form-group">
           <div class="checklist-header">
-            <label class="form-label">Daftar Sub-Tugas (Checklist)</label>
-            <button type="button" id="btnAddChecklistItem" class="btn-link btn-xs">+ Tambah Item</button>
+            <label class="form-label">Sub-Tasks (Checklist)</label>
+            <button type="button" id="btnAddChecklistItem" class="btn-link btn-xs">+ Add Item</button>
           </div>
           <div class="form-checklist-container" id="formChecklistContainer">
             <!-- Dynamic checklist items -->
@@ -1011,15 +1007,15 @@
               <polyline points="3 6 5 6 21 6"></polyline>
               <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
             </svg>
-            <span>Hapus</span>
+            <span>Delete</span>
           </button>
           <div class="footer-right-buttons">
-            <button type="button" id="btnCancelModal" class="btn btn-outline">Batal</button>
+            <button type="button" id="btnCancelModal" class="btn btn-outline">Cancel</button>
             <button type="submit" id="btnSaveSchedule" class="btn btn-primary">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                 <polyline points="20 6 9 17 4 12"></polyline>
               </svg>
-              <span>Simpan Jadwal</span>
+              <span>Save Schedule</span>
             </button>
           </div>
         </div>
@@ -1034,7 +1030,7 @@
     <div class="modal-card modal-card-sm preview-card">
       <div class="preview-header">
         <div class="preview-badges-row" id="previewBadgesRow"></div>
-        <button id="btnClosePreview" class="btn-icon" aria-label="Tutup Preview">
+        <button id="btnClosePreview" class="btn-icon" aria-label="Close Preview">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
             <line x1="18" y1="6" x2="6" y2="18"></line>
             <line x1="6" y1="6" x2="18" y2="18"></line>
@@ -1046,7 +1042,7 @@
       </div>
       <div class="preview-footer">
         <button id="btnTogglePreviewStatus" class="btn btn-outline btn-sm">
-          <span>Tandai Selesai</span>
+          <span>Mark as Completed</span>
         </button>
         <div class="preview-actions-right">
           <button id="btnEditFromPreview" class="btn btn-primary btn-sm">
@@ -1067,23 +1063,23 @@
   <div class="modal-overlay hidden" id="importModalOverlay" role="dialog" aria-modal="true">
     <div class="modal-card modal-card-sm">
       <div class="modal-header">
-        <h3 class="modal-title">Import Data Jadwal (JSON)</h3>
-        <button id="btnCloseImportModal" class="btn-icon" aria-label="Tutup Modal Import">✕</button>
+        <h3 class="modal-title">Import Schedule Data (JSON)</h3>
+        <button id="btnCloseImportModal" class="btn-icon" aria-label="Close Import Modal">✕</button>
       </div>
       <div class="modal-body-content">
-        <p class="modal-hint">Tempelkan teks data JSON atau unggah file backup .json jadwal Anda:</p>
+        <p class="modal-hint">Paste your JSON schedule data or upload a backup .json file:</p>
         <textarea id="importJsonTextarea" class="form-control form-textarea" rows="8"
           placeholder='[ { "id": "...", "title": "..." } ]'></textarea>
         <div class="file-upload-row">
           <label class="btn btn-outline btn-sm file-input-label">
-            <span>Pilih File .json</span>
+            <span>Choose .json File</span>
             <input type="file" id="importFileInput" accept=".json" class="hidden-file-input">
           </label>
         </div>
       </div>
       <div class="modal-footer">
-        <button type="button" id="btnCancelImport" class="btn btn-outline">Batal</button>
-        <button type="button" id="btnConfirmImport" class="btn btn-primary">Terapkan Import</button>
+        <button type="button" id="btnCancelImport" class="btn btn-outline">Cancel</button>
+        <button type="button" id="btnConfirmImport" class="btn btn-primary">Apply Import</button>
       </div>
     </div>
   </div>
@@ -1097,11 +1093,11 @@
         <div class="modal-title-wrap">
           <span class="modal-icon-badge admin-icon-badge">👑</span>
           <div>
-            <h3 class="modal-title">Pusat Kontrol Administrator</h3>
-            <span class="modal-subtitle">Akses Khusus Super Admin • Supabase Cloud</span>
+            <h3 class="modal-title">Administrator Control Center</h3>
+            <span class="modal-subtitle">Exclusive Super Admin Access • Supabase Cloud</span>
           </div>
         </div>
-        <button id="btnCloseAdminModal" class="btn-icon modal-close-btn" aria-label="Tutup Panel Admin">✕</button>
+        <button id="btnCloseAdminModal" class="btn-icon modal-close-btn" aria-label="Close Admin Panel">✕</button>
       </div>
 
       <div class="admin-modal-body">
@@ -1109,7 +1105,7 @@
         <div class="admin-profile-spotlight">
           <div class="admin-avatar-wrap">
             <div class="admin-avatar-lg" id="adminModalAvatar">👑</div>
-            <span class="admin-verified-tick" title="Terverifikasi Super Admin">✓</span>
+            <span class="admin-verified-tick" title="Verified Super Admin">✓</span>
           </div>
           <div class="admin-info-meta">
             <div class="admin-name-row">
@@ -1129,24 +1125,24 @@
               <path d="M2 17l10 5 10-5"></path>
               <path d="M2 12l10 5 10-5"></path>
             </svg>
-            <span>STATISTIK DATABASE CLOUD (SUPABASE)</span>
+            <span>CLOUD DATABASE METRICS (SUPABASE)</span>
           </div>
           <div class="admin-metrics-grid">
             <div class="admin-metric-card">
-              <span class="admin-metric-val" id="adminStatSchedules">Memuat...</span>
-              <span class="admin-metric-lbl">Total Jadwal Cloud</span>
+              <span class="admin-metric-val" id="adminStatSchedules">Loading...</span>
+              <span class="admin-metric-lbl">Total Cloud Schedules</span>
             </div>
             <div class="admin-metric-card">
-              <span class="admin-metric-val" id="adminStatNotes">Memuat...</span>
-              <span class="admin-metric-lbl">Total Catatan Harian</span>
+              <span class="admin-metric-val" id="adminStatNotes">Loading...</span>
+              <span class="admin-metric-lbl">Total Daily Notes</span>
             </div>
             <div class="admin-metric-card">
-              <span class="admin-metric-val" id="adminStatUsers">Memuat...</span>
-              <span class="admin-metric-lbl">Pengguna Terdeteksi</span>
+              <span class="admin-metric-val" id="adminStatUsers">Loading...</span>
+              <span class="admin-metric-lbl">Detected Users</span>
             </div>
             <div class="admin-metric-card">
-              <span class="admin-metric-val text-success" id="adminStatPing">Aktif</span>
-              <span class="admin-metric-lbl">Status Database</span>
+              <span class="admin-metric-val text-success" id="adminStatPing">Active</span>
+              <span class="admin-metric-lbl">Database Status</span>
             </div>
           </div>
         </div>
@@ -1155,11 +1151,11 @@
         <div class="admin-switch-card">
           <div class="admin-switch-info">
             <div class="admin-switch-title">
-              <span>Mode Pengawas (Global Cloud View)</span>
+              <span>Overseer Mode (Global Cloud View)</span>
               <span class="badge-beta">LIVE</span>
             </div>
             <p class="admin-switch-desc">
-              Tampilkan semua jadwal dari seluruh pengguna di dashboard kalender Anda.
+              Display schedules from all users across the cloud on your calendar dashboard.
             </p>
           </div>
           <label class="toggle-switch">
@@ -1174,7 +1170,7 @@
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path>
             </svg>
-            <span>TINDAKAN ADMINISTRATOR</span>
+            <span>ADMINISTRATOR ACTIONS</span>
           </div>
           <div class="admin-actions-grid">
             <button id="btnAdminExportMaster" class="btn btn-outline admin-action-btn">
@@ -1190,20 +1186,20 @@
                 <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
                 <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
               </svg>
-              <span>Salin Query SQL Aktivasi</span>
+              <span>Copy Activation SQL Query</span>
             </button>
             <button id="btnAdminTestPing" class="btn btn-outline admin-action-btn">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
               </svg>
-              <span>Uji Latensi Supabase</span>
+              <span>Test Supabase Latency</span>
             </button>
             <button id="btnAdminBroadcast" class="btn btn-outline admin-action-btn">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
                 <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
               </svg>
-              <span>Siarkan Pengumuman Admin</span>
+              <span>Broadcast Admin Announcement</span>
             </button>
           </div>
         </div>
@@ -1217,7 +1213,7 @@
   <div class="toast-container" id="toastContainer" aria-live="polite"></div>
 
   <!-- Scripts -->
-  <script type="module" src="app.js?v=3.2"></script>
+  <script type="module" src="app.js?v=3.4"></script>
 </body>
 
 </html>

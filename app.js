@@ -207,7 +207,7 @@ function activateJovanAdminSession(showFeedback = true) {
   if (showFeedback) {
     playUiSound('chime');
     triggerConfetti();
-    showToast('👑 Mode Administrator Aktif: Jovan Matthew Adderson!', 'success');
+    showToast('👑 Administrator Mode Active: Jovan Matthew Adderson!', 'success');
   }
 
   loadUserData(adminUser.id);
@@ -319,8 +319,8 @@ async function persistSchedule(scheduleData) {
     try {
       await saveUserSchedule(scheduleData, state.currentUser.id);
     } catch (err) {
-      console.error('Gagal sinkronisasi jadwal ke Supabase:', err);
-      showToast('Tersimpan di lokal. Gagal sinkronisasi Supabase: ' + err.message, 'warning');
+      console.error('Failed to sync schedule with Supabase:', err);
+      showToast('Saved locally. Supabase sync failed: ' + err.message, 'warning');
     }
   }
 }
@@ -334,7 +334,7 @@ async function removeSchedule(scheduleId) {
     try {
       await deleteUserSchedule(scheduleId, state.currentUser.id);
     } catch (err) {
-      console.error('Gagal menghapus dari Supabase:', err);
+      console.error('Failed to delete from Supabase:', err);
     }
   }
 }
@@ -371,7 +371,7 @@ function updateSupabaseStatusBadges() {
     if (footerDot) footerDot.className = 'version-dot status-online';
   } else if (isConfigured) {
     if (pillDot) pillDot.className = 'supabase-status-indicator status-warning';
-    if (pillText) pillText.textContent = 'Siap Login';
+    if (pillText) pillText.textContent = 'Ready to Sign In';
     if (brandDot) brandDot.className = 'brand-live-pulse status-warning';
     if (footerDot) footerDot.className = 'version-dot status-warning';
   } else {
@@ -451,13 +451,13 @@ function updateUserUI() {
     profileRoleBadge?.classList.add('hidden');
     btnProfileAdmin?.classList.add('hidden');
 
-    if (sidebarName) sidebarName.textContent = 'Tamu (Guest Mode)';
-    if (sidebarEmail) sidebarEmail.textContent = 'Klik untuk Masuk Akun';
+    if (sidebarName) sidebarName.textContent = 'Guest Mode';
+    if (sidebarEmail) sidebarEmail.textContent = 'Click to Sign In';
     if (sidebarAvatar) sidebarAvatar.textContent = '👤';
     if (headerAvatar) headerAvatar.textContent = '👤';
     if (headerEmail) {
-      headerEmail.textContent = 'Masuk Akun';
-      headerEmail.title = 'Masuk atau Kelola Akun';
+      headerEmail.textContent = 'Sign In';
+      headerEmail.title = 'Sign In or Manage Account';
     }
   }
 
@@ -618,11 +618,11 @@ function initLiveClock() {
     clockEl.textContent = `${hours}:${minutes}:${seconds}`;
 
     const h = now.getHours();
-    let greet = 'Produktif ✨';
-    if (h >= 4 && h < 11) greet = 'Pagi ⚡';
-    else if (h >= 11 && h < 15) greet = 'Siang 🚀';
-    else if (h >= 15 && h < 18) greet = 'Sore 🌅';
-    else greet = 'Malam 🌙';
+    let greet = 'Stay Productive ✨';
+    if (h >= 4 && h < 11) greet = 'Good Morning ⚡';
+    else if (h >= 11 && h < 15) greet = 'Good Afternoon 🚀';
+    else if (h >= 15 && h < 18) greet = 'Good Evening 🌅';
+    else greet = 'Good Night 🌙';
 
     greetingEl.textContent = greet;
   }
@@ -660,9 +660,9 @@ function initPomodoro() {
     if (pomodoro.isRunning) return;
     pomodoro.isRunning = true;
     if (document.getElementById('btnTimerText')) {
-      document.getElementById('btnTimerText').textContent = 'Jeda (Pause)';
+      document.getElementById('btnTimerText').textContent = 'Pause';
     }
-    if (statusLabel) statusLabel.textContent = '🔥 Sedang berjalan... Tetap fokus!';
+    if (statusLabel) statusLabel.textContent = '🔥 In progress... Stay focused!';
     playUiSound('pop');
 
     pomodoro.timerInterval = setInterval(() => {
@@ -673,12 +673,12 @@ function initPomodoro() {
         clearInterval(pomodoro.timerInterval);
         pomodoro.isRunning = false;
         if (document.getElementById('btnTimerText')) {
-          document.getElementById('btnTimerText').textContent = 'Mulai Fokus';
+          document.getElementById('btnTimerText').textContent = 'Start Focus';
         }
-        if (statusLabel) statusLabel.textContent = '🎉 Sesi Fokus Selesai! Saatnya istirahat.';
+        if (statusLabel) statusLabel.textContent = '🎉 Focus Session Completed! Time to take a break.';
         playUiSound('chime');
         triggerConfetti();
-        showToast('Waktu sesi fokus telah berakhir! Luar biasa!', 'success');
+        showToast('Focus session has ended! Great job! 🎉', 'success');
       }
     }, 1000);
   }
@@ -687,9 +687,9 @@ function initPomodoro() {
     clearInterval(pomodoro.timerInterval);
     pomodoro.isRunning = false;
     if (document.getElementById('btnTimerText')) {
-      document.getElementById('btnTimerText').textContent = 'Lanjutkan';
+      document.getElementById('btnTimerText').textContent = 'Resume';
     }
-    if (statusLabel) statusLabel.textContent = '⏸️ Sesi dijeda';
+    if (statusLabel) statusLabel.textContent = '⏸️ Session paused';
     playUiSound('click');
     updateDisplay();
   }
@@ -703,9 +703,9 @@ function initPomodoro() {
     pauseTimer();
     pomodoro.remainingSeconds = pomodoro.totalSeconds;
     if (document.getElementById('btnTimerText')) {
-      document.getElementById('btnTimerText').textContent = 'Mulai Fokus';
+      document.getElementById('btnTimerText').textContent = 'Start Focus';
     }
-    if (statusLabel) statusLabel.textContent = 'Fokus pada satu tugas penting';
+    if (statusLabel) statusLabel.textContent = 'Focus on one important task';
     updateDisplay();
     playUiSound('click');
   });
@@ -757,23 +757,23 @@ function renderCommandResults(query = '') {
 
   const systemActions = [
     ...(state.isAdmin ? [
-      { id: 'act-admin-panel', label: '👑 Pusat Kontrol Administrator (Super Admin)', icon: '👑', cat: 'Admin', action: () => { closeCommandPalette(); openAdminModal(); } },
-      { id: 'act-admin-toggle', label: `👑 Mode Pengawas Cloud: ${state.adminModeAllSchedules ? 'Nonaktifkan' : 'Aktifkan (Lihat Semua)'}`, icon: '👁️', cat: 'Admin', action: () => { closeCommandPalette(); toggleAdminGlobalMode(); } }
+      { id: 'act-admin-panel', label: '👑 Administrator Control Center (Super Admin)', icon: '👑', cat: 'Admin', action: () => { closeCommandPalette(); openAdminModal(); } },
+      { id: 'act-admin-toggle', label: `👑 Cloud Overseer Mode: ${state.adminModeAllSchedules ? 'Disable' : 'Enable (View All)'}`, icon: '👁️', cat: 'Admin', action: () => { closeCommandPalette(); toggleAdminGlobalMode(); } }
     ] : []),
-    { id: 'act-new', label: 'Tambah Jadwal Baru', icon: '➕', cat: 'Navigasi', action: () => { closeCommandPalette(); openScheduleModal(); } },
-    { id: 'act-auth', label: state.currentUser ? `Profil Akun (${state.currentUser.email})` : 'Masuk atau Daftar Akun Supabase', icon: '🔐', cat: 'Akun', action: () => { closeCommandPalette(); openAuthOrProfile(); } },
-    { id: 'act-supabase-cfg', label: 'Pengaturan Koneksi Supabase', icon: '⚡', cat: 'Pengaturan', action: () => { closeCommandPalette(); openSupabaseConfigModal(); } },
-    { id: 'act-today', label: 'Lompat ke Hari Ini', icon: '📅', cat: 'Navigasi', action: () => { closeCommandPalette(); goToToday(); } },
-    { id: 'act-month', label: 'Beralih ke Tampilan Kalender Bulanan', icon: '📆', cat: 'Tampilan', action: () => { closeCommandPalette(); switchView('month'); } },
-    { id: 'act-week', label: 'Beralih ke Timeline Mingguan', icon: '⏰', cat: 'Tampilan', action: () => { closeCommandPalette(); switchView('week'); } },
-    { id: 'act-day', label: 'Beralih ke Agenda Harian Terfokus', icon: '🎯', cat: 'Tampilan', action: () => { closeCommandPalette(); switchView('day'); } },
-    { id: 'act-kanban', label: 'Beralih ke Papan Status Kanban', icon: '📋', cat: 'Tampilan', action: () => { closeCommandPalette(); switchView('kanban'); } },
-    { id: 'act-agenda', label: 'Beralih ke Daftar Agenda Lengkap', icon: '📝', cat: 'Tampilan', action: () => { closeCommandPalette(); switchView('agenda'); } },
-    { id: 'act-pomodoro', label: 'Buka Focus Session (Pomodoro)', icon: '⏱️', cat: 'Alat', action: () => { closeCommandPalette(); document.getElementById('pomodoroModalOverlay')?.classList.remove('hidden'); } },
-    { id: 'act-theme', label: `Ganti Tema ke Mode ${state.theme === 'dark' ? 'Terang' : 'Gelap'}`, icon: '🌓', cat: 'Pengaturan', action: () => { closeCommandPalette(); toggleTheme(); } },
-    { id: 'act-sound', label: `Efek Suara Antarmuka: ${state.soundEnabled ? 'Nonaktifkan' : 'Aktifkan'}`, icon: '🔊', cat: 'Pengaturan', action: () => { closeCommandPalette(); toggleSound(); } },
-    { id: 'act-export', label: 'Ekspor Data Jadwal (Backup JSON)', icon: '💾', cat: 'Data', action: () => { closeCommandPalette(); exportDataJSON(); } },
-    { id: 'act-reset', label: '🇮🇩 Reset & Muat Kalender Indonesia (Hapus Data Lama)', icon: '🇮🇩', cat: 'Data', action: () => { closeCommandPalette(); resetToIndonesiaCalendar(); } }
+    { id: 'act-new', label: 'Create New Schedule', icon: '➕', cat: 'Navigation', action: () => { closeCommandPalette(); openScheduleModal(); } },
+    { id: 'act-auth', label: state.currentUser ? `Account Profile (${state.currentUser.email})` : 'Sign In or Register Supabase Account', icon: '🔐', cat: 'Account', action: () => { closeCommandPalette(); openAuthOrProfile(); } },
+    { id: 'act-supabase-cfg', label: 'Supabase Connection Settings', icon: '⚡', cat: 'Settings', action: () => { closeCommandPalette(); openSupabaseConfigModal(); } },
+    { id: 'act-today', label: 'Jump to Today', icon: '📅', cat: 'Navigation', action: () => { closeCommandPalette(); goToToday(); } },
+    { id: 'act-month', label: 'Switch to Monthly Calendar View', icon: '📆', cat: 'Views', action: () => { closeCommandPalette(); switchView('month'); } },
+    { id: 'act-week', label: 'Switch to Weekly Timeline View', icon: '⏰', cat: 'Views', action: () => { closeCommandPalette(); switchView('week'); } },
+    { id: 'act-day', label: 'Switch to Daily Focus View', icon: '🎯', cat: 'Views', action: () => { closeCommandPalette(); switchView('day'); } },
+    { id: 'act-kanban', label: 'Switch to Kanban Board View', icon: '📋', cat: 'Views', action: () => { closeCommandPalette(); switchView('kanban'); } },
+    { id: 'act-agenda', label: 'Switch to Agenda List View', icon: '📝', cat: 'Views', action: () => { closeCommandPalette(); switchView('agenda'); } },
+    { id: 'act-pomodoro', label: 'Open Focus Session (Pomodoro)', icon: '⏱️', cat: 'Tools', action: () => { closeCommandPalette(); document.getElementById('pomodoroModalOverlay')?.classList.remove('hidden'); } },
+    { id: 'act-theme', label: `Switch Theme to ${state.theme === 'dark' ? 'Light' : 'Dark'} Mode`, icon: '🌓', cat: 'Settings', action: () => { closeCommandPalette(); toggleTheme(); } },
+    { id: 'act-sound', label: `Sound Effects: ${state.soundEnabled ? 'Disable' : 'Enable'}`, icon: '🔊', cat: 'Settings', action: () => { closeCommandPalette(); toggleSound(); } },
+    { id: 'act-export', label: 'Export Schedule Data (Backup JSON)', icon: '💾', cat: 'Data', action: () => { closeCommandPalette(); exportDataJSON(); } },
+    { id: 'act-reset', label: '🇮🇩 Reset & Load Calendar Holidays (Clear Old Data)', icon: '🇮🇩', cat: 'Data', action: () => { closeCommandPalette(); resetToIndonesiaCalendar(); } }
   ];
 
   const matchedActions = systemActions.filter(a => a.label.toLowerCase().includes(q) || a.cat.toLowerCase().includes(q));
@@ -787,7 +787,7 @@ function renderCommandResults(query = '') {
   if (matchedActions.length > 0) {
     const grp = document.createElement('div');
     grp.className = 'cmd-group-label';
-    grp.textContent = 'PERINTAH SISTEM';
+    grp.textContent = 'SYSTEM COMMANDS';
     list.appendChild(grp);
 
     matchedActions.forEach(act => {
@@ -800,7 +800,7 @@ function renderCommandResults(query = '') {
   if (matchedSchedules.length > 0) {
     const grp = document.createElement('div');
     grp.className = 'cmd-group-label';
-    grp.textContent = 'JADWAL & AGENDA COCOK';
+    grp.textContent = 'MATCHING SCHEDULES & EVENTS';
     list.appendChild(grp);
 
     matchedSchedules.forEach(sch => {
@@ -818,7 +818,7 @@ function renderCommandResults(query = '') {
   }
 
   if (allItems.length === 0) {
-    list.innerHTML = `<div style="padding: 24px; text-align: center; color: var(--text-muted); font-size: 0.85rem;">Tidak ditemukan hasil untuk "${escapeHtml(query)}"</div>`;
+    list.innerHTML = `<div style="padding: 24px; text-align: center; color: var(--text-muted); font-size: 0.85rem;">No results found for "${escapeHtml(query)}"</div>`;
   } else {
     updateCommandSelection(allItems);
   }
@@ -855,11 +855,11 @@ function updateCommandSelection() {
 // 8. DATE ENGINE & FORMATTING HELPERS
 // ==============================================================================
 const MONTH_NAMES = [
-  'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-  'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'
 ];
 
-const DAY_NAMES = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 function formatDateKey(date) {
   const d = new Date(date);
@@ -885,7 +885,7 @@ function getCategory(catId) {
   if (catId === 'holiday') return HOLIDAY_CATEGORY;
   return CATEGORIES.find(c => c.id === catId) || {
     id: 'other',
-    name: 'Lainnya',
+    name: 'Other',
     color: '#94a3b8',
     gradient: 'linear-gradient(135deg, #94a3b8, #64748b)',
     bgColor: 'rgba(148, 163, 184, 0.15)',
@@ -896,9 +896,9 @@ function getCategory(catId) {
 
 function getPriority(pId) {
   if (pId === 'none' || !pId) {
-    return { id: 'none', label: 'Tanggal Merah', color: '#ef4444', icon: '🇮🇩' };
+    return { id: 'none', label: 'Public Holiday', color: '#ef4444', icon: '🇮🇩' };
   }
-  return PRIORITIES.find(p => p.id === pId) || { id: 'none', label: 'Bukan Tugas', color: 'transparent', icon: '' };
+  return PRIORITIES.find(p => p.id === pId) || { id: 'none', label: 'Non-Task', color: 'transparent', icon: '' };
 }
 
 function getStatus(sId) {
@@ -963,23 +963,23 @@ function updatePeriodHeader() {
 
   if (state.activeView === 'month') {
     titleEl.textContent = `${MONTH_NAMES[m]} ${y}`;
-    subEl.textContent = `Kalender Bulanan`;
+    subEl.textContent = `Monthly Calendar`;
   } else if (state.activeView === 'week') {
     const monday = getMondayOfWeek(state.currentDate);
     const sunday = new Date(monday);
     sunday.setDate(sunday.getDate() + 6);
     titleEl.textContent = `${monday.getDate()} ${MONTH_NAMES[monday.getMonth()].slice(0, 3)} - ${sunday.getDate()} ${MONTH_NAMES[sunday.getMonth()]} ${y}`;
-    subEl.textContent = `Pekan ke-${getWeekNumber(state.currentDate)} Tahun ${y}`;
+    subEl.textContent = `Week ${getWeekNumber(state.currentDate)} of ${y}`;
   } else if (state.activeView === 'day') {
     const d = state.selectedDate;
     titleEl.textContent = `${DAY_NAMES[d.getDay()]}, ${d.getDate()} ${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}`;
-    subEl.textContent = isDateToday(d) ? 'Agenda Hari Ini' : 'Agenda Tanggal Terpilih';
+    subEl.textContent = isDateToday(d) ? "Today's Agenda" : "Selected Date Agenda";
   } else if (state.activeView === 'kanban') {
-    titleEl.textContent = `Papan Status Alur Kerja`;
-    subEl.textContent = `Kelola Alur Kerja & Progress Jadwal`;
+    titleEl.textContent = `Kanban Workflow Board`;
+    subEl.textContent = `Manage Task Workflow & Progress`;
   } else if (state.activeView === 'agenda') {
-    titleEl.textContent = `Daftar Agenda Terstruktur`;
-    subEl.textContent = `Urutan Kronologis Kegiatan`;
+    titleEl.textContent = `Chronological Agenda List`;
+    subEl.textContent = `Timeline Order of All Events`;
   }
 }
 
@@ -999,7 +999,7 @@ function updateDashboardRibbon() {
   if (compCountEl && compPercentEl) {
     compCountEl.textContent = completedEvents.length;
     const pct = taskEvents.length > 0 ? Math.round((completedEvents.length / taskEvents.length) * 100) : 0;
-    compPercentEl.textContent = `${pct}% Selesai`;
+    compPercentEl.textContent = `${pct}% Completed`;
   }
 
   const nextEventWrap = document.getElementById('statNextEvent');
@@ -1010,15 +1010,15 @@ function updateDashboardRibbon() {
 
     if (upcoming) {
       const isToday = upcoming.date === todayKey;
-      const dayLabel = isToday ? 'Hari Ini' : 'Besok/Nanti';
+      const dayLabel = isToday ? 'Today' : 'Upcoming';
       nextEventWrap.innerHTML = `
         <span class="next-title" title="${escapeHtml(upcoming.title)}">${escapeHtml(upcoming.title)}</span>
         <span class="next-time">⏰ ${dayLabel}, ${upcoming.startTime || 'All-Day'}</span>
       `;
     } else {
       nextEventWrap.innerHTML = `
-        <span class="next-title">Tidak ada tugas mendesak</span>
-        <span class="next-time">Semua tuntas! 🎉</span>
+        <span class="next-title">No urgent tasks</span>
+        <span class="next-time">All caught up! 🎉</span>
       `;
     }
   }
@@ -1041,9 +1041,9 @@ function renderActiveFilterBanner() {
   if (hasCat || hasPri || hasSearch) {
     banner.classList.remove('hidden');
     const filters = [];
-    if (hasCat) filters.push(`Kategori: ${getCategory(state.activeCategoryFilter).name}`);
-    if (hasPri) filters.push(`Prioritas: ${getPriority(state.activePriorityFilter).label}`);
-    if (hasSearch) filters.push(`Cari: "${state.searchQuery}"`);
+    if (hasCat) filters.push(`Category: ${getCategory(state.activeCategoryFilter).name}`);
+    if (hasPri) filters.push(`Priority: ${getPriority(state.activePriorityFilter).label}`);
+    if (hasSearch) filters.push(`Search: "${state.searchQuery}"`);
     text.textContent = filters.join(' • ');
   } else {
     banner.classList.add('hidden');
@@ -1107,13 +1107,13 @@ function renderMonthView() {
     dayNumber.className = `day-number ${isTanggalMerah ? 'is-tanggal-merah' : ''}`;
     dayNumber.textContent = cellDate.getDate();
     if (dayHolidays.length > 0) {
-      dayNumber.title = `🇮🇩 Tanggal Merah: ${dayHolidays.map(h => h.title).join(', ')}`;
+      dayNumber.title = `🇮🇩 Public Holiday: ${dayHolidays.map(h => h.title).join(', ')}`;
     }
 
     const addBtn = document.createElement('button');
     addBtn.className = 'btn-cell-add';
     addBtn.innerHTML = '+';
-    addBtn.title = `Tambah jadwal pada ${dateKey}`;
+    addBtn.title = `Add schedule on ${dateKey}`;
     addBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       playUiSound('click');
@@ -1131,7 +1131,7 @@ function renderMonthView() {
       dayHolidays.forEach(h => {
         const hBadge = document.createElement('div');
         hBadge.className = 'cell-holiday-badge';
-        hBadge.title = `🇮🇩 Tanggal Merah: ${h.title} (Klik untuk info detail)`;
+        hBadge.title = `🇮🇩 Public Holiday: ${h.title} (Click for details)`;
         hBadge.innerHTML = `
           <span class="tm-flag">🇮🇩</span>
           <span class="tm-text">${escapeHtml(h.title)}</span>
@@ -1166,7 +1166,7 @@ function renderMonthView() {
       chip.innerHTML = `
         <span class="chip-time">${item.startTime || ''}</span>
         <span class="chip-title">${escapeHtml(item.title)}</span>
-        <span class="chip-priority-dot" style="background-color: ${pri.color}; color: ${pri.color};" title="Prioritas: ${pri.label}"></span>
+        <span class="chip-priority-dot" style="background-color: ${pri.color}; color: ${pri.color};" title="Priority: ${pri.label}"></span>
       `;
 
       chip.addEventListener('click', (e) => {
@@ -1181,7 +1181,7 @@ function renderMonthView() {
     if (dayTasks.length > maxVisibleChips) {
       const overflow = document.createElement('div');
       overflow.className = 'more-events-pill';
-      overflow.textContent = `+${dayTasks.length - maxVisibleChips} lainnya`;
+      overflow.textContent = `+${dayTasks.length - maxVisibleChips} more`;
       overflow.addEventListener('click', (e) => {
         e.stopPropagation();
         playUiSound('click');
@@ -1254,7 +1254,7 @@ function renderWeekView() {
     dayCol.innerHTML = `
       <span class="week-day-name">${DAY_NAMES[dayDate.getDay()].slice(0, 3)}</span>
       <span class="week-day-number">${dayDate.getDate()}</span>
-      ${dayHolidays.length > 0 ? `<span class="week-holiday-tag" title="🇮🇩 Tanggal Merah: ${escapeHtml(dayHolidays[0].title)}">🇮🇩 Libur</span>` : ''}
+      ${dayHolidays.length > 0 ? `<span class="week-holiday-tag" title="🇮🇩 Public Holiday: ${escapeHtml(dayHolidays[0].title)}">🇮🇩 Holiday</span>` : ''}
     `;
     dayCol.style.cursor = 'pointer';
     dayCol.addEventListener('click', () => {
@@ -1282,7 +1282,7 @@ function renderWeekView() {
     for (let hour = 0; hour < 24; hour++) {
       const hSlot = document.createElement('div');
       hSlot.className = 'week-hour-slot';
-      hSlot.title = `Tambah jadwal pada ${dateKey} ${String(hour).padStart(2, '0')}:00`;
+      hSlot.title = `Add schedule on ${dateKey} ${String(hour).padStart(2, '0')}:00`;
       hSlot.addEventListener('click', () => {
         const timeStr = `${String(hour).padStart(2, '0')}:00`;
         openScheduleModal(null, dateKey, timeStr);
@@ -1372,12 +1372,12 @@ function renderDayView() {
     <div class="day-header-main">
       <h2 style="${isTanggalMerah ? 'color: #ef4444;' : ''}">
         ${DAY_NAMES[d.getDay()]}, ${d.getDate()} ${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}
-        ${isTanggalMerah ? '<span style="font-size: 0.8rem; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); color: #ef4444; padding: 2px 8px; border-radius: 6px; margin-left: 8px;">🇮🇩 Tanggal Merah</span>' : ''}
+        ${isTanggalMerah ? '<span style="font-size: 0.8rem; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); color: #ef4444; padding: 2px 8px; border-radius: 6px; margin-left: 8px;">🇮🇩 Public Holiday</span>' : ''}
       </h2>
-      <p>${dayTasks.length} Tugas Terjadwal • ${completedCount} Tuntas Selesai</p>
+      <p>${dayTasks.length} Scheduled Tasks • ${completedCount} Completed</p>
     </div>
     <button class="btn btn-primary btn-sm" id="btnDayAddEvent">
-      + Jadwal Hari Ini
+      + Today's Schedule
     </button>
   `;
 
@@ -1395,7 +1395,7 @@ function renderDayView() {
       banner.innerHTML = `
         <div class="tm-flag-icon">🇮🇩</div>
         <div class="tm-banner-body">
-          <div class="tm-banner-kicker">TANGGAL MERAH • HARI LIBUR NASIONAL</div>
+          <div class="tm-banner-kicker">PUBLIC HOLIDAY • NATIONAL OBSERVANCE</div>
           <div class="tm-banner-title">${escapeHtml(h.title)}</div>
           ${h.description ? `<div class="tm-banner-desc">${escapeHtml(h.description)}</div>` : ''}
         </div>
@@ -1415,19 +1415,19 @@ function renderDayView() {
     if (dayHolidays.length > 0) {
       emptyMsg.innerHTML = `
         <p style="font-size: 2.8rem; margin-bottom: 8px;">🏖️</p>
-        <p style="font-weight: 800; color: #ef4444; font-size: 1.15rem; font-family: var(--font-display);">Selamat Menikmati Hari Libur!</p>
-        <p style="font-size: 0.85rem; margin-top: 4px;">Tidak ada agenda tugas wajib hari ini. Waktu yang tepat untuk beristirahat atau berkumpul bersama keluarga.</p>
+        <p style="font-weight: 800; color: #ef4444; font-size: 1.15rem; font-family: var(--font-display);">Enjoy Your Holiday!</p>
+        <p style="font-size: 0.85rem; margin-top: 4px;">No mandatory tasks scheduled today. A great time to rest, recharge, or spend time with loved ones.</p>
         <button class="btn btn-primary btn-sm" style="margin-top: 16px;" onclick="document.getElementById('btnOpenNewSchedule').click()">
-          + Tambah Kegiatan Pribadi
+          + Add Personal Activity
         </button>
       `;
     } else {
       emptyMsg.innerHTML = `
         <p style="font-size: 2.8rem; margin-bottom: 8px;">🏖️</p>
-        <p style="font-weight: 800; color: var(--text-main); font-size: 1.15rem; font-family: var(--font-display);">Belum ada jadwal pada hari ini</p>
-        <p style="font-size: 0.85rem; margin-top: 4px;">Nikmati waktu istirahat atau tambahkan agenda baru.</p>
+        <p style="font-weight: 800; color: var(--text-main); font-size: 1.15rem; font-family: var(--font-display);">No schedules for today</p>
+        <p style="font-size: 0.85rem; margin-top: 4px;">Enjoy your free time or add a new plan.</p>
         <button class="btn btn-primary btn-sm" style="margin-top: 16px;" onclick="document.getElementById('btnOpenNewSchedule').click()">
-          + Tambah Kegiatan
+          + Add Activity
         </button>
       `;
     }
@@ -1456,7 +1456,7 @@ function renderDayView() {
           </div>
         </div>
         <div>
-          <button class="btn btn-outline btn-sm btn-quick-status" title="Ganti status">
+          <button class="btn btn-outline btn-sm btn-quick-status" title="Change status">
             ${stat.icon} ${stat.label}
           </button>
         </div>
@@ -1497,11 +1497,11 @@ function renderDayView() {
 
     const doneCount = allChecklistItems.filter(c => c.done).length;
     if (counterEl) {
-      counterEl.textContent = `${doneCount}/${allChecklistItems.length} Selesai`;
+      counterEl.textContent = `${doneCount}/${allChecklistItems.length} Done`;
     }
 
     if (allChecklistItems.length === 0) {
-      tasksList.innerHTML = `<p style="font-size: 0.8rem; color: var(--text-muted);">Tidak ada checklist aktif dari agenda hari ini.</p>`;
+      tasksList.innerHTML = `<p style="font-size: 0.8rem; color: var(--text-muted);">No active sub-tasks for today's agenda.</p>`;
     } else {
       allChecklistItems.forEach(item => {
         const row = document.createElement('label');
@@ -1589,8 +1589,8 @@ function renderKanbanView() {
         <div class="kanban-card-footer">
           <span>📅 ${item.date}</span>
           ${checkText ? `<span style="font-size: 0.68rem; color: var(--text-muted);">${checkText}</span>` : ''}
-          <button class="kanban-advance-btn" title="Pindah ke tahap berikutnya">
-            <span>Lanjut</span> ➜
+          <button class="kanban-advance-btn" title="Move to next stage">
+            <span>Next</span> ➜
           </button>
         </div>
       `;
@@ -1627,7 +1627,7 @@ async function advanceKanbanStatus(scheduleId) {
 
   await persistSchedule(item);
   renderApp();
-  showToast(`Status '${item.title}' diubah ke: ${getStatus(item.status).label}`, 'success');
+  showToast(`Status '${item.title}' changed to: ${getStatus(item.status).label}`, 'success');
 }
 
 // ==============================================================================
@@ -1643,8 +1643,8 @@ function renderAgendaView() {
     container.innerHTML = `
       <div style="text-align: center; padding: 48px; color: var(--text-muted);">
         <p style="font-size: 2.8rem; margin-bottom: 10px;">📋</p>
-        <p style="font-weight: 800; color: var(--text-main); font-size: 1.15rem; font-family: var(--font-display);">Tidak ada agenda yang cocok</p>
-        <p style="font-size: 0.85rem; margin-top: 4px;">Coba sesuaikan kata kunci pencarian atau filter kategori Anda.</p>
+        <p style="font-weight: 800; color: var(--text-main); font-size: 1.15rem; font-family: var(--font-display);">No matching schedules</p>
+        <p style="font-size: 0.85rem; margin-top: 4px;">Try adjusting your search keywords or category filters.</p>
       </div>
     `;
     return;
@@ -1662,10 +1662,10 @@ function renderAgendaView() {
   const tomorrowKey = formatDateKey(tomorrow);
 
   const groups = [
-    { title: 'Hari Ini', items: sorted.filter(s => s.date === todayKey) },
-    { title: 'Besok', items: sorted.filter(s => s.date === tomorrowKey) },
-    { title: 'Mendatang', items: sorted.filter(s => s.date > tomorrowKey) },
-    { title: 'Telah Lewat', items: sorted.filter(s => s.date < todayKey) }
+    { title: 'Today', items: sorted.filter(s => s.date === todayKey) },
+    { title: 'Tomorrow', items: sorted.filter(s => s.date === tomorrowKey) },
+    { title: 'Upcoming', items: sorted.filter(s => s.date > tomorrowKey) },
+    { title: 'Past', items: sorted.filter(s => s.date < todayKey) }
   ];
 
   groups.forEach(group => {
@@ -1679,7 +1679,7 @@ function renderAgendaView() {
         <h3 class="agenda-group-title">
           <span>${group.title}</span>
         </h3>
-        <span class="agenda-group-count">${group.items.length} Agenda</span>
+        <span class="agenda-group-count">${group.items.length} Events</span>
       </div>
     `;
 
@@ -1696,19 +1696,19 @@ function renderAgendaView() {
           <div class="agenda-left-section">
             <span class="agenda-holiday-flag">🇮🇩</span>
             <div class="agenda-time-pill" style="background: rgba(239, 68, 68, 0.12); color: #ef4444; border-color: rgba(239, 68, 68, 0.3);">
-              ${item.date} • Tanggal Merah
+              ${item.date} • Public Holiday
             </div>
             <div>
               <div class="agenda-card-title" style="color: #ef4444; font-weight: 700;">${escapeHtml(item.title)}</div>
               <div class="agenda-meta-row">
-                <span class="agenda-holiday-badge">🇮🇩 Libur Nasional</span>
+                <span class="agenda-holiday-badge">🇮🇩 Public Holiday</span>
                 ${item.description ? `<span>•</span> <span style="font-size: 0.78rem; color: var(--text-secondary);">${escapeHtml(item.description)}</span>` : ''}
               </div>
             </div>
           </div>
           <div class="agenda-actions-right">
             <span style="font-size: 0.75rem; font-weight: 700; color: #ef4444; padding: 4px 10px; background: rgba(239, 68, 68, 0.08); border-radius: 6px; border: 1px solid rgba(239, 68, 68, 0.2);">
-              Libur Resmi
+              Official Holiday
             </span>
           </div>
         `;
@@ -1730,7 +1730,7 @@ function renderAgendaView() {
 
       card.innerHTML = `
         <div class="agenda-left-section">
-          <input type="checkbox" class="agenda-checkbox" ${isDone ? 'checked' : ''} title="Tandai Selesai">
+          <input type="checkbox" class="agenda-checkbox" ${isDone ? 'checked' : ''} title="Mark as Completed">
           <div class="agenda-time-pill">${item.date} • ${item.startTime || 'All day'}</div>
           <div>
             <div class="agenda-card-title">${escapeHtml(item.title)}</div>
@@ -1743,8 +1743,8 @@ function renderAgendaView() {
           </div>
         </div>
         <div class="agenda-actions-right">
-          <button class="btn btn-outline btn-sm btn-edit-item" title="Edit Agenda">Edit</button>
-          <button class="btn-icon btn-sm text-danger btn-delete-item" title="Hapus Agenda">
+          <button class="btn btn-outline btn-sm btn-edit-item" title="Edit Schedule">Edit</button>
+          <button class="btn-icon btn-sm text-danger btn-delete-item" title="Delete Schedule">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
           </button>
         </div>
@@ -1821,7 +1821,7 @@ function renderMiniCalendar() {
 
     if (isSunday || isHoliday) {
       el.classList.add('is-tanggal-merah');
-      if (isHoliday) el.title = `🇮🇩 Tanggal Merah / Libur Nasional`;
+      if (isHoliday) el.title = `🇮🇩 Public Holiday`;
     }
     if (isDateToday(thisDate)) el.classList.add('is-today');
     if (isSameDate(thisDate, state.selectedDate)) el.classList.add('is-selected');
@@ -1905,7 +1905,7 @@ function openScheduleModal(itemToEdit = null, defaultDateStr = null, defaultTime
 
   if (itemToEdit) {
     currentEditingId = itemToEdit.id;
-    titleEl.textContent = 'Edit Rincian Jadwal';
+    titleEl.textContent = 'Edit Schedule Details';
     badgeEl.textContent = '✏️';
     deleteBtn.classList.remove('hidden');
 
@@ -1930,7 +1930,7 @@ function openScheduleModal(itemToEdit = null, defaultDateStr = null, defaultTime
     }
   } else {
     currentEditingId = null;
-    titleEl.textContent = 'Tambah Jadwal Baru';
+    titleEl.textContent = 'Add New Schedule';
     badgeEl.textContent = '📅';
     deleteBtn.classList.add('hidden');
 
@@ -1961,8 +1961,8 @@ function addChecklistInputRow(text = '', isDone = false) {
   row.className = 'checklist-input-row';
   row.innerHTML = `
     <input type="checkbox" class="agenda-checkbox" ${isDone ? 'checked' : ''}>
-    <input type="text" class="form-control checklist-text-input" placeholder="Nama sub-tugas..." value="${escapeHtml(text)}">
-    <button type="button" class="btn-icon btn-remove-check" title="Hapus sub-tugas">✕</button>
+    <input type="text" class="form-control checklist-text-input" placeholder="Sub-task name..." value="${escapeHtml(text)}">
+    <button type="button" class="btn-icon btn-remove-check" title="Remove sub-task">✕</button>
   `;
 
   row.querySelector('.btn-remove-check').addEventListener('click', () => {
@@ -1979,7 +1979,7 @@ async function handleScheduleFormSubmit(e) {
   const title = document.getElementById('formTitle').value.trim();
   const date = document.getElementById('formDate').value;
   if (!title || !date) {
-    showToast('Mohon isi judul dan tanggal jadwal.', 'warning');
+    showToast('Please provide a schedule title and date.', 'warning');
     return;
   }
 
@@ -2012,10 +2012,10 @@ async function handleScheduleFormSubmit(e) {
   if (currentEditingId) {
     const idx = state.schedules.findIndex(s => s.id === currentEditingId);
     if (idx !== -1) state.schedules[idx] = scheduleData;
-    showToast('Jadwal berhasil diperbarui!', 'success');
+    showToast('Schedule updated successfully!', 'success');
   } else {
     state.schedules.push(scheduleData);
-    showToast('Jadwal baru berhasil ditambahkan!', 'success');
+    showToast('New schedule added successfully!', 'success');
   }
 
   playUiSound('complete');
@@ -2028,14 +2028,14 @@ async function confirmDeleteSchedule(id) {
   const item = state.schedules.find(s => s.id === id);
   if (!item) return;
 
-  if (confirm(`Apakah Anda yakin ingin menghapus jadwal "${item.title}"?`)) {
+  if (confirm(`Are you sure you want to delete "${item.title}"?`)) {
     playUiSound('delete');
     state.schedules = state.schedules.filter(s => s.id !== id);
     await removeSchedule(id);
     closeScheduleModal();
     closePreviewModal();
     renderApp();
-    showToast('Jadwal berhasil dihapus.', 'info');
+    showToast('Schedule deleted successfully.', 'info');
   }
 }
 
@@ -2055,10 +2055,10 @@ function openPreviewModal(item) {
   if (isHoliday) {
     badgesRow.innerHTML = `
       <span class="kanban-cat-badge" style="background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.35); font-weight: 800;">
-        🇮🇩 Tanggal Merah
+        🇮🇩 Public Holiday
       </span>
       <span class="kanban-cat-badge" style="background: var(--border-subtle); color: var(--text-main);">
-        Libur Resmi Nasional
+        Official National Holiday
       </span>
     `;
 
@@ -2067,9 +2067,9 @@ function openPreviewModal(item) {
         🇮🇩 ${escapeHtml(item.title)}
       </h3>
       <div style="font-size: 0.84rem; color: var(--text-secondary); display: flex; flex-direction: column; gap: 4px; margin-top: 6px;">
-        <div>📅 Tanggal: <strong>${item.date}</strong></div>
-        <div>🏷️ Kategori: <strong style="color: #ef4444;">Hari Libur Nasional Indonesia</strong></div>
-        <div>⚡ Prioritas: <em>Tidak masuk prioritas tugas (Tanggal Merah)</em></div>
+        <div>📅 Date: <strong>${item.date}</strong></div>
+        <div>🏷️ Category: <strong style="color: #ef4444;">National Public Holiday</strong></div>
+        <div>⚡ Priority: <em>Excluded from task priorities (Public Holiday)</em></div>
       </div>
       ${item.description ? `
         <div style="margin-top: 12px; background: rgba(239, 68, 68, 0.06); border: 1px solid rgba(239, 68, 68, 0.2); padding: 12px; border-radius: 8px; font-size: 0.84rem; color: var(--text-secondary); line-height: 1.45;">
@@ -2084,7 +2084,7 @@ function openPreviewModal(item) {
     return;
   }
 
-  // Item tugas biasa
+  // Regular task item
   if (toggleBtn) toggleBtn.style.display = '';
   if (editBtn) editBtn.style.display = '';
 
@@ -2124,9 +2124,9 @@ function openPreviewModal(item) {
   body.innerHTML = `
     <h3 style="font-family: var(--font-display); font-size: 1.25rem; font-weight: 800; line-height: 1.35;">${escapeHtml(item.title)}</h3>
     <div style="font-size: 0.84rem; color: var(--text-secondary); display: flex; flex-direction: column; gap: 4px; margin-top: 6px;">
-      <div>📅 Tanggal: <strong>${item.date}</strong></div>
-      <div>⏰ Waktu: <strong>${item.startTime || 'All day'} - ${item.endTime || 'End'}</strong></div>
-      ${item.location ? `<div>📍 Lokasi: <strong>${escapeHtml(item.location)}</strong></div>` : ''}
+      <div>📅 Date: <strong>${item.date}</strong></div>
+      <div>⏰ Time: <strong>${item.startTime || 'All day'} - ${item.endTime || 'End'}</strong></div>
+      ${item.location ? `<div>📍 Location: <strong>${escapeHtml(item.location)}</strong></div>` : ''}
     </div>
     ${item.description ? `
       <div style="margin-top: 12px; background: var(--bg-input); padding: 12px; border-radius: 8px; font-size: 0.84rem; color: var(--text-secondary);">
@@ -2137,7 +2137,7 @@ function openPreviewModal(item) {
   `;
 
   if (toggleBtn) {
-    toggleBtn.textContent = item.status === 'completed' ? 'Tandai Belum Selesai' : 'Tandai Selesai';
+    toggleBtn.textContent = item.status === 'completed' ? 'Mark as Incomplete' : 'Mark as Completed';
   }
   modal.classList.remove('hidden');
 }
@@ -2154,12 +2154,12 @@ async function toggleScheduleComplete(id) {
   if (item.status === 'completed') {
     item.status = 'scheduled';
     playUiSound('click');
-    showToast(`'${item.title}' ditandai aktif kembali.`, 'info');
+    showToast(`'${item.title}' marked as active.`, 'info');
   } else {
     item.status = 'completed';
     playUiSound('complete');
     triggerConfetti();
-    showToast(`'${item.title}' selesai dikerjakan! 🎉`, 'success');
+    showToast(`'${item.title}' completed! 🎉`, 'success');
   }
 
   await persistSchedule(item);
@@ -2199,17 +2199,17 @@ function openAuthModal(mode = 'login') {
   document.getElementById('authForm')?.reset();
 
   if (mode === 'login') {
-    title.textContent = 'Masuk ke Akun Anda';
+    title.textContent = 'Sign In to Your Account';
     tabLogin.classList.add('active');
     tabReg.classList.remove('active');
     groupName.classList.add('hidden');
-    submitText.textContent = 'Masuk Sekarang';
+    submitText.textContent = 'Sign In Now';
   } else {
-    title.textContent = 'Daftar Akun Baru';
+    title.textContent = 'Create New Account';
     tabLogin.classList.remove('active');
     tabReg.classList.add('active');
     groupName.classList.remove('hidden');
-    submitText.textContent = 'Buat Akun & Sinkronkan';
+    submitText.textContent = 'Create Account & Sync';
   }
 
   const emailField = document.getElementById('authEmail');
@@ -2247,22 +2247,22 @@ async function handleAuthFormSubmit(e) {
   const submitText = document.getElementById('authSubmitText');
 
   if (!email || !password) {
-    showAuthAlert('Email dan kata sandi wajib diisi.', 'error');
+    showAuthAlert('Email and password are required.', 'error');
     return;
   }
 
   if (password.length < 6) {
-    showAuthAlert('Kata sandi minimal 6 karakter.', 'error');
+    showAuthAlert('Password must be at least 6 characters.', 'error');
     return;
   }
 
   if (!isSupabaseConfigured()) {
-    showAuthAlert('Kredensial Supabase belum terpasang. Klik tombol "Atur Kredensial Supabase" di bawah.', 'error');
+    showAuthAlert('Supabase credentials not configured. Click "Configure Supabase" below.', 'error');
     return;
   }
 
   submitBtn.disabled = true;
-  submitText.textContent = 'Memproses... ⏳';
+  submitText.textContent = 'Processing... ⏳';
 
   try {
     if (activeAuthMode === 'login') {
@@ -2287,7 +2287,7 @@ async function handleAuthFormSubmit(e) {
       closeAuthModal();
       playUiSound('chime');
       triggerConfetti();
-      showToast(`Selamat datang kembali, ${data.user.email}!`, 'success');
+      showToast(`Welcome back, ${data.user.email}!`, 'success');
       await loadUserData(data.user.id);
     } else {
       const data = await registerWithEmail(email, password, displayName);
@@ -2297,18 +2297,18 @@ async function handleAuthFormSubmit(e) {
         closeAuthModal();
         playUiSound('chime');
         triggerConfetti();
-        showToast('Akun berhasil dibuat dan terhubung!', 'success');
+        showToast('Account successfully created and connected!', 'success');
         await loadUserData(data.user.id);
       } else {
-        // Kasus jika Supabase memerlukan konfirmasi email
-        showAuthAlert('Pendaftaran berhasil! Cek email Anda untuk konfirmasi aktivasi akun, lalu masuk kembali.', 'success');
+        // Case if Supabase requires email confirmation
+        showAuthAlert('Registration successful! Please check your email to confirm activation, then sign in.', 'success');
       }
     }
   } catch (err) {
-    showAuthAlert(err.message || 'Terjadi kesalahan saat otentikasi.', 'error');
+    showAuthAlert(err.message || 'An error occurred during authentication.', 'error');
   } finally {
     submitBtn.disabled = false;
-    submitText.textContent = activeAuthMode === 'login' ? 'Masuk Sekarang' : 'Buat Akun & Sinkronkan';
+    submitText.textContent = activeAuthMode === 'login' ? 'Sign In Now' : 'Create Account & Sync';
   }
 }
 
@@ -2321,14 +2321,14 @@ function showAuthAlert(message, type = 'error') {
 }
 
 async function handleLogout() {
-  if (confirm('Apakah Anda yakin ingin keluar dari akun?')) {
+  if (confirm('Are you sure you want to sign out?')) {
     playUiSound('click');
     await logoutUser();
     state.currentUser = null;
     updateUserUI();
     closeProfileModal();
     loadLocalSchedules('guest');
-    showToast('Anda telah keluar dari akun.', 'info');
+    showToast('You have been signed out.', 'info');
     openAuthModal('login');
   }
 }
@@ -2359,19 +2359,19 @@ async function handleSaveSupabaseConfig() {
   const key = document.getElementById('cfgSupabaseAnonKey')?.value.trim();
 
   if (!url || !key) {
-    showToast('Project URL dan Anon Key wajib diisi.', 'warning');
+    showToast('Project URL and Anon Key are required.', 'warning');
     return;
   }
 
   saveSupabaseCredentials(url, key);
   closeSupabaseConfigModal();
-  showToast('Kredensial Supabase disimpan! Memeriksa koneksi...', 'info');
+  showToast('Supabase credentials saved! Testing connection...', 'info');
 
   await initSupabaseSession();
 
   if (isSupabaseConfigured()) {
     playUiSound('chime');
-    showToast('🟢 Berhasil terhubung ke Supabase! Silakan masuk ke akun Anda.', 'success');
+    showToast('🟢 Successfully connected to Supabase! Please sign in to your account.', 'success');
     if (!state.currentUser) {
       openAuthModal('login');
     }
@@ -2388,7 +2388,7 @@ async function openAdminModal() {
   const user = state.currentUser;
   const isAdm = isUserAdmin(user);
   if (!isAdm) {
-    showToast('⚠️ Akses Ditolak: Hanya akun Administrator yang dapat mengakses panel ini.', 'error');
+    showToast('⚠️ Access Denied: Administrator account required to access this panel.', 'error');
     return;
   }
 
@@ -2432,7 +2432,7 @@ async function refreshAdminStats() {
   if (statSched) statSched.textContent = '...';
   if (statNotes) statNotes.textContent = '...';
   if (statUsers) statUsers.textContent = '...';
-  if (statPing) statPing.textContent = 'Mengukur...';
+  if (statPing) statPing.textContent = 'Measuring...';
 
   const startTime = performance.now();
   try {
@@ -2444,7 +2444,7 @@ async function refreshAdminStats() {
     if (statUsers) statUsers.textContent = stats.distinctUsers;
     if (statPing) statPing.textContent = `${duration} ms (Online)`;
   } catch (err) {
-    console.warn('Gagal memuat statistik admin:', err);
+    console.warn('Failed to load admin stats:', err);
     if (statPing) statPing.textContent = 'Error';
   }
 }
@@ -2456,9 +2456,9 @@ async function toggleAdminGlobalMode() {
 
   playUiSound('pop');
   if (state.adminModeAllSchedules) {
-    showToast('👑 Mode Pengawas Diaktifkan: Menampilkan seluruh jadwal dari cloud.', 'success');
+    showToast('👑 Overseer Mode Enabled: Displaying all schedules from the cloud.', 'success');
   } else {
-    showToast('👤 Mode Pribadi: Menampilkan jadwal milik Anda saja.', 'info');
+    showToast('👤 Private Mode: Displaying only your personal schedules.', 'info');
   }
 
   if (state.currentUser) {
@@ -2468,7 +2468,7 @@ async function toggleAdminGlobalMode() {
 
 async function exportAdminMasterBackup() {
   try {
-    showToast('Menyiapkan master backup database cloud...', 'info');
+    showToast('Preparing cloud database master backup...', 'info');
     const allSchedules = await fetchAllSchedulesAdmin();
     const stats = await fetchAdminDatabaseStats();
 
@@ -2494,16 +2494,16 @@ async function exportAdminMasterBackup() {
 
     playUiSound('complete');
     triggerConfetti();
-    showToast(`Master backup berhasil diunduh (${allSchedules.length} jadwal cloud)!`, 'success');
+    showToast(`Master backup downloaded successfully (${allSchedules.length} cloud schedules)!`, 'success');
   } catch (err) {
-    console.error('Gagal export master backup:', err);
-    showToast('Gagal mengunduh master backup: ' + err.message, 'error');
+    console.error('Failed to export master backup:', err);
+    showToast('Failed to download master backup: ' + err.message, 'error');
   }
 }
 
 function copyAdminSqlToClipboard() {
   const sql = `-- ==============================================================================
--- AKTIVASI ROLE ADMIN: JOVAN MATTHEW ADDERSON
+-- ADMIN ROLE ACTIVATION: JOVAN MATTHEW ADDERSON
 -- ==============================================================================
 UPDATE auth.users
 SET raw_app_meta_data = COALESCE(raw_app_meta_data, '{}'::jsonb) || '{"role": "admin", "is_admin": true}'::jsonb,
@@ -2513,16 +2513,16 @@ WHERE id = 'a76b1dfe-9c4d-4be5-be10-808f0355bfaa'
 
   navigator.clipboard.writeText(sql).then(() => {
     playUiSound('pop');
-    showToast('📋 Query SQL aktivasi admin berhasil disalin ke clipboard!', 'success');
+    showToast('📋 Admin activation SQL query copied to clipboard!', 'success');
   }).catch(() => {
-    showToast('Gagal menyalin query. Silakan salin dari file supabase-schema.sql', 'warning');
+    showToast('Failed to copy query. Please copy directly from supabase-schema.sql', 'warning');
   });
 }
 
 function showAdminBroadcastPrompt() {
-  const msg = prompt('Masukkan pesan pengumuman sistem untuk ditampilkan ke pengguna:');
+  const msg = prompt('Enter system announcement message to broadcast to users:');
   if (msg && msg.trim()) {
-    showToast(`📢 PENGUMUMAN ADMIN: ${msg.trim()}`, 'info');
+    showToast(`📢 ADMIN ANNOUNCEMENT: ${msg.trim()}`, 'info');
     playUiSound('chime');
   }
 }
@@ -2539,7 +2539,7 @@ function exportDataJSON() {
   document.body.appendChild(downloadAnchor);
   downloadAnchor.click();
   downloadAnchor.remove();
-  showToast('File backup JSON berhasil diunduh!', 'success');
+  showToast('JSON backup file downloaded successfully!', 'success');
 }
 
 function openImportModal() {
@@ -2555,19 +2555,19 @@ async function applyImportJSON() {
   const textarea = document.getElementById('importJsonTextarea');
   const rawText = textarea.value.trim();
   if (!rawText) {
-    showToast('Teks JSON tidak boleh kosong.', 'warning');
+    showToast('JSON content cannot be empty.', 'warning');
     return;
   }
 
   try {
     const parsed = JSON.parse(rawText);
     if (!Array.isArray(parsed)) {
-      throw new Error('Data JSON harus berupa array jadwal.');
+      throw new Error('JSON data must be an array of schedules.');
     }
     state.schedules = parsed;
     playUiSound('complete');
 
-    // Simpan ke local & cloud
+    // Save to local & cloud
     const accKey = state.currentUser ? state.currentUser.id : 'guest';
     localStorage.setItem(`${STORAGE_PREFIX}${accKey}`, JSON.stringify(state.schedules));
 
@@ -2579,9 +2579,9 @@ async function applyImportJSON() {
 
     closeImportModal();
     renderApp();
-    showToast(`Berhasil mengimpor ${parsed.length} data jadwal!`, 'success');
+    showToast(`Successfully imported ${parsed.length} schedule items!`, 'success');
   } catch (err) {
-    showToast('Format JSON salah: ' + err.message, 'danger');
+    showToast('Invalid JSON format: ' + err.message, 'danger');
   }
 }
 
@@ -2589,9 +2589,9 @@ async function resetToDefaultData() {
   await resetToIndonesiaCalendar();
 }
 
-/** Mereset seluruh jadwal dan menggantinya dengan Kalender Indonesia resmi (Hari Libur Nasional 2025 - 2026) */
+/** Reset all schedules and reload official Indonesian Calendar (National Holidays 2025 - 2026) */
 async function resetToIndonesiaCalendar() {
-  if (!confirm('Hapus seluruh jadwal lama dan muat seluruh Hari Libur & Perayaan Resmi Kalender Indonesia (2025 - 2026)?')) {
+  if (!confirm('Clear all old schedules and load official calendar holidays & events (2025 - 2026)?')) {
     return;
   }
   playUiSound('pop');
@@ -2601,14 +2601,14 @@ async function resetToIndonesiaCalendar() {
   localStorage.setItem(`${STORAGE_PREFIX}${accKey}`, JSON.stringify(state.schedules));
 
   if (state.currentUser && isSupabaseConfigured()) {
-    showToast('Menyimpan Kalender Indonesia ke Supabase...', 'info');
+    showToast('Saving calendar holidays to Supabase...', 'info');
     await purgeOldDummySchedules(state.currentUser.id).catch(() => {});
     await seedInitialSchedulesForUser(state.currentUser.id, defaults).catch(() => {});
   }
 
   renderApp();
   triggerConfetti();
-  showToast(`🇮🇩 Berhasil memuat ${defaults.length} Hari Libur & Perayaan Kalender Indonesia!`, 'success');
+  showToast(`🇮🇩 Successfully loaded ${defaults.length} official calendar holidays & events!`, 'success');
 }
 
 // ==============================================================================
@@ -2625,7 +2625,7 @@ function toggleTheme() {
   localStorage.setItem(THEME_KEY, state.theme);
   updateThemeIcon();
   playUiSound('pop');
-  showToast(`Tema diganti ke mode ${state.theme === 'dark' ? 'Gelap' : 'Terang'}`, 'info');
+  showToast(`Theme switched to ${state.theme === 'dark' ? 'Dark' : 'Light'} mode`, 'info');
 }
 
 function updateThemeIcon() {
@@ -2647,7 +2647,7 @@ function toggleSound() {
   localStorage.setItem(SOUND_KEY, state.soundEnabled);
   updateSoundIcon();
   if (state.soundEnabled) playUiSound('chime');
-  showToast(`Efek suara antarmuka ${state.soundEnabled ? 'diaktifkan' : 'dinonaktifkan'}`, 'info');
+  showToast(`Interface sound effects ${state.soundEnabled ? 'enabled' : 'disabled'}`, 'info');
 }
 
 function updateSoundIcon() {
@@ -2946,7 +2946,7 @@ function setupEventListeners() {
     } else {
       document.body.classList.toggle('sidebar-collapsed');
       const isCollapsed = document.body.classList.contains('sidebar-collapsed');
-      showToast(isCollapsed ? 'Sidebar disembunyikan (Widescreen Mode)' : 'Sidebar ditampilkan', 'info');
+      showToast(isCollapsed ? 'Sidebar collapsed (Widescreen Mode)' : 'Sidebar expanded', 'info');
     }
   }
 
@@ -3042,7 +3042,7 @@ function setupEventListeners() {
     }
 
     playUiSound('complete');
-    showToast('Catatan harian berhasil disimpan.', 'success');
+    showToast('Daily notes saved successfully.', 'success');
   });
 
   // Global Keyboard Shortcuts

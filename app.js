@@ -19,7 +19,7 @@
  * ==============================================================================
  */
 
-import { CATEGORIES, PRIORITIES, STATUSES, getDefaultSchedules, isOldDummySchedule } from './schedule-data.js';
+import { CATEGORIES, PRIORITIES, STATUSES, getDefaultSchedules, isOldDummySchedule, HOLIDAY_CATEGORY } from './schedule-data.js';
 import {
   initSupabase,
   isSupabaseConfigured,
@@ -882,6 +882,7 @@ function isDateToday(date) {
 }
 
 function getCategory(catId) {
+  if (catId === 'holiday') return HOLIDAY_CATEGORY;
   return CATEGORIES.find(c => c.id === catId) || {
     id: 'other',
     name: 'Lainnya',

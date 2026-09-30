@@ -8,19 +8,20 @@
  */
 
 // ------------------------------------------------------------------------------
-// 1. DAFTAR KATEGORI JADWAL DENGAN GRADIEN MEWAH
+// 1. KATEGORI HARI LIBUR NASIONAL & KATEGORI TUGAS
 // ------------------------------------------------------------------------------
+export const HOLIDAY_CATEGORY = {
+  id: 'holiday',
+  name: 'Libur Nasional',
+  nameEn: 'National Holiday',
+  color: '#ef4444',       // Merah Putih Indonesia
+  gradient: 'linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)',
+  bgColor: 'rgba(239, 68, 68, 0.16)',
+  borderColor: '#f87171',
+  icon: '🇮🇩'
+};
+
 export const CATEGORIES = [
-  {
-    id: 'holiday',
-    name: 'Libur Nasional & Perayaan',
-    nameEn: 'National Holidays',
-    color: '#ef4444',       // Merah Putih Indonesia
-    gradient: 'linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)',
-    bgColor: 'rgba(239, 68, 68, 0.16)',
-    borderColor: '#f87171',
-    icon: '🇮🇩'
-  },
   {
     id: 'work',
     name: 'Pekerjaan',

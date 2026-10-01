@@ -3702,6 +3702,320 @@ body.sidebar-collapsed .sidebar {
   color: #2eb875;
 }
 
+/* -------------------------------------------------------------------------- */
+/* EMAIL OTP VERIFICATION & PROFESSIONAL GMAIL STYLES                        */
+/* -------------------------------------------------------------------------- */
+.auth-verify-view {
+  padding: 22px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  animation: fadeIn 0.22s ease-out;
+}
+
+.verify-banner-wrap {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.verify-icon-circle {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: var(--primary-light);
+  color: var(--primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 18px var(--primary-glow);
+  margin-bottom: 2px;
+  border: 1px solid rgba(99, 102, 241, 0.3);
+}
+
+.verify-heading {
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--text-main);
+  margin: 0;
+}
+
+.verify-subheading {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin: 0;
+  max-width: 320px;
+}
+
+.verify-email-pill {
+  display: inline-block;
+  background: rgba(99, 102, 241, 0.15);
+  color: #818cf8;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-weight: 700;
+  font-size: 0.82rem;
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  word-break: break-all;
+}
+
+/* Professional Gmail Guidance Box */
+.gmail-assistant-box {
+  background: rgba(234, 67, 53, 0.08);
+  border: 1px solid rgba(234, 67, 53, 0.25);
+  border-radius: 12px;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.gmail-ass-left {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.gmail-ass-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: #ea4335;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.gmail-ass-text {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+  display: flex;
+  flex-direction: column;
+}
+
+.gmail-ass-sub {
+  color: var(--text-muted);
+  font-size: 0.68rem;
+}
+
+.btn-goto-gmail {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 12px;
+  border-radius: 8px;
+  background: rgba(234, 67, 53, 0.15);
+  border: 1px solid rgba(234, 67, 53, 0.35);
+  color: #f87171;
+  font-size: 0.74rem;
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: all 0.18s ease;
+  flex-shrink: 0;
+}
+
+.btn-goto-gmail:hover {
+  background: #ea4335;
+  border-color: #ea4335;
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(234, 67, 53, 0.4);
+}
+
+/* 6-Digit OTP Segmented Input Row */
+.otp-inputs-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0;
+}
+
+.otp-boxes-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.otp-box-digit {
+  width: 44px;
+  height: 52px;
+  text-align: center;
+  font-size: 1.45rem;
+  font-weight: 800;
+  font-family: var(--font-mono);
+  border-radius: 10px;
+  background: var(--bg-input);
+  border: 1.5px solid var(--border-subtle);
+  color: var(--text-main);
+  transition: all 0.18s ease;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.otp-box-digit:focus {
+  border-color: var(--primary);
+  background: rgba(99, 102, 241, 0.12);
+  box-shadow: 0 0 14px var(--primary-glow);
+  transform: translateY(-2px);
+}
+
+.otp-box-digit.has-val {
+  border-color: rgba(99, 102, 241, 0.5);
+  background: rgba(99, 102, 241, 0.08);
+}
+
+.otp-box-dash {
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: var(--text-muted);
+}
+
+.btn-verify-submit {
+  padding: 12px;
+  font-size: 0.92rem;
+  box-shadow: 0 4px 14px var(--primary-light);
+}
+
+/* Resend Countdown Button (1 Minute) */
+.resend-timer-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  text-align: center;
+}
+
+.btn-resend-countdown {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 14px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  border-radius: var(--radius-sm);
+  transition: all 0.2s ease;
+}
+
+.btn-resend-countdown:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  border: 1px dashed var(--border-subtle);
+  color: var(--text-muted);
+}
+
+.btn-resend-countdown:not(:disabled) {
+  border: 1px solid var(--primary);
+  color: var(--primary);
+  background: var(--primary-light);
+  cursor: pointer;
+}
+
+.btn-resend-countdown:not(:disabled):hover {
+  background: var(--primary);
+  color: #ffffff;
+  box-shadow: 0 4px 14px var(--primary-glow);
+}
+
+.resend-timer-hint {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+}
+
+.verify-footer-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px solid var(--border-subtle);
+  padding-top: 10px;
+  margin-top: 4px;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Template Guide Modal */
+.template-modal-card {
+  max-width: 520px;
+}
+
+.template-instructions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.t-step {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  padding: 8px 12px;
+  border-radius: 8px;
+}
+
+.t-num {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--primary-light);
+  color: var(--primary);
+  font-size: 0.7rem;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.template-code-box {
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  overflow: hidden;
+  margin-top: 10px;
+}
+
+.code-box-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 14px;
+  background: rgba(0, 0, 0, 0.35);
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+.template-code-area {
+  width: 100%;
+  height: 180px;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  padding: 12px 14px;
+  background: transparent;
+  border: none;
+  color: #a5b4fc;
+  resize: vertical;
+  box-sizing: border-box;
+  outline: none;
+}
+
 /* User Profile Modal */
 .profile-modal-body {
   padding: 24px;

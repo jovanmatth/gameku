@@ -789,57 +789,185 @@
         <button id="btnCloseAuthModal" class="btn-icon modal-close-btn" aria-label="Close Login Modal">✕</button>
       </div>
 
-      <!-- Auth Tabs Switcher -->
-      <div class="auth-tabs-bar">
-        <button type="button" class="auth-tab-btn active" id="tabBtnLogin">Sign In</button>
-        <button type="button" class="auth-tab-btn" id="tabBtnRegister">Create Account</button>
+      <!-- Step 1: Login / Register Form -->
+      <div id="authCredentialsView">
+        <!-- Auth Tabs Switcher -->
+        <div class="auth-tabs-bar">
+          <button type="button" class="auth-tab-btn active" id="tabBtnLogin">Sign In</button>
+          <button type="button" class="auth-tab-btn" id="tabBtnRegister">Create Account</button>
+        </div>
+
+        <form id="authForm" class="modal-form" novalidate>
+          <!-- Display Name (Visible on Register tab only) -->
+          <div class="form-group hidden" id="groupDisplayName">
+            <label for="authDisplayName" class="form-label">Full Name / Display Name</label>
+            <input type="text" id="authDisplayName" class="form-control" placeholder="e.g., Alex Johnson">
+          </div>
+
+          <!-- Email Input -->
+          <div class="form-group">
+            <label for="authEmail" class="form-label required">Email Address</label>
+            <input type="email" id="authEmail" class="form-control" placeholder="name@email.com" required
+              autocomplete="email">
+          </div>
+
+          <!-- Password Input -->
+          <div class="form-group">
+            <label for="authPassword" class="form-label required">Password</label>
+            <div class="password-input-wrap">
+              <input type="password" id="authPassword" class="form-control" placeholder="At least 6 characters" required
+                autocomplete="current-password">
+              <button type="button" id="btnTogglePasswordVisibility" class="btn-password-eye"
+                title="Show/Hide Password">👁️</button>
+            </div>
+            <span class="field-hint" id="passwordHint">Use a strong password to protect your schedule data.</span>
+          </div>
+
+          <!-- Error & Info Box -->
+          <div id="authAlertBox" class="auth-alert-box hidden"></div>
+
+          <!-- Submit Button -->
+          <button type="submit" id="btnAuthSubmit" class="btn btn-primary btn-block btn-auth-submit">
+            <span id="authSubmitText">Sign In Now</span>
+          </button>
+
+          <!-- Quick Super Admin Access Button -->
+          <button type="button" id="btnQuickAdminLogin" class="btn btn-warning btn-block" style="margin-top: 10px;"
+            title="Sign In Directly as Super Administrator (Jovan Matthew Adderson)">
+            <span>👑 Sign In as Admin (Jovan)</span>
+          </button>
+
+          <div class="auth-footer-links">
+            <button type="button" id="btnContinueGuest" class="btn-link btn-xs text-muted">Continue as Guest (Local Mode)</button>
+            <button type="button" id="btnOpenSupabaseFromAuth" class="btn-link btn-xs text-supabase">Configure Supabase Credentials</button>
+          </div>
+        </form>
       </div>
 
-      <form id="authForm" class="modal-form" novalidate>
-        <!-- Display Name (Visible on Register tab only) -->
-        <div class="form-group hidden" id="groupDisplayName">
-          <label for="authDisplayName" class="form-label">Full Name / Display Name</label>
-          <input type="text" id="authDisplayName" class="form-control" placeholder="e.g., Alex Johnson">
-        </div>
-
-        <!-- Email Input -->
-        <div class="form-group">
-          <label for="authEmail" class="form-label required">Email Address</label>
-          <input type="email" id="authEmail" class="form-control" placeholder="name@email.com" required
-            autocomplete="email">
-        </div>
-
-        <!-- Password Input -->
-        <div class="form-group">
-          <label for="authPassword" class="form-label required">Password</label>
-          <div class="password-input-wrap">
-            <input type="password" id="authPassword" class="form-control" placeholder="At least 6 characters" required
-              autocomplete="current-password">
-            <button type="button" id="btnTogglePasswordVisibility" class="btn-password-eye"
-              title="Show/Hide Password">👁️</button>
+      <!-- Step 2: Email OTP Verification Screen -->
+      <div id="authVerifyOtpView" class="hidden auth-verify-view">
+        <div class="verify-banner-wrap">
+          <div class="verify-icon-circle">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+              <polyline points="22,6 12,13 2,6"></polyline>
+            </svg>
           </div>
-          <span class="field-hint" id="passwordHint">Use a strong password to protect your schedule data.</span>
+          <h4 class="verify-heading">Verifikasi Email Anda</h4>
+          <p class="verify-subheading">
+            Kode 6-digit verifikasi telah dikirimkan ke:
+            <span class="verify-email-pill" id="verifyTargetEmail">user@gmail.com</span>
+          </p>
         </div>
 
-        <!-- Error & Info Box -->
-        <div id="authAlertBox" class="auth-alert-box hidden"></div>
-
-        <!-- Submit Button -->
-        <button type="submit" id="btnAuthSubmit" class="btn btn-primary btn-block btn-auth-submit">
-          <span id="authSubmitText">Sign In Now</span>
-        </button>
-
-        <!-- Quick Super Admin Access Button -->
-        <button type="button" id="btnQuickAdminLogin" class="btn btn-warning btn-block" style="margin-top: 10px;"
-          title="Sign In Directly as Super Administrator (Jovan Matthew Adderson)">
-          <span>👑 Sign In as Admin (Jovan)</span>
-        </button>
-
-        <div class="auth-footer-links">
-          <button type="button" id="btnContinueGuest" class="btn-link btn-xs text-muted">Continue as Guest (Local Mode)</button>
-          <button type="button" id="btnOpenSupabaseFromAuth" class="btn-link btn-xs text-supabase">Configure Supabase Credentials</button>
+        <!-- Professional Gmail Guidance Card -->
+        <div class="gmail-assistant-box">
+          <div class="gmail-ass-left">
+            <div class="gmail-ass-badge">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z" fill="#ea4335"/>
+              </svg>
+              <span>Gmail Box</span>
+            </div>
+            <div class="gmail-ass-text">
+              <span>Pengirim: <strong>PlanCalender Security</strong></span>
+              <span class="gmail-ass-sub">Cek juga folder <em>Spam</em> / <em>Promosi</em> jika belum muncul.</span>
+            </div>
+          </div>
+          <a href="https://mail.google.com/" target="_blank" rel="noopener noreferrer" class="btn-goto-gmail" title="Buka Gmail di Tab Baru">
+            <span>Buka Gmail</span>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+              <polyline points="15 3 21 3 21 9"></polyline>
+              <line x1="10" y1="14" x2="21" y2="3"></line>
+            </svg>
+          </a>
         </div>
-      </form>
+
+        <!-- 6-Digit OTP Segmented Input Container -->
+        <div class="otp-inputs-wrap">
+          <label class="form-label" style="text-align: center; width: 100%; font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase;">
+            Masukkan 6-Digit Kode Verifikasi
+          </label>
+          <div class="otp-boxes-row" id="otpBoxesRow">
+            <input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="1" class="otp-box-digit" data-idx="0" autofocus autocomplete="one-time-code">
+            <input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="1" class="otp-box-digit" data-idx="1">
+            <input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="1" class="otp-box-digit" data-idx="2">
+            <span class="otp-box-dash">-</span>
+            <input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="1" class="otp-box-digit" data-idx="3">
+            <input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="1" class="otp-box-digit" data-idx="4">
+            <input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="1" class="otp-box-digit" data-idx="5">
+          </div>
+        </div>
+
+        <!-- Error & Info Message Box in Verify View -->
+        <div id="otpAlertBox" class="auth-alert-box hidden"></div>
+
+        <!-- Verification Submit Button -->
+        <button type="button" id="btnSubmitOtp" class="btn btn-primary btn-block btn-verify-submit">
+          <span id="btnSubmitOtpText">Verifikasi & Aktifkan Akun</span>
+        </button>
+
+        <!-- Resend Countdown Timer Button (1 Minute) -->
+        <div class="resend-timer-wrap">
+          <button type="button" id="btnResendOtp" class="btn btn-outline btn-block btn-resend-countdown" disabled title="Kirim ulang kode verifikasi">
+            <span class="resend-icon" id="resendIcon">⏳</span>
+            <span id="resendTimerLabel">Kirim Ulang Kode (60s)</span>
+          </button>
+          <span class="resend-timer-hint" id="resendTimerHint">Tombol kirim ulang aktif dalam 60 detik jika kode belum sampai.</span>
+        </div>
+
+        <!-- Switch / Change Email Link -->
+        <div class="verify-footer-actions">
+          <button type="button" id="btnBackToRegisterForm" class="btn-link btn-xs text-muted">
+            ← Salah email? Ubah email pendaftaran
+          </button>
+          <button type="button" id="btnOpenEmailTemplateGuide" class="btn-link btn-xs text-supabase" title="Lihat template email resmi Gmail untuk Supabase">
+            📄 Template Gmail Supabase
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====================================================================== -->
+  <!-- MODAL: GMAIL & SUPABASE EMAIL TEMPLATE GUIDE                           -->
+  <!-- ====================================================================== -->
+  <div class="modal-overlay hidden" id="emailTemplateModalOverlay" role="dialog" aria-modal="true">
+    <div class="modal-card modal-card-sm template-modal-card">
+      <div class="modal-header">
+        <div class="modal-title-wrap">
+          <span class="modal-icon-badge">📬</span>
+          <h3 class="modal-title">Template Email Gmail Profesional</h3>
+        </div>
+        <button id="btnCloseEmailTemplateModal" class="btn-icon modal-close-btn" aria-label="Tutup">✕</button>
+      </div>
+
+      <div class="modal-body-content">
+        <p style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5; margin: 0;">
+          Agar email konfirmasi yang masuk ke <strong>Gmail</strong> pengguna tampak elegan, terpercaya, dan memiliki kotak <strong>6-digit OTP</strong> yang rapi, salin template HTML di bawah ke pengaturan Supabase Anda.
+        </p>
+
+        <div class="template-instructions-list">
+          <div class="t-step"><span class="t-num">1</span> <span>Buka <strong>Supabase Dashboard</strong> ➔ <strong>Authentication</strong> ➔ <strong>Email Templates</strong></span></div>
+          <div class="t-step"><span class="t-num">2</span> <span>Pilih template <strong>Confirm signup</strong></span></div>
+          <div class="t-step"><span class="t-num">3</span> <span>Tempel (Paste) seluruh kode HTML di bawah lalu klik <strong>Save</strong></span></div>
+        </div>
+
+        <div class="template-code-box">
+          <div class="code-box-header">
+            <span>supabase-email-template.html</span>
+            <button type="button" id="btnCopyEmailTemplateCode" class="btn btn-outline btn-xs">
+              <span id="copyTplBtnText">📋 Salin Seluruh HTML</span>
+            </button>
+          </div>
+          <textarea id="emailTemplateCodeViewer" class="template-code-area" readonly></textarea>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" id="btnCloseEmailTemplateBtn" class="btn btn-outline btn-block">Tutup Panduan</button>
+      </div>
     </div>
   </div>
 

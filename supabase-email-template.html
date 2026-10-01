@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Verifikasi Akun PlanCalender PRO</title>
+  <style>
+    /* Reset & Base Styles */
+    body, table, td, a { -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
+    table, td { mso-table-lspace: 0pt; mso-table-rspace: 0pt; }
+    img { -ms-interpolation-mode: bicubic; border: 0; outline: none; text-decoration: none; }
+    body { margin: 0; padding: 0; width: 100% !important; background-color: #080c15; font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
+  </style>
+</head>
+<body style="margin: 0; padding: 0; background-color: #080c15; color: #f8fafc;">
+  <!-- Email Wrapper Table -->
+  <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #080c15; table-layout: fixed;">
+    <tr>
+      <td align="center" style="padding: 40px 15px 40px 15px;">
+        
+        <!-- Email Container Card (Max Width 580px) -->
+        <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 580px; background-color: #0d121f; border-radius: 16px; border: 1px solid rgba(255, 255, 255, 0.12); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5); overflow: hidden;">
+          
+          <!-- Top Accent Banner Line -->
+          <tr>
+            <td height="4" style="background: linear-gradient(90deg, #6366f1 0%, #8b5cf6 50%, #d946ef 100%); line-height: 4px; font-size: 4px;">&nbsp;</td>
+          </tr>
+
+          <!-- Brand Header -->
+          <tr>
+            <td style="padding: 36px 36px 20px 36px; text-align: center;">
+              <table role="presentation" border="0" cellpadding="0" cellspacing="0" align="center">
+                <tr>
+                  <!-- App Icon -->
+                  <td style="background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); width: 44px; height: 44px; border-radius: 10px; text-align: center; vertical-align: middle; box-shadow: 0 4px 14px rgba(99, 102, 241, 0.45);">
+                    <span style="font-size: 22px; line-height: 44px;">📅</span>
+                  </td>
+                  <!-- Brand Title -->
+                  <td style="padding-left: 14px; text-align: left;">
+                    <div style="font-size: 22px; font-weight: 800; color: #ffffff; letter-spacing: -0.02em; line-height: 1.2;">
+                      PlanCalender <span style="background-color: #6366f1; color: #ffffff; font-size: 10px; font-weight: 800; padding: 2px 7px; border-radius: 6px; vertical-align: middle; margin-left: 4px;">PRO</span>
+                    </div>
+                    <div style="font-size: 12px; color: #94a3b8; margin-top: 2px;">Smart Schedule & Focus Calendar</div>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Main Body Content -->
+          <tr>
+            <td style="padding: 10px 36px 30px 36px;">
+              <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%">
+                
+                <!-- Title -->
+                <tr>
+                  <td style="text-align: center; padding-bottom: 12px;">
+                    <h1 style="margin: 0; font-size: 22px; font-weight: 800; color: #ffffff; letter-spacing: -0.01em;">
+                      Verifikasi Email Akun Anda
+                    </h1>
+                  </td>
+                </tr>
+
+                <!-- Friendly Intro Text -->
+                <tr>
+                  <td style="text-align: center; font-size: 14px; line-height: 1.6; color: #94a3b8; padding-bottom: 24px;">
+                    Halo! Terima kasih telah mendaftar di <strong style="color: #ffffff;">PlanCalender</strong>. Untuk mengaktifkan akun dan memastikan keamanan jadwal Anda, silakan gunakan 6-digit kode verifikasi di bawah ini:
+                  </td>
+                </tr>
+
+                <!-- Highlighted 6-Digit OTP Box -->
+                <tr>
+                  <td align="center" style="padding-bottom: 24px;">
+                    <table role="presentation" border="0" cellpadding="0" cellspacing="0" style="background-color: #121a2b; border: 2px dashed #6366f1; border-radius: 12px; width: 100%; max-width: 380px;">
+                      <tr>
+                        <td style="padding: 18px 12px; text-align: center;">
+                          <div style="font-size: 11px; text-transform: uppercase; font-weight: 700; color: #818cf8; letter-spacing: 0.1em; margin-bottom: 6px;">
+                            KODE VERIFIKASI RESMI
+                          </div>
+                          <!-- Token Supabase Template Variable: {{ .Token }} -->
+                          <div style="font-family: 'JetBrains Mono', Consolas, 'Courier New', monospace; font-size: 38px; font-weight: 800; color: #ffffff; letter-spacing: 8px; text-shadow: 0 0 16px rgba(99, 102, 241, 0.6);">
+                            {{ .Token }}
+                          </div>
+                          <div style="font-size: 12px; color: #64748b; margin-top: 6px;">
+                            Berlaku selama <strong>10 menit</strong>
+                          </div>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+
+                <!-- Direct Confirmation Button Alternative -->
+                {{ if .ConfirmationURL }}
+                <tr>
+                  <td align="center" style="padding-bottom: 24px;">
+                    <table role="presentation" border="0" cellpadding="0" cellspacing="0">
+                      <tr>
+                        <td align="center" style="border-radius: 8px; background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);">
+                          <a href="{{ .ConfirmationURL }}" target="_blank" style="font-size: 14px; font-weight: 700; color: #ffffff; text-decoration: none; padding: 12px 28px; border-radius: 8px; display: inline-block; box-shadow: 0 4px 14px rgba(99, 102, 241, 0.45);">
+                            Konfirmasi Otomatis via Tautan ➔
+                          </a>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+                {{ end }}
+
+                <!-- Security Tips Box -->
+                <tr>
+                  <td style="background-color: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.2); border-radius: 10px; padding: 14px 16px; margin-top: 10px;">
+                    <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%">
+                      <tr>
+                        <td width="26" style="vertical-align: top; font-size: 18px; line-height: 1;">🔒</td>
+                        <td style="font-size: 12px; line-height: 1.5; color: #94a3b8; padding-left: 8px;">
+                          <strong style="color: #cbd5e1;">Pemberitahuan Keamanan:</strong> Jangan pernah memberikan kode ini kepada siapa pun, termasuk staf atau administrator PlanCalender. Jika Anda tidak merasa mendaftar, Anda dapat mengabaikan email ini dengan aman.
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+
+              </table>
+            </td>
+          </tr>
+
+          <!-- Footer Area -->
+          <tr>
+            <td style="padding: 24px 36px 30px 36px; border-top: 1px solid rgba(255, 255, 255, 0.08); text-align: center; background-color: #0b0f19;">
+              <p style="margin: 0; font-size: 12px; font-weight: 600; color: #64748b;">
+                © 2026 PlanCalender PRO. All rights reserved.
+              </p>
+              <p style="margin: 6px 0 0 0; font-size: 11px; color: #475569;">
+                Email keamanan resmi dikirim melalui integrasi Supabase Auth & Cloud Database.
+              </p>
+            </td>
+          </tr>
+
+        </table>
+        <!-- End Email Container Card -->
+
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

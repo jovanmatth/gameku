@@ -99,6 +99,56 @@ export async function registerWithEmail(email, password, displayName = '') {
   return data;
 }
 
+/** Verifikasi akun baru dengan kode 6-digit OTP email */
+export async function verifyEmailOtp(email, token, type = 'signup') {
+  const client = getSupabase();
+  if (!client) throw new Error('Koneksi Supabase belum terkonfigurasi.');
+
+  // Coba verifikasi dengan type 'signup' terlebih dahulu
+  let res = await client.auth.verifyOtp({
+    email: email.trim(),
+    token: token.trim(),
+    type: type
+  });
+
+  // Jika gagal, coba fallback ke type 'email'
+  if (res.error) {
+    const retryRes = await client.auth.verifyOtp({
+      email: email.trim(),
+      token: token.trim(),
+      type: 'email'
+    });
+    if (!retryRes.error) {
+      return retryRes.data;
+    }
+    throw res.error;
+  }
+
+  return res.data;
+}
+
+/** Kirim ulang kode verifikasi email (Resend OTP) */
+export async function resendVerificationOtp(email, type = 'signup') {
+  const client = getSupabase();
+  if (!client) throw new Error('Koneksi Supabase belum terkonfigurasi.');
+
+  const res = await client.auth.resend({
+    type: type,
+    email: email.trim()
+  });
+
+  if (res.error) {
+    // Coba fallback type 'email' jika signup gagal
+    const retry = await client.auth.resend({
+      type: 'email',
+      email: email.trim()
+    });
+    if (retry.error) throw res.error;
+    return retry.data;
+  }
+  return res.data;
+}
+
 /** Masuk akun dengan Email dan Password */
 export async function loginWithEmail(email, password) {
   const client = getSupabase();

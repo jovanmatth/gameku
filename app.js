@@ -27,6 +27,8 @@ import {
   saveSupabaseCredentials,
   registerWithEmail,
   loginWithEmail,
+  verifyEmailOtp,
+  resendVerificationOtp,
   logoutUser,
   getCurrentUser,
   fetchUserSchedules,
@@ -2421,6 +2423,14 @@ function openAuthOrProfile() {
   }
 }
 
+let pendingVerification = {
+  email: '',
+  password: '',
+  displayName: '',
+  timerInterval: null,
+  countdownSeconds: 60
+};
+
 function openAuthModal(mode = 'login') {
   activeAuthMode = mode;
   const modal = document.getElementById('authModalOverlay');
@@ -2434,7 +2444,13 @@ function openAuthModal(mode = 'login') {
   if (!modal) return;
   playUiSound('pop');
 
+  // Reset to credentials view
+  document.getElementById('authCredentialsView')?.classList.remove('hidden');
+  document.getElementById('authVerifyOtpView')?.classList.add('hidden');
+  stopOtpResendCountdown();
+
   alertBox?.classList.add('hidden');
+  document.getElementById('otpAlertBox')?.classList.add('hidden');
   document.getElementById('authForm')?.reset();
 
   if (mode === 'login') {
@@ -2462,6 +2478,318 @@ function openAuthModal(mode = 'login') {
 
 function closeAuthModal() {
   document.getElementById('authModalOverlay')?.classList.add('hidden');
+  stopOtpResendCountdown();
+}
+
+function showVerifyOtpView(email, password = '', displayName = '') {
+  pendingVerification.email = email;
+  pendingVerification.password = password;
+  pendingVerification.displayName = displayName;
+
+  const credentialsView = document.getElementById('authCredentialsView');
+  const otpView = document.getElementById('authVerifyOtpView');
+  const modalTitle = document.getElementById('authModalTitle');
+  const targetEmailEl = document.getElementById('verifyTargetEmail');
+
+  credentialsView?.classList.add('hidden');
+  otpView?.classList.remove('hidden');
+
+  if (modalTitle) modalTitle.textContent = 'Verifikasi Email Akun';
+  if (targetEmailEl) targetEmailEl.textContent = email;
+
+  // Clear inputs
+  const inputs = document.querySelectorAll('#otpBoxesRow .otp-box-digit');
+  inputs.forEach(input => {
+    input.value = '';
+    input.classList.remove('has-value', 'digit-error');
+  });
+
+  // Focus first input
+  setTimeout(() => {
+    const firstInput = document.querySelector('#otpBoxesRow .otp-box-digit[data-idx="0"]');
+    firstInput?.focus();
+  }, 100);
+
+  // Show friendly notification
+  showOtpAlert('Kode verifikasi 6-digit telah dikirimkan ke Gmail Anda. Cek Inbox atau folder Spam.', 'info');
+
+  // Start 1 minute (60s) countdown
+  startOtpResendCountdown(60);
+  playUiSound('pop');
+}
+
+function startOtpResendCountdown(seconds = 60) {
+  stopOtpResendCountdown();
+  pendingVerification.countdownSeconds = seconds;
+
+  const btnResend = document.getElementById('btnResendOtp');
+  const label = document.getElementById('resendTimerLabel');
+  const hint = document.getElementById('resendTimerHint');
+  const icon = document.getElementById('resendIcon');
+
+  if (!btnResend || !label) return;
+
+  btnResend.disabled = true;
+  btnResend.classList.remove('btn-resend-active');
+  if (icon) icon.textContent = '⏳';
+  label.textContent = `Kirim Ulang Kode (${pendingVerification.countdownSeconds}s)`;
+  if (hint) hint.textContent = 'Tombol kirim ulang aktif dalam 60 detik jika kode belum sampai.';
+
+  pendingVerification.timerInterval = setInterval(() => {
+    pendingVerification.countdownSeconds--;
+    if (pendingVerification.countdownSeconds > 0) {
+      label.textContent = `Kirim Ulang Kode (${pendingVerification.countdownSeconds}s)`;
+    } else {
+      stopOtpResendCountdown();
+      btnResend.disabled = false;
+      btnResend.classList.add('btn-resend-active');
+      if (icon) icon.textContent = '🔄';
+      label.textContent = 'Kirim Ulang Kode Sekarang';
+      if (hint) hint.textContent = 'Belum terima kode di Gmail? Klik tombol di atas untuk minta kode baru.';
+      playUiSound('pop');
+    }
+  }, 1000);
+}
+
+function stopOtpResendCountdown() {
+  if (pendingVerification.timerInterval) {
+    clearInterval(pendingVerification.timerInterval);
+    pendingVerification.timerInterval = null;
+  }
+}
+
+async function handleResendOtpClick() {
+  const btnResend = document.getElementById('btnResendOtp');
+  const label = document.getElementById('resendTimerLabel');
+  if (!btnResend || btnResend.disabled) return;
+
+  if (!pendingVerification.email) {
+    showOtpAlert('Email verifikasi tidak ditemukan. Silakan isi form pendaftaran lagi.', 'error');
+    return;
+  }
+
+  try {
+    btnResend.disabled = true;
+    if (label) label.textContent = 'Mengirim kode baru... ⏳';
+
+    await resendVerificationOtp(pendingVerification.email, 'signup');
+    showToast(`Kode baru berhasil dikirim ke ${pendingVerification.email}!`, 'success');
+    showOtpAlert('Kode verifikasi baru telah dikirim ke email Gmail Anda. Silakan cek Inbox atau folder Spam.', 'success');
+    playUiSound('chime');
+
+    // Reset countdown to 60s
+    startOtpResendCountdown(60);
+
+    // Clear boxes & refocus
+    const inputs = document.querySelectorAll('#otpBoxesRow .otp-box-digit');
+    inputs.forEach(input => { input.value = ''; input.classList.remove('has-value'); });
+    const firstInput = document.querySelector('#otpBoxesRow .otp-box-digit[data-idx="0"]');
+    firstInput?.focus();
+  } catch (err) {
+    showOtpAlert(err.message || 'Gagal mengirim ulang kode verifikasi.', 'error');
+    btnResend.disabled = false;
+    if (label) label.textContent = 'Kirim Ulang Kode Sekarang';
+  }
+}
+
+function getEnteredOtpCode() {
+  const inputs = document.querySelectorAll('#otpBoxesRow .otp-box-digit');
+  let code = '';
+  inputs.forEach(input => {
+    code += (input.value || '').trim();
+  });
+  return code;
+}
+
+async function handleVerifyOtpSubmit() {
+  const token = getEnteredOtpCode();
+  const submitBtn = document.getElementById('btnSubmitOtp');
+  const submitText = document.getElementById('btnSubmitOtpText');
+
+  if (token.length < 6) {
+    showOtpAlert('Harap masukkan lengkap 6-digit kode verifikasi.', 'error');
+    playUiSound('error');
+    const firstEmpty = Array.from(document.querySelectorAll('#otpBoxesRow .otp-box-digit')).find(i => !i.value);
+    firstEmpty?.focus();
+    return;
+  }
+
+  if (!pendingVerification.email) {
+    showOtpAlert('Email tidak ditemukan. Silakan daftar kembali.', 'error');
+    return;
+  }
+
+  if (submitBtn) submitBtn.disabled = true;
+  if (submitText) submitText.textContent = 'Memverifikasi Kode... ⏳';
+
+  try {
+    const data = await verifyEmailOtp(pendingVerification.email, token);
+    
+    // Session may be returned or null
+    let authenticatedUser = data?.user || data?.session?.user;
+
+    // If session wasn't automatically opened, try loginWithEmail with the pending password
+    if (!authenticatedUser && pendingVerification.password) {
+      try {
+        const loginRes = await loginWithEmail(pendingVerification.email, pendingVerification.password);
+        authenticatedUser = loginRes.user;
+      } catch (loginErr) {
+        console.warn('Auto-login post OTP note:', loginErr);
+      }
+    }
+
+    if (authenticatedUser) {
+      state.currentUser = authenticatedUser;
+      updateUserUI();
+      closeAuthModal();
+      playUiSound('chime');
+      triggerConfetti();
+      showToast(`Email terverifikasi! Selamat datang, ${authenticatedUser.email}!`, 'success');
+      await loadUserData(authenticatedUser.id);
+    } else {
+      showToast('Email terverifikasi! Silakan Sign In sekarang.', 'success');
+      openAuthModal('login');
+      showAuthAlert('Verifikasi berhasil! Silakan masuk dengan kata sandi Anda.', 'success');
+    }
+  } catch (err) {
+    playUiSound('error');
+    showOtpAlert(err.message || 'Kode verifikasi tidak cocok atau telah kedaluwarsa. Silakan periksa kembali atau kirim ulang.', 'error');
+    const row = document.getElementById('otpBoxesRow');
+    row?.classList.add('otp-boxes-error');
+    setTimeout(() => row?.classList.remove('otp-boxes-error'), 800);
+  } finally {
+    if (submitBtn) submitBtn.disabled = false;
+    if (submitText) submitText.textContent = 'Verifikasi & Aktifkan Akun';
+  }
+}
+
+function showOtpAlert(message, type = 'error') {
+  const box = document.getElementById('otpAlertBox');
+  if (!box) return;
+  box.className = `auth-alert-box auth-alert-${type}`;
+  box.textContent = message;
+  box.classList.remove('hidden');
+}
+
+function setupOtpInputs() {
+  const inputs = document.querySelectorAll('#otpBoxesRow .otp-box-digit');
+  if (!inputs.length) return;
+
+  inputs.forEach((input, index) => {
+    input.addEventListener('input', (e) => {
+      const val = e.target.value.replace(/\D/g, '');
+      if (val) {
+        e.target.value = val.slice(-1);
+        e.target.classList.add('has-value');
+        if (index < inputs.length - 1) {
+          inputs[index + 1].focus();
+          inputs[index + 1].select();
+        } else {
+          if (getEnteredOtpCode().length === 6) {
+            handleVerifyOtpSubmit();
+          }
+        }
+      } else {
+        e.target.value = '';
+        e.target.classList.remove('has-value');
+      }
+    });
+
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Backspace') {
+        if (!e.target.value && index > 0) {
+          inputs[index - 1].focus();
+          inputs[index - 1].value = '';
+          inputs[index - 1].classList.remove('has-value');
+        } else {
+          e.target.value = '';
+          e.target.classList.remove('has-value');
+        }
+      } else if (e.key === 'ArrowLeft' && index > 0) {
+        inputs[index - 1].focus();
+      } else if (e.key === 'ArrowRight' && index < inputs.length - 1) {
+        inputs[index + 1].focus();
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        handleVerifyOtpSubmit();
+      }
+    });
+
+    input.addEventListener('paste', (e) => {
+      e.preventDefault();
+      const pasteData = (e.clipboardData || window.clipboardData)?.getData('text') || '';
+      const digits = pasteData.replace(/\D/g, '').slice(0, 6);
+      if (!digits) return;
+
+      digits.split('').forEach((digit, i) => {
+        if (inputs[i]) {
+          inputs[i].value = digit;
+          inputs[i].classList.add('has-value');
+        }
+      });
+
+      const nextIdx = Math.min(digits.length, inputs.length - 1);
+      inputs[nextIdx]?.focus();
+
+      if (digits.length === 6) {
+        handleVerifyOtpSubmit();
+      }
+    });
+  });
+}
+
+let emailTemplateCache = null;
+
+async function openEmailTemplateGuideModal() {
+  const modal = document.getElementById('emailTemplateModalOverlay');
+  const viewer = document.getElementById('emailTemplateCodeViewer');
+  if (!modal) return;
+  playUiSound('pop');
+  modal.classList.remove('hidden');
+
+  if (viewer) {
+    if (emailTemplateCache) {
+      viewer.value = emailTemplateCache;
+    } else {
+      viewer.value = 'Memuat template HTML... ⏳';
+      try {
+        const res = await fetch('./supabase-email-template.html');
+        if (res.ok) {
+          emailTemplateCache = await res.text();
+          viewer.value = emailTemplateCache;
+        } else {
+          viewer.value = '<!-- Buka file supabase-email-template.html di root project untuk menyalin template -->';
+        }
+      } catch {
+        viewer.value = '<!-- Buka file supabase-email-template.html di root project untuk menyalin template -->';
+      }
+    }
+  }
+}
+
+function closeEmailTemplateGuideModal() {
+  document.getElementById('emailTemplateModalOverlay')?.classList.add('hidden');
+}
+
+function copyEmailTemplateCode() {
+  const viewer = document.getElementById('emailTemplateCodeViewer');
+  const btnText = document.getElementById('copyTplBtnText');
+  const code = viewer?.value || emailTemplateCache || '';
+
+  if (!code) return;
+
+  navigator.clipboard.writeText(code).then(() => {
+    playUiSound('chime');
+    showToast('Template email Gmail berhasil disalin!', 'success');
+    if (btnText) btnText.textContent = '✅ Berhasil Disalin!';
+    setTimeout(() => {
+      if (btnText) btnText.textContent = '📋 Salin Seluruh HTML';
+    }, 2500);
+  }).catch(() => {
+    viewer?.select();
+    document.execCommand('copy');
+    showToast('Template email disalin!', 'success');
+  });
 }
 
 function openProfileModal() {
@@ -2539,8 +2867,8 @@ async function handleAuthFormSubmit(e) {
         showToast('Account successfully created and connected!', 'success');
         await loadUserData(data.user.id);
       } else {
-        // Case if Supabase requires email confirmation
-        showAuthAlert('Registration successful! Please check your email to confirm activation, then sign in.', 'success');
+        // Supabase sends 6-digit verification code to email (Gmail)
+        showVerifyOtpView(email, password, displayName);
       }
     }
   } catch (err) {
@@ -3707,6 +4035,26 @@ function setupEventListeners() {
   document.getElementById('tabBtnRegister')?.addEventListener('click', () => openAuthModal('register'));
   document.getElementById('authForm')?.addEventListener('submit', handleAuthFormSubmit);
   document.getElementById('btnQuickAdminLogin')?.addEventListener('click', () => activateJovanAdminSession(true));
+
+  // 6-Digit Email OTP Verification Listeners
+  setupOtpInputs();
+  document.getElementById('btnSubmitOtp')?.addEventListener('click', handleVerifyOtpSubmit);
+  document.getElementById('btnResendOtp')?.addEventListener('click', handleResendOtpClick);
+  document.getElementById('btnBackToRegisterForm')?.addEventListener('click', () => {
+    document.getElementById('authVerifyOtpView')?.classList.add('hidden');
+    document.getElementById('authCredentialsView')?.classList.remove('hidden');
+    stopOtpResendCountdown();
+    openAuthModal('register');
+  });
+
+  // Gmail Template Guide Modal Listeners
+  document.getElementById('btnOpenEmailTemplateGuide')?.addEventListener('click', openEmailTemplateGuideModal);
+  document.getElementById('btnCloseEmailTemplateModal')?.addEventListener('click', closeEmailTemplateGuideModal);
+  document.getElementById('btnCloseEmailTemplateBtn')?.addEventListener('click', closeEmailTemplateGuideModal);
+  document.getElementById('btnCopyEmailTemplateCode')?.addEventListener('click', copyEmailTemplateCode);
+  document.getElementById('emailTemplateModalOverlay')?.addEventListener('click', (e) => {
+    if (e.target === document.getElementById('emailTemplateModalOverlay')) closeEmailTemplateGuideModal();
+  });
 
   // Toggle Password Eye
   document.getElementById('btnTogglePasswordVisibility')?.addEventListener('click', () => {

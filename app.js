@@ -3161,7 +3161,7 @@ async function switchGroup(groupOrNull) {
   renderApp();
 }
 
-/** Merender daftar switch grup di sidebar */
+/** Merender daftar switch grup di sidebar dengan Dropdown Kode Undangan */
 function renderGroupSwitcher() {
   const container = document.getElementById('groupSwitcherList');
   if (!container) return;
@@ -3183,18 +3183,25 @@ function renderGroupSwitcher() {
   `;
   personalBtn.addEventListener('click', () => {
     playUiSound('click');
+    state.openGroupDropdownId = null;
     if (!isPersonalActive) switchGroup(null);
+    else renderGroupSwitcher();
   });
   container.appendChild(personalBtn);
 
-  // 2. Tab untuk Setiap Grup jika ada
+  // 2. Tab untuk Setiap Grup dengan Dropdown Kode Undangan
   if (state.groups && state.groups.length > 0) {
     state.groups.forEach(g => {
       const isGroupActive = state.currentGroup && state.currentGroup.id === g.id;
+      const isDropdownOpen = isGroupActive && (state.openGroupDropdownId === g.id);
+
+      const wrapper = document.createElement('div');
+      wrapper.className = 'group-nav-wrapper';
+
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = `group-nav-item ${isGroupActive ? 'active' : ''}`;
-      btn.title = `Buka jadwal grup: ${escapeHtml(g.name)}`;
+      btn.title = `Klik untuk buka jadwal grup ${escapeHtml(g.name)} dan lihat kode undangan`;
 
       const isAdmin = (g.role === 'admin' || g.role === 'owner' || state.isAdmin);
       const roleBadgeHtml = isAdmin
@@ -3207,14 +3214,84 @@ function renderGroupSwitcher() {
           <span class="group-nav-name">${escapeHtml(g.name)}</span>
           ${roleBadgeHtml}
         </div>
+        <div class="group-nav-arrow ${isDropdownOpen ? 'open' : ''}" title="Klik grup untuk toggle dropdown kode">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <polyline points="6 9 12 15 18 9"></polyline>
+          </svg>
+        </div>
       `;
 
       btn.addEventListener('click', () => {
         playUiSound('click');
-        if (!isGroupActive) switchGroup(g);
+        if (!isGroupActive) {
+          // Beralih ke grup ini dan buka dropdown kodenya
+          state.openGroupDropdownId = g.id;
+          switchGroup(g);
+        } else {
+          // Jika sudah di grup ini, toggle dropdown kode (buka/tutup)
+          state.openGroupDropdownId = (state.openGroupDropdownId === g.id) ? null : g.id;
+          renderGroupSwitcher();
+        }
       });
 
-      container.appendChild(btn);
+      wrapper.appendChild(btn);
+
+      // Panel Dropdown Kode Undangan Grup (Hanya Tampil Saat Pencet Grup)
+      const dropdownPanel = document.createElement('div');
+      dropdownPanel.className = `group-code-dropdown-panel ${isDropdownOpen ? 'open' : ''}`;
+      dropdownPanel.innerHTML = `
+        <div class="sidebar-code-header">
+          <div class="sidebar-code-title-wrap">
+            <span class="sidebar-code-icon">🔑</span>
+            <span class="sidebar-code-label">KODE GABUNG GRUP</span>
+          </div>
+          <span class="sidebar-code-group-badge">${g.icon || '👥'} ${escapeHtml(g.name)}</span>
+        </div>
+        <div class="sidebar-code-body">
+          <div class="sidebar-code-val-wrap" title="Klik untuk salin kode">
+            <span class="sidebar-code-val">${escapeHtml(g.inviteCode || '---')}</span>
+          </div>
+          <button type="button" class="sidebar-code-copy-btn" title="Salin Kode Undangan">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+            </svg>
+            <span class="copy-label-text">Salin</span>
+          </button>
+        </div>
+        <div class="sidebar-code-sub">
+          <span class="sidebar-code-hint">Bagikan kode ini agar rekan bisa bergabung</span>
+        </div>
+      `;
+
+      // Event listener salin kode di dalam dropdown
+      const doCopy = (e) => {
+        e.stopPropagation();
+        const code = g.inviteCode;
+        if (!code) return;
+        playUiSound('pop');
+        if (navigator.clipboard) {
+          navigator.clipboard.writeText(code).catch(() => {});
+        }
+        const copyBtn = dropdownPanel.querySelector('.sidebar-code-copy-btn');
+        const copyLabel = dropdownPanel.querySelector('.copy-label-text');
+        if (copyBtn && copyLabel) {
+          copyLabel.textContent = 'Tersalin!';
+          copyBtn.classList.add('copied');
+          setTimeout(() => {
+            copyLabel.textContent = 'Salin';
+            copyBtn.classList.remove('copied');
+          }, 2000);
+        }
+        showToast(`🔑 Kode Undangan "${code}" berhasil disalin! Bagikan ke rekan Anda.`, 'success');
+      };
+
+      dropdownPanel.querySelector('.sidebar-code-val-wrap')?.addEventListener('click', doCopy);
+      dropdownPanel.querySelector('.sidebar-code-copy-btn')?.addEventListener('click', doCopy);
+      dropdownPanel.addEventListener('click', (e) => e.stopPropagation());
+
+      wrapper.appendChild(dropdownPanel);
+      container.appendChild(wrapper);
     });
   } else {
     // Empty state jika belum ada grup
@@ -3226,38 +3303,8 @@ function renderGroupSwitcher() {
     `;
     container.appendChild(hint);
   }
-
-  // Update kartu kode undangan grup tepat di atas tombol Buat & Gabung Grup
-  renderSidebarGroupCode();
 }
 
-/** Merender kartu kode grup di sidebar tepat di atas tombol Buat & Gabung Grup */
-function renderSidebarGroupCode() {
-  const card = document.getElementById('sidebarGroupCodeCard');
-  if (!card) return;
-
-  // Prioritas grup untuk ditampilkan kodenya:
-  // 1. state.currentGroup jika sedang aktif di jadwal grup
-  // 2. latestCreatedGroup jika baru membuat grup
-  // 3. Grup pertama di state.groups jika pengguna punya grup
-  const targetGroup = state.currentGroup || latestCreatedGroup || (state.groups && state.groups.length > 0 ? state.groups[0] : null);
-
-  if (!targetGroup || !targetGroup.inviteCode) {
-    card.classList.add('hidden');
-    return;
-  }
-
-  card.classList.remove('hidden');
-  const valEl = document.getElementById('sidebarGroupCodeValue');
-  const badgeEl = document.getElementById('sidebarGroupCodeBadge');
-
-  if (valEl) valEl.textContent = targetGroup.inviteCode;
-  if (badgeEl) {
-    const icon = targetGroup.icon || '👥';
-    badgeEl.textContent = `${icon} ${targetGroup.name}`;
-    badgeEl.title = targetGroup.name;
-  }
-}
 
 /** Merender Banner Grup Aktif di atas kalender */
 function renderGroupBanner() {

@@ -2875,7 +2875,7 @@ async function handleAuthFormSubmit(e) {
     showAuthAlert(err.message || 'An error occurred during authentication.', 'error');
   } finally {
     submitBtn.disabled = false;
-    submitText.textContent = activeAuthMode === 'login' ? 'Sign In Now' : 'Create Account & Sync';
+    submitText.textContent = activeAuthMode === 'login' ? 'Sign In Now' : 'Create Account';
   }
 }
 

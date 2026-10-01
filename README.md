@@ -1,5 +1,7 @@
 # 📅 PlanCalender PRO — Smart Scheduler with Supabase Cloud (v2.5)
 
+> ⚡ **Live Auto-Deployment Active**: Terkoneksi otomatis ke GitHub & Vercel. Setiap perubahan langsung di-commit & di-deploy otomatis ke cloud secara real-time.
+
 Aplikasi Scheduling & Manajemen Agenda modern, rapih, elegan, responsif, dan **sangat mudah di-edit**. Dilengkapi dengan **Autentikasi & Database Supabase**, di mana setiap akun memiliki login/password tersendiri dan data jadwal tersimpan aman secara terisolasi per akun (*Row Level Security*).
 
 ![PlanCalender Scheduler Mockup](preview.jpg)

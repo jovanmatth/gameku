@@ -1,7 +1,7 @@
 ﻿{
     "version":  "2.8.0",
-    "buildTimestamp":  1790869794774,
-    "releaseDate":  "01 Oktober 2026 22.49 WIB",
+    "buildTimestamp":  1790870131015,
+    "releaseDate":  "01 Oktober 2026 22.55 WIB",
     "patchTitle":  "Update v2.8 â€” Kode Gabung Grup di Sidebar \u0026 Auto Patch",
     "changes":  [
                     "ðŸ”‘ Kode Undangan di Atas Tombol Aksi: Kode grup otomatis muncul tepat di atas tombol Buat \u0026 Gabung Grup dengan tombol 1-klik salin",

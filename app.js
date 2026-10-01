@@ -3225,6 +3225,37 @@ function renderGroupSwitcher() {
     `;
     container.appendChild(hint);
   }
+
+  // Update kartu kode undangan grup tepat di atas tombol Buat & Gabung Grup
+  renderSidebarGroupCode();
+}
+
+/** Merender kartu kode grup di sidebar tepat di atas tombol Buat & Gabung Grup */
+function renderSidebarGroupCode() {
+  const card = document.getElementById('sidebarGroupCodeCard');
+  if (!card) return;
+
+  // Prioritas grup untuk ditampilkan kodenya:
+  // 1. state.currentGroup jika sedang aktif di jadwal grup
+  // 2. latestCreatedGroup jika baru membuat grup
+  // 3. Grup pertama di state.groups jika pengguna punya grup
+  const targetGroup = state.currentGroup || latestCreatedGroup || (state.groups && state.groups.length > 0 ? state.groups[0] : null);
+
+  if (!targetGroup || !targetGroup.inviteCode) {
+    card.classList.add('hidden');
+    return;
+  }
+
+  card.classList.remove('hidden');
+  const valEl = document.getElementById('sidebarGroupCodeValue');
+  const badgeEl = document.getElementById('sidebarGroupCodeBadge');
+
+  if (valEl) valEl.textContent = targetGroup.inviteCode;
+  if (badgeEl) {
+    const icon = targetGroup.icon || '👥';
+    badgeEl.textContent = `${icon} ${targetGroup.name}`;
+    badgeEl.title = targetGroup.name;
+  }
 }
 
 /** Merender Banner Grup Aktif di atas kalender */

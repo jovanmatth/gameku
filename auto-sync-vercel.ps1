@@ -30,10 +30,10 @@ while ($true) {
             $vPath = Join-Path $RepoPath "version.json"
             if (Test-Path $vPath) {
                 try {
-                    $vObj = Get-Content $vPath -Raw | ConvertFrom-Json
+                    $vObj = Get-Content $vPath -Raw -Encoding UTF8 | ConvertFrom-Json
                     $vObj.buildTimestamp = [long]([DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds())
                     $vObj.releaseDate = (Get-Date -Format 'dd MMMM yyyy HH:mm WIB')
-                    $vObj | ConvertTo-Json -Depth 5 | Set-Content $vPath -Encoding UTF8
+                    [System.IO.File]::WriteAllText($vPath, ($vObj | ConvertTo-Json -Depth 5), [System.Text.UTF8Encoding]::new($false))
                 } catch {}
             }
 

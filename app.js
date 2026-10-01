@@ -2464,7 +2464,7 @@ function openAuthModal(mode = 'login') {
     tabLogin.classList.remove('active');
     tabReg.classList.add('active');
     groupName.classList.remove('hidden');
-    submitText.textContent = 'Create Account & Sync';
+    submitText.textContent = 'Create Account';
   }
 
   const emailField = document.getElementById('authEmail');

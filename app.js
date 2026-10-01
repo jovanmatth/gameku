@@ -1,6 +1,6 @@
 /**
  * ==============================================================================
- * PlanCraft PRO — Ultra-Aesthetic Engine & Logic (v2.5 + Supabase Cloud)
+ * PlanCalender PRO — Ultra-Aesthetic Engine & Logic (v2.5 + Supabase Cloud)
  * ==============================================================================
  * Didesain dengan arsitektur modular, rapih, bersih, dan SANGAT MUDAH DI-EDIT!
  * 
@@ -2712,7 +2712,7 @@ async function exportAdminMasterBackup() {
     const stats = await fetchAdminDatabaseStats();
 
     const masterData = {
-      app: 'PlanCraft PRO',
+      app: 'PlanCalender PRO',
       exportType: 'ADMIN_MASTER_BACKUP',
       exportedAt: new Date().toISOString(),
       adminAccount: {
@@ -2726,7 +2726,7 @@ async function exportAdminMasterBackup() {
     const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(masterData, null, 2));
     const dlAnchor = document.createElement('a');
     dlAnchor.setAttribute('href', dataStr);
-    dlAnchor.setAttribute('download', `plancraft-master-backup-${new Date().toISOString().slice(0, 10)}.json`);
+    dlAnchor.setAttribute('download', `plancalender-master-backup-${new Date().toISOString().slice(0, 10)}.json`);
     document.body.appendChild(dlAnchor);
     dlAnchor.click();
     dlAnchor.remove();
@@ -3280,7 +3280,7 @@ function shareGroupViaWhatsApp() {
   if (!state.currentGroup) return;
   const g = state.currentGroup;
   const joinUrl = `${window.location.origin}${window.location.pathname}?join=${encodeURIComponent(g.inviteCode || '')}`;
-  const text = `Halo! Yuk gabung ke ruang jadwal tim "${g.name}" di PlanCraft 📅.\n\nKlik link ini untuk langsung bergabung:\n${joinUrl}\n\nAtau masukkan kode undangan: *${g.inviteCode}*`;
+  const text = `Halo! Yuk gabung ke ruang jadwal tim "${g.name}" di PlanCalender 📅.\n\nKlik link ini untuk langsung bergabung:\n${joinUrl}\n\nAtau masukkan kode undangan: *${g.inviteCode}*`;
   const waUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
   window.open(waUrl, '_blank');
 }
@@ -3391,7 +3391,7 @@ function exportDataJSON() {
   const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state.schedules, null, 2));
   const downloadAnchor = document.createElement('a');
   downloadAnchor.setAttribute("href", dataStr);
-  downloadAnchor.setAttribute("download", `plancraft-schedules-${formatDateKey(new Date())}.json`);
+  downloadAnchor.setAttribute("download", `plancalender-schedules-${formatDateKey(new Date())}.json`);
   document.body.appendChild(downloadAnchor);
   downloadAnchor.click();
   downloadAnchor.remove();

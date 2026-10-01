@@ -3837,14 +3837,20 @@ function toggleSound() {
 function updateSoundIcon() {
   const onIcon = document.querySelector('.sound-on-icon');
   const offIcon = document.querySelector('.sound-off-icon');
+  const statusBadge = document.getElementById('soundStatusBadge');
+  const desc = document.getElementById('hdropSoundDesc');
   if (!onIcon || !offIcon) return;
 
   if (state.soundEnabled) {
     onIcon.classList.remove('hidden');
     offIcon.classList.add('hidden');
+    if (statusBadge) statusBadge.textContent = 'ON';
+    if (desc) desc.textContent = 'Efek Suara UI Aktif';
   } else {
     onIcon.classList.add('hidden');
     offIcon.classList.remove('hidden');
+    if (statusBadge) statusBadge.textContent = 'OFF';
+    if (desc) desc.textContent = 'Efek Suara UI Nonaktif';
   }
 }
 
@@ -4122,31 +4128,8 @@ function setupEventListeners() {
   document.getElementById('btnThemeToggle')?.addEventListener('click', toggleTheme);
 
   // ========================================================================
-  // Header Quick Tools Dropdown & Sidebar Toggle Controls
+  // Unified Sidebar & Workspace Navigation Controls
   // ========================================================================
-  const btnHeaderMenu = document.getElementById('btnHeaderMenu');
-  const headerDropdownMenu = document.getElementById('headerDropdownMenu');
-
-  function toggleHeaderDropdown(forceState) {
-    if (!headerDropdownMenu) return;
-    const shouldOpen = forceState !== undefined ? forceState : headerDropdownMenu.classList.contains('hidden');
-    if (shouldOpen) {
-      headerDropdownMenu.classList.remove('hidden');
-      btnHeaderMenu?.setAttribute('aria-expanded', 'true');
-      btnHeaderMenu?.classList.add('active');
-    } else {
-      headerDropdownMenu.classList.add('hidden');
-      btnHeaderMenu?.setAttribute('aria-expanded', 'false');
-      btnHeaderMenu?.classList.remove('active');
-    }
-  }
-
-  btnHeaderMenu?.addEventListener('click', (e) => {
-    e.stopPropagation();
-    playUiSound('pop');
-    toggleHeaderDropdown();
-  });
-
   function handleSidebarToggle(forceState) {
     playUiSound('click');
     const sidebar = document.getElementById('sidebar');
@@ -4159,11 +4142,11 @@ function setupEventListeners() {
     } else {
       document.body.classList.toggle('sidebar-collapsed');
       const isCollapsed = document.body.classList.contains('sidebar-collapsed');
-      showToast(isCollapsed ? 'Sidebar collapsed (Widescreen Mode)' : 'Sidebar expanded', 'info');
+      showToast(isCollapsed ? 'Sidebar disembunyikan (Layar Penuh)' : 'Sidebar ditampilkan', 'info');
     }
   }
 
-  // Hamburger button in top header
+  // Unified menu toggle button in top header
   document.getElementById('btnMobileMenuToggle')?.addEventListener('click', () => {
     handleSidebarToggle();
   });
@@ -4211,39 +4194,13 @@ function setupEventListeners() {
     });
   });
 
-  document.getElementById('btnToggleSidebar')?.addEventListener('click', () => {
-    handleSidebarToggle();
-    toggleHeaderDropdown(false);
-  });
-
+  // Calendar Holidays Reload in Sidebar
   document.getElementById('btnSyncIndonesiaHolidays')?.addEventListener('click', () => {
-    toggleHeaderDropdown(false);
     resetToIndonesiaCalendar();
   });
 
-  // Automatically close dropdown when action modals are opened
-  headerDropdownMenu?.querySelectorAll('.hdrop-item').forEach((item) => {
-    if (item.id === 'btnOpenPomodoro' || item.id === 'btnSupabaseBadge' || item.id === 'btnSyncIndonesiaHolidays') {
-      item.addEventListener('click', () => {
-        toggleHeaderDropdown(false);
-      });
-    }
-  });
-
-  // Close dropdown on click outside
-  document.addEventListener('click', (e) => {
-    if (headerDropdownMenu && !headerDropdownMenu.classList.contains('hidden')) {
-      if (!headerDropdownMenu.contains(e.target) && !btnHeaderMenu?.contains(e.target)) {
-        toggleHeaderDropdown(false);
-      }
-    }
-  });
-
-  // Keyboard shortcut 'B' for sidebar & Escape for dropdown
+  // Keyboard shortcut 'B' for toggling sidebar
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && headerDropdownMenu && !headerDropdownMenu.classList.contains('hidden')) {
-      toggleHeaderDropdown(false);
-    }
     if ((e.key === 'b' || e.key === 'B') && !['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName)) {
       handleSidebarToggle();
     }

@@ -244,6 +244,100 @@
         </nav>
       </div>
 
+      <!-- Quick Tools & Focus Controls Section (Unified Menu) -->
+      <div class="nav-section sidebar-quick-tools-section">
+        <div class="nav-section-header">
+          <span class="nav-section-title">QUICK TOOLS & FOCUS</span>
+        </div>
+        
+        <!-- Priority Filter Selector -->
+        <div class="sidebar-tool-item sidebar-filter-item">
+          <div class="sidebar-tool-header">
+            <div class="sidebar-tool-icon">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+              </svg>
+            </div>
+            <span class="sidebar-tool-title">Priority Filter</span>
+          </div>
+          <select id="priorityFilterSelect" class="custom-select sidebar-priority-select" aria-label="Filter Priority Level">
+            <option value="all">Semua Prioritas (All)</option>
+            <option value="high">🔴 Prioritas Tinggi (High)</option>
+            <option value="medium">🟡 Prioritas Sedang (Medium)</option>
+            <option value="low">🟢 Prioritas Rendah (Low)</option>
+          </select>
+        </div>
+
+        <!-- Pomodoro Focus Timer Button -->
+        <button class="sidebar-tool-item sidebar-tool-btn" id="btnOpenPomodoro" title="Buka Focus Timer (Pomodoro)">
+          <div class="sidebar-tool-header">
+            <div class="sidebar-tool-icon timer-icon">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12 6 12 12 15 15"></polyline>
+              </svg>
+            </div>
+            <div class="sidebar-tool-info">
+              <span class="sidebar-tool-title">Focus Timer</span>
+              <span class="sidebar-tool-sub">Sesi Pomodoro Produktif</span>
+            </div>
+          </div>
+          <span id="headerTimerBadge" class="sidebar-timer-badge">Focus</span>
+        </button>
+
+        <!-- Sound FX Toggle -->
+        <button class="sidebar-tool-item sidebar-tool-btn" id="btnToggleSound" title="Aktif/Nonaktifkan Suara UI">
+          <div class="sidebar-tool-header">
+            <div class="sidebar-tool-icon sound-icon">
+              <svg class="sound-on-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+              </svg>
+              <svg class="sound-off-icon hidden" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                <line x1="23" y1="9" x2="17" y2="15"></line>
+                <line x1="17" y1="9" x2="23" y2="15"></line>
+              </svg>
+            </div>
+            <div class="sidebar-tool-info">
+              <span class="sidebar-tool-title">Sound Effects</span>
+              <span class="sidebar-tool-sub" id="hdropSoundDesc">Efek Suara UI Lembut</span>
+            </div>
+          </div>
+          <span class="sidebar-sound-status" id="soundStatusBadge">ON</span>
+        </button>
+
+        <!-- Calendar Holidays Reload -->
+        <button class="sidebar-tool-item sidebar-tool-btn" id="btnSyncIndonesiaHolidays" title="Muat Ulang Kalender Hari Libur Nasional 2026">
+          <div class="sidebar-tool-header">
+            <div class="sidebar-tool-icon holiday-icon">📅</div>
+            <div class="sidebar-tool-info">
+              <span class="sidebar-tool-title">Hari Libur Nasional</span>
+              <span class="sidebar-tool-sub">Kalender Libur 2026</span>
+            </div>
+          </div>
+          <span class="sidebar-refresh-btn-tag">Sync</span>
+        </button>
+
+        <!-- Supabase Status Badge (Admin Only) -->
+        <button class="sidebar-tool-item sidebar-tool-btn hidden" id="btnSupabaseBadge" title="Status Database Supabase Cloud (Admin)">
+          <div class="sidebar-tool-header">
+            <div class="sidebar-tool-icon cloud-icon">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
+                <path d="M2 17l10 5 10-5"></path>
+                <path d="M2 12l10 5 10-5"></path>
+              </svg>
+            </div>
+            <div class="sidebar-tool-info">
+              <span class="sidebar-tool-title">Supabase Cloud</span>
+              <span class="sidebar-tool-sub" id="supabasePillText">Online</span>
+            </div>
+          </div>
+          <span class="supabase-status-indicator status-warning" id="supabasePillDot"></span>
+        </button>
+      </div>
+
       <!-- Categories Filter Section -->
       <div class="nav-section">
         <div class="nav-section-header">
@@ -301,127 +395,14 @@
       <header class="top-header" id="topHeader">
         <!-- Left: Date Navigator & Quick Tools Dropdown Menu -->
         <div class="header-left">
-          <!-- Mobile Menu Drawer Toggle Button -->
-          <button id="btnMobileMenuToggle" class="btn-icon mobile-menu-toggle" title="Menu & Workspace Navigation" aria-label="Buka Menu">
+          <!-- Single Unified Sidebar & Workspace Menu Toggle Button -->
+          <button id="btnMobileMenuToggle" class="btn-icon unified-menu-toggle" title="Menu & Workspace Navigation (B)" aria-label="Buka Menu">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round">
-              <line x1="3" y1="12" x2="21" y2="12"></line>
               <line x1="3" y1="6" x2="21" y2="6"></line>
+              <line x1="3" y1="12" x2="21" y2="12"></line>
               <line x1="3" y1="18" x2="21" y2="18"></line>
             </svg>
           </button>
-
-          <!-- Quick Menu Dropdown Trigger -->
-          <div class="header-menu-container" id="headerMenuContainer">
-            <button id="btnHeaderMenu" class="btn-icon header-menu-btn" title="Quick Tools & Settings" aria-label="Feature Menu" aria-expanded="false">
-              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round">
-                <line x1="3" y1="12" x2="21" y2="12"></line>
-                <line x1="3" y1="6" x2="21" y2="6"></line>
-                <line x1="3" y1="18" x2="21" y2="18"></line>
-              </svg>
-            </button>
-
-            <!-- Quick Controls Dropdown Menu -->
-            <div class="header-dropdown-menu hidden" id="headerDropdownMenu" role="menu">
-              <div class="hdrop-header">
-                <span class="hdrop-title">Quick Tools & Controls</span>
-                <span class="hdrop-hint">Click outside to close</span>
-              </div>
-
-              <!-- 1. Toggle Sidebar -->
-              <button class="hdrop-item" id="btnToggleSidebar" role="menuitem" title="Toggle Sidebar Navigation">
-                <div class="hdrop-icon-wrap">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                    <line x1="9" y1="3" x2="9" y2="21"></line>
-                  </svg>
-                </div>
-                <div class="hdrop-item-body">
-                  <span class="hdrop-item-title">Sidebar Navigation</span>
-                  <span class="hdrop-item-desc">Show or hide sidebar panel</span>
-                </div>
-                <kbd class="hdrop-shortcut">B</kbd>
-              </button>
-
-              <!-- 2. Priority Filter -->
-              <div class="hdrop-item hdrop-filter-item" role="none">
-                <div class="hdrop-icon-wrap">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
-                  </svg>
-                </div>
-                <div class="hdrop-item-body">
-                  <span class="hdrop-item-title">Priority Filter</span>
-                  <select id="priorityFilterSelect" class="custom-select hdrop-select" aria-label="Filter Priority Level">
-                    <option value="all">All Priorities</option>
-                    <option value="high">🔴 High Priority</option>
-                    <option value="medium">🟡 Medium Priority</option>
-                    <option value="low">🟢 Low Priority</option>
-                  </select>
-                </div>
-              </div>
-
-              <!-- 3. Pomodoro Focus Timer -->
-              <button class="hdrop-item" id="btnOpenPomodoro" role="menuitem" title="Open Focus Timer (Pomodoro)">
-                <div class="hdrop-icon-wrap">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="12" cy="12" r="10"></circle>
-                    <polyline points="12 6 12 12 15 15"></polyline>
-                  </svg>
-                </div>
-                <div class="hdrop-item-body">
-                  <span class="hdrop-item-title">Focus Timer (Pomodoro)</span>
-                  <span class="hdrop-item-desc">Start focused productivity session</span>
-                </div>
-                <span id="headerTimerBadge" class="hdrop-badge">Focus</span>
-              </button>
-
-              <!-- 4. Sound FX Toggle -->
-              <button class="hdrop-item" id="btnToggleSound" role="menuitem" title="UI Sound Effects (Toggle)">
-                <div class="hdrop-icon-wrap">
-                  <svg class="sound-on-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
-                    <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
-                  </svg>
-                  <svg class="sound-off-icon hidden" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
-                    <line x1="23" y1="9" x2="17" y2="15"></line>
-                    <line x1="17" y1="9" x2="23" y2="15"></line>
-                  </svg>
-                </div>
-                <div class="hdrop-item-body">
-                  <span class="hdrop-item-title">UI Sound Effects</span>
-                  <span class="hdrop-item-desc" id="hdropSoundDesc">Click & task completion audio</span>
-                </div>
-              </button>
-
-              <!-- 5. Reload Calendar Holidays -->
-              <button class="hdrop-item" id="btnSyncIndonesiaHolidays" role="menuitem" title="Reload Calendar Holidays & Clean Old Data">
-                <div class="hdrop-icon-wrap" style="color: #ef4444; font-size: 16px;">
-                  📅
-                </div>
-                <div class="hdrop-item-body">
-                  <span class="hdrop-item-title">Calendar Holidays</span>
-                  <span class="hdrop-item-desc">Reload public holidays & clear cache</span>
-                </div>
-              </button>
-
-              <!-- 6. Supabase Status Badge (Admin) -->
-              <button class="hdrop-item hidden" id="btnSupabaseBadge" role="menuitem" title="Supabase Database Status (Admin Only)">
-                <div class="hdrop-icon-wrap">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
-                    <path d="M2 17l10 5 10-5"></path>
-                    <path d="M2 12l10 5 10-5"></path>
-                  </svg>
-                </div>
-                <div class="hdrop-item-body">
-                  <span class="hdrop-item-title">Supabase Cloud (Admin)</span>
-                  <span class="hdrop-item-desc" id="supabasePillText">Database Status Online</span>
-                </div>
-                <span class="supabase-status-indicator status-warning" id="supabasePillDot"></span>
-              </button>
-            </div>
-          </div>
 
           <div class="date-navigator">
             <button id="btnNavToday" class="btn btn-outline btn-today" title="Jump to Today (Press T)">Today</button>
@@ -1790,16 +1771,15 @@
       <span class="mb-nav-label">Kanban</span>
     </button>
 
-    <button class="mb-nav-item" id="mbNavDrawer" title="Buka Workspace & Grup">
+    <button class="mb-nav-item" id="mbNavDrawer" title="Buka Menu & Workspace">
       <div class="mb-nav-icon">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-          <circle cx="9" cy="7" r="4"></circle>
-          <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-          <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round">
+          <line x1="3" y1="6" x2="21" y2="6"></line>
+          <line x1="3" y1="12" x2="21" y2="12"></line>
+          <line x1="3" y1="18" x2="21" y2="18"></line>
         </svg>
       </div>
-      <span class="mb-nav-label">Grup / Menu</span>
+      <span class="mb-nav-label">Menu</span>
     </button>
   </nav>
 

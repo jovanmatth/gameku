@@ -142,6 +142,32 @@
         </div>
       </div>
 
+      <!-- Workspace & Groups Section -->
+      <div class="nav-section group-nav-section">
+        <div class="nav-section-header">
+          <span class="nav-section-title">WORKSPACE & GRUP</span>
+        </div>
+        <div class="group-switcher-list" id="groupSwitcherList">
+          <!-- Populated by JavaScript: Personal Schedule + Groups -->
+        </div>
+        <div class="group-nav-actions-row">
+          <button id="btnOpenCreateGroup" class="btn-group-nav-action btn-group-nav-create" type="button" title="Buat Ruang Jadwal Grup Baru">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            <span>+ Buat Grup</span>
+          </button>
+          <button id="btnOpenJoinGroup" class="btn-group-nav-action btn-group-nav-join" type="button" title="Gabung ke Grup dengan Kode Undangan">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+            </svg>
+            <span>🔗 Gabung</span>
+          </button>
+        </div>
+      </div>
+
       <!-- View Navigation Selector -->
       <div class="nav-section">
         <div class="nav-section-title">VIEW NAVIGATION</div>
@@ -450,6 +476,47 @@
           </button>
         </div>
       </header>
+
+      <!-- Active Group Banner (Visible when viewing a Group Schedule) -->
+      <section class="group-active-banner hidden" id="groupActiveBanner">
+        <div class="group-banner-inner">
+          <div class="group-banner-left">
+            <div class="group-banner-icon" id="groupBannerIcon">👥</div>
+            <div class="group-banner-info">
+              <div class="group-banner-title-row">
+                <h3 class="group-banner-title" id="groupBannerTitle">Jadwal Grup</h3>
+                <span class="group-role-badge badge-admin" id="groupBannerRoleBadge">👑 Admin Grup</span>
+              </div>
+              <span class="group-banner-meta" id="groupBannerMeta">
+                <span id="groupBannerMembersCount">1 Anggota</span> • Kode Undangan: <strong id="groupBannerCodeDisplay">---</strong>
+              </span>
+            </div>
+          </div>
+          <div class="group-banner-actions">
+            <button id="btnGroupCopyInvite" class="btn btn-outline btn-sm btn-group-action" title="Salin Tautan & Kode Undangan">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+              </svg>
+              <span>Undang Rekan</span>
+            </button>
+            <button id="btnGroupManage" class="btn btn-primary btn-sm btn-group-action" title="Kelola Anggota & Sistem Admin">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                <circle cx="9" cy="7" r="4"></circle>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+              </svg>
+              <span>Kelola Grup</span>
+            </button>
+            <button id="btnGroupBackPersonal" class="btn-icon btn-sm" title="Kembali ke Jadwal Pribadi">✕</button>
+          </div>
+        </div>
+        <div class="group-readonly-notice hidden" id="groupReadOnlyNotice">
+          <span class="notice-icon">🔒</span>
+          <span><strong>Mode Anggota (Hanya Lihat):</strong> Anda melihat jadwal bersama tim. Hanya <strong>Admin Grup</strong> yang dapat menambah, mengubah, atau menghapus jadwal ini.</span>
+        </div>
+      </section>
 
       <!-- Dashboard Highlights Ribbon (Stats & Overview) -->
       <section class="dashboard-ribbon" id="dashboardRibbon">
@@ -1200,6 +1267,297 @@
                 <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
               </svg>
               <span>Broadcast Admin Announcement</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====================================================================== -->
+  <!-- MODAL: BUAT RUANG JADWAL GRUP BARU                                     -->
+  <!-- ====================================================================== -->
+  <div class="modal-overlay hidden" id="createGroupModalOverlay" role="dialog" aria-modal="true">
+    <div class="modal-card modal-card-sm">
+      <div class="modal-header">
+        <div class="modal-title-wrap">
+          <span class="modal-icon-badge">👥</span>
+          <div>
+            <h3 class="modal-title">Buat Ruang Jadwal Grup</h3>
+            <span class="modal-subtitle">Jadwal kolaborasi bersama tim, keluarga, atau komunitas</span>
+          </div>
+        </div>
+        <button id="btnCloseCreateGroupModal" class="btn-icon modal-close-btn" aria-label="Tutup Modal">✕</button>
+      </div>
+
+      <form id="createGroupForm" class="modal-form">
+        <!-- Nama Grup -->
+        <div class="form-group">
+          <label for="groupFormName" class="form-label required">Nama Grup</label>
+          <input type="text" id="groupFormName" class="form-control" placeholder="Masukkan nama grup atau tim Anda..." required autofocus>
+        </div>
+
+        <!-- Deskripsi -->
+        <div class="form-group">
+          <label for="groupFormDesc" class="form-label">Deskripsi Singkat (Opsional)</label>
+          <input type="text" id="groupFormDesc" class="form-control" placeholder="Tujuan atau fokus jadwal tim ini...">
+        </div>
+
+        <!-- Pilih Ikon Grup -->
+        <div class="form-group">
+          <label class="form-label">Pilih Ikon Emoji</label>
+          <div class="emoji-selector-grid" id="groupEmojiSelector">
+            <button type="button" class="emoji-pill-btn active" data-emoji="🚀">🚀</button>
+            <button type="button" class="emoji-pill-btn" data-emoji="🏢">🏢</button>
+            <button type="button" class="emoji-pill-btn" data-emoji="💼">💼</button>
+            <button type="button" class="emoji-pill-btn" data-emoji="👥">👥</button>
+            <button type="button" class="emoji-pill-btn" data-emoji="🎮">🎮</button>
+            <button type="button" class="emoji-pill-btn" data-emoji="📚">📚</button>
+            <button type="button" class="emoji-pill-btn" data-emoji="🏃">🏃</button>
+            <button type="button" class="emoji-pill-btn" data-emoji="🍕">🍕</button>
+            <button type="button" class="emoji-pill-btn" data-emoji="🎨">🎨</button>
+            <button type="button" class="emoji-pill-btn" data-emoji="🎯">🎯</button>
+            <button type="button" class="emoji-pill-btn" data-emoji="⚡">⚡</button>
+            <button type="button" class="emoji-pill-btn" data-emoji="🌟">🌟</button>
+          </div>
+        </div>
+
+        <!-- Pilih Warna Tema -->
+        <div class="form-group">
+          <label class="form-label">Warna Aksen Grup</label>
+          <div class="color-selector-grid" id="groupColorSelector">
+            <button type="button" class="color-circle-btn active" data-color="#6366f1" style="--c: #6366f1;"></button>
+            <button type="button" class="color-circle-btn" data-color="#10b981" style="--c: #10b981;"></button>
+            <button type="button" class="color-circle-btn" data-color="#f59e0b" style="--c: #f59e0b;"></button>
+            <button type="button" class="color-circle-btn" data-color="#f43f5e" style="--c: #f43f5e;"></button>
+            <button type="button" class="color-circle-btn" data-color="#0ea5e9" style="--c: #0ea5e9;"></button>
+            <button type="button" class="color-circle-btn" data-color="#a855f7" style="--c: #a855f7;"></button>
+          </div>
+        </div>
+
+        <div class="modal-info-card">
+          <div class="info-card-title">👑 Peran Anda: Admin Pemilik Grup</div>
+          <p class="info-card-text">
+            Sebagai pembuat grup, Anda otomatis menjadi <strong>Admin</strong> dengan hak penuh untuk menambah, mengedit jadwal, serta mengundang dan mengatur perizinan anggota.
+          </p>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" id="btnCancelCreateGroup" class="btn btn-outline">Batal</button>
+          <button type="submit" id="btnSubmitCreateGroup" class="btn btn-primary">
+            <span>Buat Grup & Buat Kode Undangan</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ====================================================================== -->
+  <!-- MODAL: GABUNG KE GRUP DENGAN KODE UNDANGAN                             -->
+  <!-- ====================================================================== -->
+  <div class="modal-overlay hidden" id="joinGroupModalOverlay" role="dialog" aria-modal="true">
+    <div class="modal-card modal-card-sm join-group-card">
+      <div class="modal-header">
+        <div class="modal-title-wrap">
+          <span class="modal-icon-badge">🔗</span>
+          <div>
+            <h3 class="modal-title">Gabung ke Jadwal Tim</h3>
+            <span class="modal-subtitle">Gunakan kode undangan dari Admin untuk menyinkronkan agenda tim</span>
+          </div>
+        </div>
+        <button id="btnCloseJoinGroupModal" class="btn-icon modal-close-btn" aria-label="Tutup Modal">✕</button>
+      </div>
+
+      <form id="joinGroupForm" class="modal-form">
+        <!-- Visual 3 Steps Guide -->
+        <div class="join-steps-container">
+          <div class="join-step-item">
+            <span class="join-step-num">1</span>
+            <div class="join-step-info">
+              <strong>Dapatkan Kode</strong>
+              <span>Minta kode 6-8 digit ke Admin</span>
+            </div>
+          </div>
+          <div class="join-step-arrow">➜</div>
+          <div class="join-step-item">
+            <span class="join-step-num">2</span>
+            <div class="join-step-info">
+              <strong>Tempel / Ketik</strong>
+              <span>Masukkan ke kolom di bawah</span>
+            </div>
+          </div>
+          <div class="join-step-arrow">➜</div>
+          <div class="join-step-item">
+            <span class="join-step-num">3</span>
+            <div class="join-step-info">
+              <strong>Mulai Kolaborasi</strong>
+              <span>Agenda tim langsung sinkron</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="joinGroupCodeInput" class="form-label required">Kode Undangan Tim</label>
+          <div class="input-code-bar">
+            <span class="code-bar-prefix">🔑</span>
+            <input type="text" id="joinGroupCodeInput" class="form-control input-invite-code" placeholder="GRP-XXXXX" required autofocus autocomplete="off">
+            <button type="button" id="btnPasteJoinCode" class="btn-paste-code" title="Tempel dari Clipboard">
+              <span>📋 Tempel</span>
+            </button>
+          </div>
+          <span class="field-hint" id="joinCodeHint">Format kode contoh: <strong>GRP-7X29</strong> (huruf kapital otomatis).</span>
+        </div>
+
+        <!-- Role Clarity Card -->
+        <div class="join-permission-notice">
+          <div class="notice-badge">👁️ Peran Awal: Anggota (Hanya Lihat)</div>
+          <p class="notice-desc">
+            Anda dapat melihat seluruh jadwal bersama secara langsung. Hanya <strong>Admin Grup</strong> yang dapat mengubah atau menghapus jadwal demi menjaga integritas data tim. Admin dapat memberikan hak Admin kepada Anda kapan saja.
+          </p>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" id="btnCancelJoinGroup" class="btn btn-outline">Batal</button>
+          <button type="submit" id="btnSubmitJoinGroup" class="btn btn-primary btn-join-submit">
+            <span>Gabung ke Grup Sekarang 🚀</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ====================================================================== -->
+  <!-- MODAL: KELOLA GRUP, ANGGOTA & SISTEM PERIZINAN ADMIN                    -->
+  <!-- ====================================================================== -->
+  <div class="modal-overlay hidden" id="manageGroupModalOverlay" role="dialog" aria-modal="true">
+    <div class="modal-card modal-card-md manage-group-card">
+      <div class="modal-header">
+        <div class="modal-title-wrap">
+          <span class="modal-icon-badge" id="mgHeaderIcon">👥</span>
+          <div>
+            <h3 class="modal-title" id="mgHeaderTitle">Kelola Grup & Anggota</h3>
+            <span class="modal-subtitle" id="mgHeaderSubtitle">Atur kode undangan dan perizinan Admin di grup ini</span>
+          </div>
+        </div>
+        <button id="btnCloseManageGroupModal" class="btn-icon modal-close-btn" aria-label="Tutup Modal">✕</button>
+      </div>
+
+      <div class="modal-body-content">
+        <!-- Spotlight Grup & Role Aktif -->
+        <div class="group-spotlight-card">
+          <div class="group-spotlight-left">
+            <div class="group-spotlight-icon" id="mgSpotlightIcon">🚀</div>
+            <div>
+              <h4 class="group-spotlight-name" id="mgSpotlightName">Nama Grup</h4>
+              <p class="group-spotlight-desc" id="mgSpotlightDesc">Deskripsi grup...</p>
+            </div>
+          </div>
+          <div class="group-spotlight-right">
+            <span class="group-role-badge" id="mgUserRoleBadge">👑 Admin Grup</span>
+          </div>
+        </div>
+
+        <!-- 1. KOTAK KODE UNDANGAN & TAUTAN -->
+        <div class="admin-section-block">
+          <div class="admin-section-title">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+            </svg>
+            <span>BAGIKAN UNDANGAN KE REKAN TIM</span>
+          </div>
+
+          <div class="invite-pass-card">
+            <!-- Top: Big Code & Quick Copy -->
+            <div class="invite-pass-header">
+              <div class="invite-code-col">
+                <span class="invite-pass-label">KODE UNDANGAN RESMI</span>
+                <div class="invite-code-pill">
+                  <span class="invite-code-icon">🔑</span>
+                  <strong class="invite-code-val" id="mgInviteCodeVal">---</strong>
+                </div>
+              </div>
+              <button type="button" id="btnMgCopyCode" class="btn btn-outline btn-sm btn-action-copy" title="Salin Kode Undangan">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                </svg>
+                <span id="btnMgCopyCodeText">Salin Kode</span>
+              </button>
+            </div>
+
+            <!-- Middle: Direct Link Input & Copy Link -->
+            <div class="invite-link-row">
+              <span class="invite-pass-label">TAUTAN GABUNG LANGSUNG (1-KLIK)</span>
+              <div class="invite-link-bar">
+                <input type="text" id="mgInviteLinkInput" class="form-control invite-link-input" readonly placeholder="Memuat tautan undangan...">
+                <button type="button" id="btnMgCopyLink" class="btn btn-primary btn-sm btn-action-copy-link" title="Salin Tautan Gabung Langsung">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                    <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+                  </svg>
+                  <span id="btnMgCopyLinkText">Salin Tautan</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Bottom: Quick WhatsApp Share & Tip -->
+            <div class="invite-pass-footer">
+              <button type="button" id="btnMgShareWhatsApp" class="btn btn-sm btn-whatsapp-share" title="Bagikan undangan langsung via WhatsApp">
+                <span>💬 Bagikan via WhatsApp</span>
+              </button>
+              <span class="invite-pass-tip">💡 Rekan yang mengklik tautan langsung membuka form konfirmasi bergabung.</span>
+            </div>
+          </div>
+
+          <div class="invite-role-rule-note">
+            <span class="rule-icon">🛡️</span>
+            <span><strong>Kontrol Keamanan Admin:</strong> Anggota yang bergabung via tautan/kode otomatis berstatus <strong>Hanya Lihat (View-Only)</strong>. Anda sebagai Admin dapat memberikan hak edit kapan saja dengan menekan tombol <strong>👑 Jadikan Admin</strong> di daftar anggota di bawah.</span>
+          </div>
+        </div>
+
+        <!-- 2. DAFTAR ANGGOTA & PERIZINAN ADMIN -->
+        <div class="admin-section-block">
+          <div class="admin-section-title">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+              <circle cx="9" cy="7" r="4"></circle>
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+              <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+            </svg>
+            <span>DAFTAR ANGGOTA & HAK AKSES (<span id="mgMembersCountLabel">0</span>)</span>
+          </div>
+
+          <div class="group-members-list" id="mgMembersListContainer">
+            <!-- Diisi secara dinamis oleh JavaScript -->
+          </div>
+        </div>
+
+        <!-- 3. PENGATURAN GRUP & TINDAKAN KELUAR / HAPUS -->
+        <div class="admin-section-block">
+          <div class="admin-section-title">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="3"></circle>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+            </svg>
+            <span>TINDAKAN GRUP</span>
+          </div>
+
+          <div class="mg-danger-actions">
+            <button type="button" id="btnMgLeaveGroup" class="btn btn-outline btn-sm text-warning" title="Keluar dari grup ini">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                <polyline points="16 17 21 12 16 7"></polyline>
+                <line x1="21" y1="12" x2="9" y2="12"></line>
+              </svg>
+              <span>Keluar dari Grup</span>
+            </button>
+            <button type="button" id="btnMgDeleteGroup" class="btn btn-outline btn-sm text-danger hidden" title="Hapus grup ini selamanya (Khusus Pemilik/Admin)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="3 6 5 6 21 6"></polyline>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+              </svg>
+              <span>Hapus Grup Selamanya</span>
             </button>
           </div>
         </div>

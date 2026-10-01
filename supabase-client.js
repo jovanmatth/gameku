@@ -448,3 +448,489 @@ export async function fetchAdminDatabaseStats() {
   }
 }
 
+// ------------------------------------------------------------------------------
+// 5. GROUP SCHEDULES, INVITE CODES & ROLE-BASED ADMIN ENGINE
+// ------------------------------------------------------------------------------
+
+const GROUPS_STORAGE_KEY = 'plancraft_groups_store';
+const GROUP_MEMBERS_PREFIX = 'plancraft_grp_members_';
+const GROUP_SCHEDULES_PREFIX = 'plancraft_grp_schedules_';
+
+/** Helper LocalStorage untuk Groups */
+function getLocalGroupsStore() {
+  try {
+    const raw = localStorage.getItem(GROUPS_STORAGE_KEY);
+    if (raw) {
+      let list = JSON.parse(raw);
+      if (Array.isArray(list)) {
+        // Hapus grup demo placeholder jika sebelumnya tersimpan di browser
+        const filtered = list.filter(g => g && g.id !== 'grp-demo-sprint' && g.inviteCode !== 'GRP-ALPHA');
+        if (filtered.length !== list.length) {
+          localStorage.setItem(GROUPS_STORAGE_KEY, JSON.stringify(filtered));
+          localStorage.removeItem(`${GROUP_MEMBERS_PREFIX}grp-demo-sprint`);
+          localStorage.removeItem(`${GROUP_SCHEDULES_PREFIX}grp-demo-sprint`);
+        }
+        return filtered;
+      }
+    }
+    return [];
+  } catch {
+    return [];
+  }
+}
+
+function saveLocalGroupsStore(groups) {
+  try {
+    localStorage.setItem(GROUPS_STORAGE_KEY, JSON.stringify(groups));
+  } catch {}
+}
+
+function getLocalGroupMembers(groupId) {
+  try {
+    const raw = localStorage.getItem(`${GROUP_MEMBERS_PREFIX}${groupId}`);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveLocalGroupMembers(groupId, members) {
+  try {
+    localStorage.setItem(`${GROUP_MEMBERS_PREFIX}${groupId}`, JSON.stringify(members));
+  } catch {}
+}
+
+function getLocalGroupSchedules(groupId) {
+  try {
+    const raw = localStorage.getItem(`${GROUP_SCHEDULES_PREFIX}${groupId}`);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveLocalGroupSchedules(groupId, schedules) {
+  try {
+    localStorage.setItem(`${GROUP_SCHEDULES_PREFIX}${groupId}`, JSON.stringify(schedules));
+  } catch {}
+}
+
+/** Mengambil daftar semua grup yang diikuti user */
+export async function fetchUserGroups(userId) {
+  const localGroups = getLocalGroupsStore();
+  const client = getSupabase();
+  if (!client || !userId || !isSupabaseConfigured()) {
+    return localGroups;
+  }
+
+  try {
+    // 1. Ambil membership user
+    const { data: memberRows, error: memErr } = await client
+      .from('group_members')
+      .select('group_id, role')
+      .eq('user_id', userId);
+
+    if (memErr) {
+      if (memErr.code === 'PGRST205') {
+        // Tabel belum dibuat di Supabase, gunakan local cache
+        return localGroups;
+      }
+      console.warn('Gagal fetch group_members dari Supabase, gunakan local:', memErr);
+      return localGroups;
+    }
+
+    if (!memberRows || memberRows.length === 0) {
+      return localGroups;
+    }
+
+    const groupIds = memberRows.map(m => m.group_id);
+    const roleMap = {};
+    memberRows.forEach(m => { roleMap[m.group_id] = m.role; });
+
+    // 2. Ambil data grup
+    const { data: groupRows, error: grpErr } = await client
+      .from('groups')
+      .select('*')
+      .in('id', groupIds);
+
+    if (grpErr) {
+      return localGroups;
+    }
+
+    const merged = (groupRows || []).map(g => ({
+      id: g.id,
+      name: g.name,
+      description: g.description || '',
+      icon: g.icon || '👥',
+      color: g.color || '#6366f1',
+      inviteCode: g.invite_code,
+      ownerId: g.owner_id,
+      createdAt: g.created_at,
+      role: roleMap[g.id] || 'member',
+      membersCount: 1
+    }));
+
+    // Sinkronkan ke local cache
+    saveLocalGroupsStore(merged);
+    return merged.length > 0 ? merged : localGroups;
+  } catch (err) {
+    console.warn('Error fetching groups from Supabase:', err);
+    return localGroups;
+  }
+}
+
+/** Membuat Grup Baru di Supabase & LocalStorage */
+export async function createGroupInCloud(groupData, user) {
+  const userId = user ? user.id : 'guest-' + Math.random().toString(36).substr(2, 6);
+  const userEmail = user?.email || 'guest@plancraft.local';
+  const userName = user?.user_metadata?.display_name || userEmail.split('@')[0] || 'User';
+
+  const groupId = `grp-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
+  const inviteCode = groupData.inviteCode || ('GRP-' + Math.random().toString(36).substr(2, 4).toUpperCase());
+
+  const newGroup = {
+    id: groupId,
+    name: groupData.name.trim(),
+    description: (groupData.description || '').trim(),
+    icon: groupData.icon || '👥',
+    color: groupData.color || '#6366f1',
+    inviteCode: inviteCode,
+    ownerId: userId,
+    createdAt: new Date().toISOString(),
+    role: 'admin', // Pembuat grup otomatis menjadi Admin
+    membersCount: 1
+  };
+
+  // Simpan ke local storage
+  const currentGroups = getLocalGroupsStore();
+  currentGroups.unshift(newGroup);
+  saveLocalGroupsStore(currentGroups);
+
+  const initialMember = {
+    id: `mem-${Date.now()}`,
+    userId: userId,
+    userName: userName,
+    userEmail: userEmail,
+    role: 'admin',
+    joinedAt: new Date().toISOString()
+  };
+  saveLocalGroupMembers(groupId, [initialMember]);
+  saveLocalGroupSchedules(groupId, []);
+
+  // Jika terhubung ke Supabase, simpan ke database cloud
+  const client = getSupabase();
+  if (client && user && isSupabaseConfigured()) {
+    try {
+      const { error: grpErr } = await client.from('groups').insert({
+        id: groupId,
+        name: newGroup.name,
+        description: newGroup.description,
+        icon: newGroup.icon,
+        color: newGroup.color,
+        invite_code: newGroup.inviteCode,
+        owner_id: userId
+      });
+
+      if (!grpErr) {
+        await client.from('group_members').insert({
+          id: initialMember.id,
+          group_id: groupId,
+          user_id: userId,
+          user_email: userEmail,
+          user_name: userName,
+          role: 'admin'
+        });
+      }
+    } catch (err) {
+      console.warn('Gagal sinkron grup baru ke Supabase:', err);
+    }
+  }
+
+  return newGroup;
+}
+
+/** Bergabung ke grup menggunakan Kode Undangan */
+export async function joinGroupByCodeInCloud(inviteCode, user) {
+  const code = (inviteCode || '').trim().toUpperCase();
+  if (!code) throw new Error('Kode undangan harus diisi.');
+
+  const userId = user ? user.id : 'guest-' + Math.random().toString(36).substr(2, 6);
+  const userEmail = user?.email || 'guest@plancraft.local';
+  const userName = user?.user_metadata?.display_name || userEmail.split('@')[0] || 'User';
+
+  let foundGroup = null;
+
+  // 1. Cek di Supabase jika terhubung
+  const client = getSupabase();
+  if (client && isSupabaseConfigured()) {
+    try {
+      const { data, error } = await client
+        .from('groups')
+        .select('*')
+        .eq('invite_code', code)
+        .maybeSingle();
+
+      if (!error && data) {
+        foundGroup = {
+          id: data.id,
+          name: data.name,
+          description: data.description || '',
+          icon: data.icon || '👥',
+          color: data.color || '#6366f1',
+          inviteCode: data.invite_code,
+          ownerId: data.owner_id,
+          createdAt: data.created_at,
+          role: 'member', // Bergabung via invite code masuk sebagai Member biasa
+          membersCount: 2
+        };
+
+        // Daftarkan membership di Supabase
+        if (user) {
+          await client.from('group_members').upsert({
+            group_id: data.id,
+            user_id: userId,
+            user_email: userEmail,
+            user_name: userName,
+            role: 'member'
+          }, { onConflict: 'group_id,user_id' });
+        }
+      }
+    } catch (err) {
+      console.warn('Gagal cek kode undangan di Supabase:', err);
+    }
+  }
+
+  // 2. Jika belum ditemukan di cloud, cari di local storage
+  if (!foundGroup) {
+    const allLocal = getLocalGroupsStore();
+    foundGroup = allLocal.find(g => (g.inviteCode || '').toUpperCase() === code);
+    if (foundGroup) {
+      foundGroup = { ...foundGroup, role: foundGroup.ownerId === userId ? 'admin' : 'member' };
+    }
+  }
+
+  if (!foundGroup) {
+    throw new Error(`Grup dengan kode undangan "${code}" tidak ditemukan. Periksa kembali kodenya.`);
+  }
+
+  // Tambahkan ke store local groups jika belum ada
+  const myGroups = getLocalGroupsStore();
+  const existingIdx = myGroups.findIndex(g => g.id === foundGroup.id);
+  if (existingIdx !== -1) {
+    myGroups[existingIdx] = { ...myGroups[existingIdx], ...foundGroup };
+  } else {
+    myGroups.push(foundGroup);
+  }
+  saveLocalGroupsStore(myGroups);
+
+  // Tambahkan ke member list lokal
+  const members = getLocalGroupMembers(foundGroup.id);
+  const existsMember = members.some(m => m.userId === userId);
+  if (!existsMember) {
+    members.push({
+      id: `mem-${Date.now()}`,
+      userId: userId,
+      userName: userName,
+      userEmail: userEmail,
+      role: 'member',
+      joinedAt: new Date().toISOString()
+    });
+    saveLocalGroupMembers(foundGroup.id, members);
+  }
+
+  return foundGroup;
+}
+
+/** Mengambil seluruh anggota dalam suatu grup */
+export async function fetchGroupMembersFromCloud(groupId) {
+  const localMembers = getLocalGroupMembers(groupId);
+  const client = getSupabase();
+  if (!client || !isSupabaseConfigured()) {
+    return localMembers;
+  }
+
+  try {
+    const { data, error } = await client
+      .from('group_members')
+      .select('*')
+      .eq('group_id', groupId)
+      .order('joined_at', { ascending: true });
+
+    if (error || !data) {
+      return localMembers;
+    }
+
+    const formatted = data.map(m => ({
+      id: m.id,
+      userId: m.user_id,
+      userName: m.user_name || m.user_email?.split('@')[0] || 'Anggota',
+      userEmail: m.user_email || '',
+      role: m.role || 'member',
+      joinedAt: m.joined_at
+    }));
+
+    saveLocalGroupMembers(groupId, formatted);
+    return formatted.length > 0 ? formatted : localMembers;
+  } catch {
+    return localMembers;
+  }
+}
+
+/** Mengubah perizinan role anggota (Jadikan Admin / Ubah ke Member) */
+export async function updateGroupMemberRoleInCloud(groupId, targetUserId, newRole) {
+  // Update local
+  const members = getLocalGroupMembers(groupId);
+  const target = members.find(m => m.userId === targetUserId);
+  if (target) {
+    target.role = newRole;
+    saveLocalGroupMembers(groupId, members);
+  }
+
+  // Update Supabase jika ada
+  const client = getSupabase();
+  if (client && isSupabaseConfigured()) {
+    try {
+      await client
+        .from('group_members')
+        .update({ role: newRole })
+        .eq('group_id', groupId)
+        .eq('user_id', targetUserId);
+    } catch (err) {
+      console.warn('Gagal update role anggota di Supabase:', err);
+    }
+  }
+}
+
+/** Mengeluarkan anggota dari grup */
+export async function removeGroupMemberFromCloud(groupId, targetUserId) {
+  const members = getLocalGroupMembers(groupId).filter(m => m.userId !== targetUserId);
+  saveLocalGroupMembers(groupId, members);
+
+  const client = getSupabase();
+  if (client && isSupabaseConfigured()) {
+    try {
+      await client
+        .from('group_members')
+        .delete()
+        .eq('group_id', groupId)
+        .eq('user_id', targetUserId);
+    } catch (err) {
+      console.warn('Gagal hapus anggota di Supabase:', err);
+    }
+  }
+}
+
+/** Menghapus Grup Selamanya */
+export async function deleteGroupInCloud(groupId) {
+  const groups = getLocalGroupsStore().filter(g => g.id !== groupId);
+  saveLocalGroupsStore(groups);
+  localStorage.removeItem(`${GROUP_MEMBERS_PREFIX}${groupId}`);
+  localStorage.removeItem(`${GROUP_SCHEDULES_PREFIX}${groupId}`);
+
+  const client = getSupabase();
+  if (client && isSupabaseConfigured()) {
+    try {
+      await client.from('groups').delete().eq('id', groupId);
+    } catch (err) {
+      console.warn('Gagal hapus grup di Supabase:', err);
+    }
+  }
+}
+
+/** Mengambil jadwal khusus suatu grup */
+export async function fetchGroupSchedulesFromCloud(groupId) {
+  const localSchedules = getLocalGroupSchedules(groupId);
+  const client = getSupabase();
+  if (!client || !isSupabaseConfigured()) {
+    return localSchedules;
+  }
+
+  try {
+    const { data, error } = await client
+      .from('schedules')
+      .select('*')
+      .eq('group_id', groupId)
+      .order('date', { ascending: true });
+
+    if (error || !data) {
+      return localSchedules;
+    }
+
+    const formatted = data.map(row => ({
+      id: row.id,
+      groupId: row.group_id,
+      title: row.title,
+      category: row.category,
+      date: row.date,
+      startTime: row.start_time,
+      endTime: row.end_time,
+      priority: row.priority,
+      status: row.status,
+      location: row.location || '',
+      description: row.description || '',
+      checklist: Array.isArray(row.checklist) ? row.checklist : []
+    }));
+
+    saveLocalGroupSchedules(groupId, formatted);
+    return formatted.length > 0 ? formatted : localSchedules;
+  } catch {
+    return localSchedules;
+  }
+}
+
+/** Menyimpan atau memperbarui jadwal di dalam grup */
+export async function saveGroupScheduleToCloud(schedule, groupId, userId) {
+  // Update local
+  const schedules = getLocalGroupSchedules(groupId);
+  const idx = schedules.findIndex(s => s.id === schedule.id);
+  const itemToSave = { ...schedule, groupId };
+
+  if (idx !== -1) {
+    schedules[idx] = itemToSave;
+  } else {
+    schedules.push(itemToSave);
+  }
+  saveLocalGroupSchedules(groupId, schedules);
+
+  // Update Supabase
+  const client = getSupabase();
+  if (client && isSupabaseConfigured()) {
+    try {
+      const rowData = {
+        id: schedule.id,
+        user_id: userId,
+        group_id: groupId,
+        title: schedule.title,
+        category: schedule.category || 'work',
+        date: schedule.date,
+        start_time: schedule.startTime || '09:00',
+        end_time: schedule.endTime || '10:00',
+        priority: schedule.priority || 'medium',
+        status: schedule.status || 'scheduled',
+        location: schedule.location || '',
+        description: schedule.description || '',
+        checklist: schedule.checklist || [],
+        updated_at: new Date().toISOString()
+      };
+
+      await client.from('schedules').upsert(rowData, { onConflict: 'id' });
+    } catch (err) {
+      console.warn('Gagal sinkron jadwal grup ke Supabase:', err);
+    }
+  }
+}
+
+/** Menghapus jadwal grup */
+export async function deleteGroupScheduleFromCloud(scheduleId, groupId) {
+  const schedules = getLocalGroupSchedules(groupId).filter(s => s.id !== scheduleId);
+  saveLocalGroupSchedules(groupId, schedules);
+
+  const client = getSupabase();
+  if (client && isSupabaseConfigured()) {
+    try {
+      await client.from('schedules').delete().eq('id', scheduleId).eq('group_id', groupId);
+    } catch (err) {
+      console.warn('Gagal hapus jadwal grup di Supabase:', err);
+    }
+  }
+}

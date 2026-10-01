@@ -66,6 +66,34 @@ where id = 'a76b1dfe-9c4d-4be5-be10-808f0355bfaa'
 
 ---
 
+## 👥 Jadwal Kolaboratif Grup & Sistem Hak Akses Admin (Fitur Baru)
+
+Fitur kolaborasi tim & grup untuk membuat jadwal bersama dengan kontrol hak akses granular:
+
+### 1. Sistem Ruang Kerja (Workspace & Grup):
+- 🏢 **Peralihan Fleksibel**: Beralih seketika antara **Jadwal Pribadi** dan berbagai **Grup Kolaboratif** di panel sidebar kiri.
+- 🎨 **Pembuatan Grup Kustom**: Tentukan Nama Grup, Deskripsi, Ikon Emoji favorit, dan Warna Aksen tim.
+
+### 2. Sistem Undangan (Invite System):
+- 🔑 **Kode Undangan Unik**: Setiap grup memiliki kode unik (contoh: `GRP-ALPHA`).
+- 🔗 **Tautan 1-Klik (`?join=CODE`)**: Bagikan tautan instan ke rekan tim; saat tautan dibuka di browser, aplikasi otomatis membuka dialog konfirmasi bergabung ke grup.
+- 📋 **Salin Cepat**: Tombol salin kode dan tautan undangan langsung dengan notifikasi konfirmasi.
+
+### 3. Sistem Hak Akses (Role-Based Admin Engine):
+- 👑 **Admin Grup**:
+  - Memiliki otoritas penuh untuk **menambah**, **mengedit**, **mengatur checklist**, **memindahkan alur Kanban**, dan **menghapus** jadwal grup.
+  - Dapat membuka modal **Kelola Grup** untuk melihat daftar seluruh anggota.
+  - Memiliki kewenangan mengubah peran pengguna lain (**Jadikan Admin** atau **Ubah ke Anggota**).
+  - Dapat mengeluarkan anggota atau menghapus grup secara permanen.
+- 👁️ **Anggota (Member / Read-Only)**:
+  - Berperan sebagai peninjau kegiatan bersama.
+  - Dapat melihat seluruh jadwal grup di semua 5 tampilan kalender secara transparan.
+  - **Dibatasi dari pengubahan**: Tombol tambah jadwal, tombol edit di pratinjau, dan tombol pemindah status Kanban disembunyikan.
+  - Jika mencoba mengubah jadwal lewat shortcut atau trik antarmuka, sistem akan memblokir aksi dan menampilkan notifikasi peringatan hak akses.
+  - Didukung pengamanan lapis ganda di sisi database Supabase melalui PostgreSQL Row Level Security (RLS).
+
+---
+
 ## ✨ Fitur Lengkap Aplikasi
 
 1. **Autentikasi & Profil Pengguna**:
@@ -73,31 +101,40 @@ where id = 'a76b1dfe-9c4d-4be5-be10-808f0355bfaa'
    - Profil pengguna menampilkan email, total jadwal di cloud, dan tombol sinkronisasi.
    - Tombol keluar (Logout) yang aman.
 
-2. **5 Tampilan Kalender & Alur Kerja**:
+2. **Jadwal Grup & Kolaborasi Tim**:
+   - Pembuatan grup baru, kode invite unik, dan share link.
+   - Kontrol hak akses Admin vs Anggota (Read-Only).
+   - Banner status grup aktif dan manajemen keanggotaan.
+
+3. **5 Tampilan Kalender & Alur Kerja**:
    - 📅 **Kalender Bulanan (Month View)**: Grid 1 bulan penuh, penanda hari ini, chip kegiatan berkode warna, dan indikator overflow.
    - 📆 **Timeline Mingguan (Week View)**: Jadwal 7 hari dengan slot per jam (00:00 - 23:00) dan penanda garis waktu sekarang yang berpendar.
    - ⏰ **Harian Terfokus (Day View)**: Rincian kegiatan per jam, catatan harian (*Day Notes* auto-save), dan checklist target.
    - 📋 **Papan Status Kanban**: 4 kolom status (*Rencana*, *Sedang Berjalan*, *Terjadwal*, *Selesai*) dengan tombol cepat advance status.
    - 📝 **Daftar Agenda (Agenda View)**: Garis waktu kronologis terhubung (*Hari Ini*, *Besok*, *Mendatang*, *Riwayat*).
 
-3. **Command Palette Pintar (<kbd>Ctrl</kbd> + <kbd>K</kbd> / <kbd>⌘</kbd> + <kbd>K</kbd>)**:
+4. **Command Palette Pintar (<kbd>Ctrl</kbd> + <kbd>K</kbd> / <kbd>⌘</kbd> + <kbd>K</kbd>)**:
    - Navigasi instan bergaya Raycast & Linear.
    - Cari jadwal apa saja atau jalankan perintah sistem langsung dari keyboard.
 
-4. **Focus Session (Pomodoro Timer)**:
+5. **Focus Session (Pomodoro Timer)**:
    - Timer fokus 25 menit, 5 menit (rehat), dan 15 menit (santai).
 
-5. **Efek Audio Sintesis & Selebrasi Confetti**:
+6. **Efek Audio Sintesis & Selebrasi Confetti**:
    - Suara UI halus dan interaktif berbasis Web Audio API tanpa perlu file eksternal (bisa dimatikan/dihidupkan dengan 1-klik).
    - Efek ledakan confetti saat menyelesaikan tugas atau agenda.
 
-6. **Kustomisasi & Ekspor/Impor**:
+7. **Kustomisasi & Ekspor/Impor**:
    - Kategori berkode warna dan bergradien kustom.
    - Ekspor data backup ke file `.json`.
    - Impor data dari file `.json` atau tempel teks.
 
-7. **Shortcut Keyboard Lengkap**:
+8. **Shortcut Keyboard Lengkap**:
    - <kbd>Ctrl</kbd> + <kbd>K</kbd> : Buka Command Palette.
+   - <kbd>N</kbd> : Buka modal tambah jadwal baru (khusus Admin pada grup).
+   - <kbd>T</kbd> : Lompat ke Hari Ini.
+   - <kbd>1</kbd> - <kbd>5</kbd> : Ganti tampilan (Bulan, Minggu, Hari, Kanban, Agenda).
+   - <kbd>Esc</kbd> : Tutup modal yang sedang terbuka.
    - <kbd>N</kbd> : Buka modal tambah jadwal baru.
    - <kbd>T</kbd> : Lompat ke Hari Ini.
    - <kbd>1</kbd> - <kbd>5</kbd> : Ganti tampilan (Bulan, Minggu, Hari, Kanban, Agenda).

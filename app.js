@@ -39,7 +39,17 @@ import {
   isUserAdmin,
   fetchAllSchedulesAdmin,
   deleteAnyScheduleAdmin,
-  fetchAdminDatabaseStats
+  fetchAdminDatabaseStats,
+  fetchUserGroups,
+  createGroupInCloud,
+  joinGroupByCodeInCloud,
+  fetchGroupMembersFromCloud,
+  updateGroupMemberRoleInCloud,
+  removeGroupMemberFromCloud,
+  deleteGroupInCloud,
+  fetchGroupSchedulesFromCloud,
+  saveGroupScheduleToCloud,
+  deleteGroupScheduleFromCloud
 } from './supabase-client.js';
 
 // ==============================================================================
@@ -101,8 +111,19 @@ const state = {
   searchQuery: '',             // String pencarian
   theme: localStorage.getItem(THEME_KEY) || 'dark',
   soundEnabled: localStorage.getItem(SOUND_KEY) !== 'false',
-  dayNotes: {}
+  dayNotes: {},
+  groups: [],                  // Daftar grup pengguna
+  currentGroup: null,          // null = Personal Schedule; or group object
+  currentGroupMembers: []      // Anggota grup yang sedang aktif
 };
+
+/** Memeriksa apakah user saat ini adalah Admin di grup aktif (atau jadwal pribadi) */
+function isCurrentGroupAdmin() {
+  if (!state.currentGroup) return true; // Jadwal pribadi selalu bisa diedit sendiri
+  if (state.isAdmin) return true; // Global Super Admin (Jovan) selalu memiliki hak admin
+  const r = (state.currentGroup.role || '').toLowerCase();
+  return r === 'admin' || r === 'owner';
+}
 
 
 // ==============================================================================
@@ -308,9 +329,20 @@ function loadLocalSchedules(accountKey) {
   renderApp();
 }
 
-/** Simpan jadwal ke Supabase Cloud & cache lokal */
+/** Simpan jadwal ke Supabase Cloud & cache lokal (Mendukung Jadwal Pribadi & Jadwal Grup) */
 async function persistSchedule(scheduleData) {
-  // 1. Simpan ke state dan cache lokal
+  // Jika sedang membuka grup, simpan ke jadwal grup
+  if (state.currentGroup) {
+    const uid = state.currentUser ? state.currentUser.id : 'guest';
+    try {
+      await saveGroupScheduleToCloud(scheduleData, state.currentGroup.id, uid);
+    } catch (err) {
+      console.warn('Gagal sinkron jadwal grup:', err);
+    }
+    return;
+  }
+
+  // 1. Simpan ke state dan cache lokal personal
   const accKey = state.currentUser ? state.currentUser.id : 'guest';
   localStorage.setItem(`${STORAGE_PREFIX}${accKey}`, JSON.stringify(state.schedules));
 
@@ -325,8 +357,17 @@ async function persistSchedule(scheduleData) {
   }
 }
 
-/** Hapus jadwal dari Supabase Cloud & cache lokal */
+/** Hapus jadwal dari Supabase Cloud & cache lokal (Mendukung Jadwal Pribadi & Jadwal Grup) */
 async function removeSchedule(scheduleId) {
+  if (state.currentGroup) {
+    try {
+      await deleteGroupScheduleFromCloud(scheduleId, state.currentGroup.id);
+    } catch (err) {
+      console.warn('Gagal hapus jadwal grup:', err);
+    }
+    return;
+  }
+
   const accKey = state.currentUser ? state.currentUser.id : 'guest';
   localStorage.setItem(`${STORAGE_PREFIX}${accKey}`, JSON.stringify(state.schedules));
 
@@ -338,6 +379,7 @@ async function removeSchedule(scheduleId) {
     }
   }
 }
+
 
 /** Update Tampilan Badge Supabase di Header & Footer */
 function updateSupabaseStatusBadges() {
@@ -933,6 +975,8 @@ function renderApp() {
   renderMiniCalendar();
   renderCategoryFilterSidebar();
   renderActiveFilterBanner();
+  renderGroupSwitcher();
+  renderGroupBanner();
 
   switch (state.activeView) {
     case 'month':
@@ -1110,18 +1154,20 @@ function renderMonthView() {
       dayNumber.title = `🇮🇩 Public Holiday: ${dayHolidays.map(h => h.title).join(', ')}`;
     }
 
-    const addBtn = document.createElement('button');
-    addBtn.className = 'btn-cell-add';
-    addBtn.innerHTML = '+';
-    addBtn.title = `Add schedule on ${dateKey}`;
-    addBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      playUiSound('click');
-      openScheduleModal(null, dateKey);
-    });
-
     cellHeader.appendChild(dayNumber);
-    cellHeader.appendChild(addBtn);
+
+    if (!state.currentGroup || isCurrentGroupAdmin()) {
+      const addBtn = document.createElement('button');
+      addBtn.className = 'btn-cell-add';
+      addBtn.innerHTML = '+';
+      addBtn.title = `Add schedule on ${dateKey}`;
+      addBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        playUiSound('click');
+        openScheduleModal(null, dateKey);
+      });
+      cellHeader.appendChild(addBtn);
+    }
     cell.appendChild(cellHeader);
 
     // Tempat Khusus: Tanggal Merah & Libur Nasional di bagian atas cell
@@ -1368,6 +1414,7 @@ function renderDayView() {
   const isSunday = d.getDay() === 0;
   const isTanggalMerah = isSunday || dayHolidays.length > 0;
 
+  const canAddDay = !state.currentGroup || isCurrentGroupAdmin();
   header.innerHTML = `
     <div class="day-header-main">
       <h2 style="${isTanggalMerah ? 'color: #ef4444;' : ''}">
@@ -1376,14 +1423,18 @@ function renderDayView() {
       </h2>
       <p>${dayTasks.length} Scheduled Tasks • ${completedCount} Completed</p>
     </div>
-    <button class="btn btn-primary btn-sm" id="btnDayAddEvent">
-      + Today's Schedule
-    </button>
+    ${canAddDay ? `
+      <button class="btn btn-primary btn-sm" id="btnDayAddEvent">
+        + Today's Schedule
+      </button>
+    ` : ''}
   `;
 
-  document.getElementById('btnDayAddEvent')?.addEventListener('click', () => {
-    openScheduleModal(null, dateKey);
-  });
+  if (canAddDay) {
+    document.getElementById('btnDayAddEvent')?.addEventListener('click', () => {
+      openScheduleModal(null, dateKey);
+    });
+  }
 
   timelineCol.innerHTML = '';
 
@@ -1506,11 +1557,19 @@ function renderDayView() {
       allChecklistItems.forEach(item => {
         const row = document.createElement('label');
         row.className = 'day-task-item';
+        const canEditChecklist = !state.currentGroup || isCurrentGroupAdmin();
         row.innerHTML = `
-          <input type="checkbox" ${item.done ? 'checked' : ''} class="agenda-checkbox">
+          <input type="checkbox" ${item.done ? 'checked' : ''} ${canEditChecklist ? '' : 'disabled'} class="agenda-checkbox">
           <span style="${item.done ? 'text-decoration: line-through; opacity: 0.6;' : ''}">${escapeHtml(item.text)}</span>
         `;
         row.querySelector('input').addEventListener('change', async (e) => {
+          if (state.currentGroup && !isCurrentGroupAdmin()) {
+            e.preventDefault();
+            e.target.checked = !e.target.checked;
+            playUiSound('error');
+            showToast('⚠️ Akses Dibatasi: Hanya Admin Grup yang dapat memperbarui checklist jadwal grup.', 'warning');
+            return;
+          }
           const evt = state.schedules.find(s => s.id === item.eventId);
           if (evt && evt.checklist && evt.checklist[item.index]) {
             evt.checklist[item.index].done = e.target.checked;
@@ -1578,6 +1637,7 @@ function renderKanbanView() {
         checkText = `☑️ ${done}/${item.checklist.length}`;
       }
 
+      const canAdvance = !state.currentGroup || isCurrentGroupAdmin();
       card.innerHTML = `
         <div class="kanban-card-header">
           <span class="kanban-cat-badge" style="background-color: ${cat.bgColor}; color: ${cat.color};">
@@ -1589,16 +1649,20 @@ function renderKanbanView() {
         <div class="kanban-card-footer">
           <span>📅 ${item.date}</span>
           ${checkText ? `<span style="font-size: 0.68rem; color: var(--text-muted);">${checkText}</span>` : ''}
-          <button class="kanban-advance-btn" title="Move to next stage">
-            <span>Next</span> ➜
-          </button>
+          ${canAdvance ? `
+            <button class="kanban-advance-btn" title="Move to next stage">
+              <span>Next</span> ➜
+            </button>
+          ` : ''}
         </div>
       `;
 
-      card.querySelector('.kanban-advance-btn').addEventListener('click', (e) => {
-        e.stopPropagation();
-        advanceKanbanStatus(item.id);
-      });
+      if (canAdvance) {
+        card.querySelector('.kanban-advance-btn')?.addEventListener('click', (e) => {
+          e.stopPropagation();
+          advanceKanbanStatus(item.id);
+        });
+      }
 
       card.addEventListener('click', () => {
         openPreviewModal(item);
@@ -1610,6 +1674,11 @@ function renderKanbanView() {
 }
 
 async function advanceKanbanStatus(scheduleId) {
+  if (state.currentGroup && !isCurrentGroupAdmin()) {
+    playUiSound('error');
+    showToast('⚠️ Akses Dibatasi: Hanya Admin Grup yang dapat memindahkan alur status Kanban.', 'warning');
+    return;
+  }
   const item = state.schedules.find(s => s.id === scheduleId);
   if (!item) return;
 
@@ -1882,6 +1951,13 @@ function openScheduleModal(itemToEdit = null, defaultDateStr = null, defaultTime
   const checklistContainer = document.getElementById('formChecklistContainer');
 
   if (!modal) return;
+
+  if (state.currentGroup && !isCurrentGroupAdmin()) {
+    playUiSound('error');
+    showToast('⚠️ Akses Dibatasi: Anda adalah Anggota di grup ini. Hanya Admin Grup yang dapat menambah atau mengubah jadwal bersama.', 'warning');
+    return;
+  }
+
   playUiSound('pop');
 
   pillSelector.innerHTML = '';
@@ -2025,6 +2101,12 @@ async function handleScheduleFormSubmit(e) {
 }
 
 async function confirmDeleteSchedule(id) {
+  if (state.currentGroup && !isCurrentGroupAdmin()) {
+    playUiSound('error');
+    showToast('⚠️ Akses Dibatasi: Hanya Admin Grup yang dapat menghapus jadwal grup.', 'warning');
+    return;
+  }
+
   const item = state.schedules.find(s => s.id === id);
   if (!item) return;
 
@@ -2085,8 +2167,9 @@ function openPreviewModal(item) {
   }
 
   // Regular task item
-  if (toggleBtn) toggleBtn.style.display = '';
-  if (editBtn) editBtn.style.display = '';
+  const isGrpAdmin = !state.currentGroup || isCurrentGroupAdmin();
+  if (toggleBtn) toggleBtn.style.display = isGrpAdmin ? '' : 'none';
+  if (editBtn) editBtn.style.display = isGrpAdmin ? '' : 'none';
 
   const cat = getCategory(item.category);
   const pri = getPriority(item.priority);
@@ -2102,6 +2185,11 @@ function openPreviewModal(item) {
     <span class="kanban-cat-badge" style="background-color: var(--border-subtle); color: var(--text-main);">
       ${stat.icon} ${stat.label}
     </span>
+    ${state.currentGroup && !isGrpAdmin ? `
+      <span class="kanban-cat-badge" style="background: rgba(148, 163, 184, 0.15); color: var(--text-secondary); border: 1px solid var(--border-subtle);">
+        👁️ Mode Baca Sahaja
+      </span>
+    ` : ''}
   `;
 
   let checklistHtml = '';
@@ -2148,6 +2236,12 @@ function closePreviewModal() {
 }
 
 async function toggleScheduleComplete(id) {
+  if (state.currentGroup && !isCurrentGroupAdmin()) {
+    playUiSound('error');
+    showToast('⚠️ Akses Dibatasi: Hanya Admin Grup yang dapat mengubah status jadwal bersama.', 'warning');
+    return;
+  }
+
   const item = state.schedules.find(s => s.id === id);
   if (!item) return;
 
@@ -2528,7 +2622,624 @@ function showAdminBroadcastPrompt() {
 }
 
 // ==============================================================================
-// 20. DATA EXPORT, IMPORT, & RESET
+// 20. GROUP SCHEDULES, INVITE SYSTEM & ROLE-BASED ADMIN ENGINE
+// ==============================================================================
+
+let selectedGroupEmoji = '🚀';
+let selectedGroupColor = '#6366f1';
+
+/** Memuat daftar grup pengguna */
+async function loadGroups() {
+  try {
+    const uid = state.currentUser ? state.currentUser.id : 'guest';
+    state.groups = await fetchUserGroups(uid);
+    renderGroupSwitcher();
+    renderGroupBanner();
+  } catch (err) {
+    console.warn('Gagal memuat grup:', err);
+  }
+}
+
+/** Beralih antara Jadwal Pribadi dan Jadwal Grup */
+async function switchGroup(groupOrNull) {
+  state.currentGroup = groupOrNull;
+
+  if (!groupOrNull) {
+    // Mode Jadwal Pribadi
+    const uid = state.currentUser ? state.currentUser.id : 'guest';
+    if (state.currentUser && isSupabaseConfigured()) {
+      await loadUserData(uid);
+    } else {
+      loadLocalSchedules(uid);
+    }
+    showToast('Beralih ke Jadwal Pribadi 👤', 'info');
+  } else {
+    // Mode Jadwal Grup
+    playUiSound('chime');
+    state.schedules = await fetchGroupSchedulesFromCloud(groupOrNull.id);
+    state.currentGroupMembers = await fetchGroupMembersFromCloud(groupOrNull.id);
+
+    // Refresh role user saat ini
+    const myId = state.currentUser ? state.currentUser.id : 'guest';
+    const myEmail = state.currentUser ? state.currentUser.email : '';
+    const myMem = state.currentGroupMembers.find(m => m.userId === myId || (myEmail && m.userEmail === myEmail));
+    if (myMem) {
+      state.currentGroup.role = myMem.role;
+    }
+
+    const roleName = isCurrentGroupAdmin() ? '👑 Admin Grup' : '👁️ Anggota (Lihat Saja)';
+    showToast(`Beralih ke grup "${groupOrNull.name}" (${roleName})`, 'success');
+  }
+
+  renderApp();
+}
+
+/** Merender daftar switch grup di sidebar */
+function renderGroupSwitcher() {
+  const container = document.getElementById('groupSwitcherList');
+  if (!container) return;
+
+  container.innerHTML = '';
+
+  // 1. Tab Jadwal Pribadi
+  const isPersonalActive = !state.currentGroup;
+  const personalBtn = document.createElement('button');
+  personalBtn.type = 'button';
+  personalBtn.className = `group-nav-item ${isPersonalActive ? 'active' : ''}`;
+  personalBtn.title = 'Buka Jadwal Pribadi';
+  personalBtn.innerHTML = `
+    <span class="group-nav-icon">👤</span>
+    <div class="group-nav-info">
+      <span class="group-nav-name">Jadwal Pribadi</span>
+      <span class="group-nav-role-badge role-admin">Pribadi</span>
+    </div>
+  `;
+  personalBtn.addEventListener('click', () => {
+    playUiSound('click');
+    if (!isPersonalActive) switchGroup(null);
+  });
+  container.appendChild(personalBtn);
+
+  // 2. Tab untuk Setiap Grup jika ada
+  if (state.groups && state.groups.length > 0) {
+    state.groups.forEach(g => {
+      const isGroupActive = state.currentGroup && state.currentGroup.id === g.id;
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = `group-nav-item ${isGroupActive ? 'active' : ''}`;
+      btn.title = `Buka jadwal grup: ${escapeHtml(g.name)}`;
+
+      const isAdmin = (g.role === 'admin' || g.role === 'owner' || state.isAdmin);
+      const roleBadgeHtml = isAdmin
+        ? '<span class="group-nav-role-badge role-admin">👑 Admin</span>'
+        : '<span class="group-nav-role-badge role-member">👁️ Anggota</span>';
+
+      btn.innerHTML = `
+        <span class="group-nav-icon">${g.icon || '👥'}</span>
+        <div class="group-nav-info">
+          <span class="group-nav-name">${escapeHtml(g.name)}</span>
+          ${roleBadgeHtml}
+        </div>
+      `;
+
+      btn.addEventListener('click', () => {
+        playUiSound('click');
+        if (!isGroupActive) switchGroup(g);
+      });
+
+      container.appendChild(btn);
+    });
+  } else {
+    // Empty state jika belum ada grup
+    const hint = document.createElement('div');
+    hint.className = 'groups-empty-hint';
+    hint.innerHTML = `
+      <span class="empty-hint-icon">💡</span>
+      <span>Belum ada grup tim. Buat grup baru atau gabung dengan kode undangan di bawah.</span>
+    `;
+    container.appendChild(hint);
+  }
+}
+
+/** Merender Banner Grup Aktif di atas kalender */
+function renderGroupBanner() {
+  const banner = document.getElementById('groupActiveBanner');
+  if (!banner) return;
+
+  if (!state.currentGroup) {
+    banner.classList.add('hidden');
+    const newBtn = document.getElementById('btnOpenNewSchedule');
+    const headerAddBtn = document.getElementById('btnHeaderAdd');
+    if (newBtn) {
+      newBtn.title = 'Create New Schedule (Press N)';
+      newBtn.style.opacity = '1';
+    }
+    if (headerAddBtn) {
+      headerAddBtn.title = 'Create New Schedule (Press N)';
+      headerAddBtn.style.opacity = '1';
+    }
+    return;
+  }
+
+  banner.classList.remove('hidden');
+
+  const g = state.currentGroup;
+  const isAdmin = isCurrentGroupAdmin();
+
+  const iconEl = document.getElementById('groupBannerIcon');
+  const titleEl = document.getElementById('groupBannerTitle');
+  const codeEl = document.getElementById('groupBannerCodeDisplay');
+  const countEl = document.getElementById('groupBannerMembersCount');
+  const roleBadge = document.getElementById('groupBannerRoleBadge');
+  const noticeEl = document.getElementById('groupReadOnlyNotice');
+  const newBtn = document.getElementById('btnOpenNewSchedule');
+  const headerAddBtn = document.getElementById('btnHeaderAdd');
+
+  if (iconEl) iconEl.textContent = g.icon || '👥';
+  if (titleEl) titleEl.textContent = g.name;
+  if (codeEl) codeEl.textContent = g.inviteCode || '---';
+  if (countEl) countEl.textContent = `${(state.currentGroupMembers && state.currentGroupMembers.length) || g.membersCount || 1} Anggota`;
+
+  if (roleBadge) {
+    if (isAdmin) {
+      roleBadge.className = 'group-role-badge badge-admin';
+      roleBadge.textContent = '👑 Admin Grup';
+      roleBadge.title = 'Anda memiliki hak penuh untuk menambah, mengedit, dan menghapus jadwal grup ini';
+    } else {
+      roleBadge.className = 'group-role-badge badge-member';
+      roleBadge.textContent = '👁️ Mode Anggota (Lihat Saja)';
+      roleBadge.title = 'Anda hanya dapat melihat jadwal. Hubungi Admin Grup jika perlu mengubah jadwal.';
+    }
+  }
+
+  if (noticeEl) {
+    if (isAdmin) {
+      noticeEl.classList.add('hidden');
+    } else {
+      noticeEl.classList.remove('hidden');
+    }
+  }
+
+  if (!isAdmin) {
+    if (newBtn) {
+      newBtn.title = 'Akses Dibatasi: Hanya Admin yang dapat menambah jadwal grup ini';
+      newBtn.style.opacity = '0.7';
+    }
+    if (headerAddBtn) {
+      headerAddBtn.title = 'Akses Dibatasi: Hanya Admin yang dapat menambah jadwal grup ini';
+      headerAddBtn.style.opacity = '0.7';
+    }
+  } else {
+    if (newBtn) {
+      newBtn.title = 'Create New Group Schedule (Press N)';
+      newBtn.style.opacity = '1';
+    }
+    if (headerAddBtn) {
+      headerAddBtn.title = 'Create New Group Schedule (Press N)';
+      headerAddBtn.style.opacity = '1';
+    }
+  }
+}
+
+/** Buka Modal Buat Grup Baru */
+function openCreateGroupModal() {
+  playUiSound('pop');
+  const modal = document.getElementById('createGroupModalOverlay');
+  const form = document.getElementById('createGroupForm');
+  if (!modal) return;
+
+  if (form) form.reset();
+  selectedGroupEmoji = '🚀';
+  selectedGroupColor = '#6366f1';
+
+  document.querySelectorAll('#groupEmojiSelector .emoji-pill-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.emoji === selectedGroupEmoji);
+  });
+
+  document.querySelectorAll('#groupColorSelector .color-circle-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.color === selectedGroupColor);
+  });
+
+  modal.classList.remove('hidden');
+  document.getElementById('groupFormName')?.focus();
+}
+
+function closeCreateGroupModal() {
+  document.getElementById('createGroupModalOverlay')?.classList.add('hidden');
+}
+
+async function handleCreateGroupSubmit(e) {
+  e.preventDefault();
+  const name = document.getElementById('groupFormName')?.value.trim();
+  const description = document.getElementById('groupFormDesc')?.value.trim();
+
+  if (!name) {
+    showToast('Nama grup tidak boleh kosong.', 'warning');
+    return;
+  }
+
+  const groupData = {
+    name,
+    description,
+    icon: selectedGroupEmoji,
+    color: selectedGroupColor
+  };
+
+  try {
+    const newGroup = await createGroupInCloud(groupData, state.currentUser);
+    closeCreateGroupModal();
+    playUiSound('complete');
+    triggerConfetti();
+
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(newGroup.inviteCode).catch(() => {});
+    }
+
+    showToast(`🎉 Grup "${newGroup.name}" berhasil dibuat! Kode: ${newGroup.inviteCode} (disalin ke clipboard)`, 'success');
+    await loadGroups();
+    await switchGroup(newGroup);
+  } catch (err) {
+    showToast('Gagal membuat grup: ' + err.message, 'error');
+  }
+}
+
+/** Buka Modal Gabung Grup */
+function openJoinGroupModal(prefillCode = '') {
+  playUiSound('pop');
+  const modal = document.getElementById('joinGroupModalOverlay');
+  const input = document.getElementById('joinGroupCodeInput');
+  if (!modal) return;
+
+  if (input) {
+    input.value = prefillCode;
+  }
+
+  modal.classList.remove('hidden');
+  input?.focus();
+}
+
+function closeJoinGroupModal() {
+  document.getElementById('joinGroupModalOverlay')?.classList.add('hidden');
+}
+
+async function handleJoinGroupSubmit(e) {
+  e.preventDefault();
+  const code = document.getElementById('joinGroupCodeInput')?.value.trim();
+  if (!code) {
+    showToast('Masukkan kode undangan grup.', 'warning');
+    return;
+  }
+
+  try {
+    const joined = await joinGroupByCodeInCloud(code, state.currentUser);
+    closeJoinGroupModal();
+    playUiSound('complete');
+    triggerConfetti();
+
+    showToast(`🎉 Berhasil bergabung ke "${joined.name}" sebagai Anggota!`, 'success');
+    await loadGroups();
+    await switchGroup(joined);
+  } catch (err) {
+    showToast(err.message || 'Gagal bergabung ke grup.', 'error');
+  }
+}
+
+/** Buka Modal Kelola Grup & Hak Akses */
+async function openManageGroupModal() {
+  if (!state.currentGroup) {
+    showToast('Pilih grup terlebih dahulu untuk mengelolanya.', 'info');
+    return;
+  }
+
+  playUiSound('pop');
+  const modal = document.getElementById('manageGroupModalOverlay');
+  if (!modal) return;
+
+  const g = state.currentGroup;
+  const isAdmin = isCurrentGroupAdmin();
+
+  const iconHeader = document.getElementById('mgHeaderIcon');
+  const titleHeader = document.getElementById('mgHeaderTitle');
+  const subHeader = document.getElementById('mgHeaderSubtitle');
+  const iconSpot = document.getElementById('mgSpotlightIcon');
+  const nameSpot = document.getElementById('mgSpotlightName');
+  const descSpot = document.getElementById('mgSpotlightDesc');
+  const badgeRole = document.getElementById('mgUserRoleBadge');
+  const codeVal = document.getElementById('mgInviteCodeVal');
+  const linkInput = document.getElementById('mgInviteLinkInput');
+  const deleteBtn = document.getElementById('btnMgDeleteGroup');
+
+  if (iconHeader) iconHeader.textContent = g.icon || '👥';
+  if (titleHeader) titleHeader.textContent = `Kelola: ${g.name}`;
+  if (subHeader) subHeader.textContent = isAdmin ? 'Akses Administrator • Kelola perizinan anggota & jadwal' : 'Akses Anggota • Melihat daftar anggota grup';
+  if (iconSpot) iconSpot.textContent = g.icon || '👥';
+  if (nameSpot) nameSpot.textContent = g.name;
+  if (descSpot) descSpot.textContent = g.description || 'Tidak ada deskripsi.';
+  if (codeVal) codeVal.textContent = g.inviteCode || '---';
+
+  const directLink = `${window.location.origin}${window.location.pathname}?join=${encodeURIComponent(g.inviteCode || '')}`;
+  if (linkInput) linkInput.value = directLink;
+
+  if (badgeRole) {
+    if (isAdmin) {
+      badgeRole.className = 'group-role-badge badge-admin';
+      badgeRole.textContent = '👑 Admin Grup';
+    } else {
+      badgeRole.className = 'group-role-badge badge-member';
+      badgeRole.textContent = '👁️ Anggota (Lihat Saja)';
+    }
+  }
+
+  if (deleteBtn) {
+    deleteBtn.classList.toggle('hidden', !isAdmin);
+  }
+
+  state.currentGroupMembers = await fetchGroupMembersFromCloud(g.id);
+  renderManageGroupMembersList();
+
+  modal.classList.remove('hidden');
+}
+
+function closeManageGroupModal() {
+  document.getElementById('manageGroupModalOverlay')?.classList.add('hidden');
+}
+
+/** Render Daftar Anggota di Modal Kelola Grup */
+function renderManageGroupMembersList() {
+  const container = document.getElementById('mgMembersListContainer');
+  const countLabel = document.getElementById('mgMembersCountLabel');
+  if (!container) return;
+
+  const members = state.currentGroupMembers || [];
+  if (countLabel) countLabel.textContent = members.length;
+
+  container.innerHTML = '';
+
+  const isViewerAdmin = isCurrentGroupAdmin();
+  const myId = state.currentUser ? state.currentUser.id : 'guest';
+
+  members.forEach(mem => {
+    const isThisMemberAdmin = mem.role === 'admin';
+    const isSelf = mem.userId === myId;
+    const initial = (mem.userName || mem.userEmail || 'A').charAt(0).toUpperCase();
+
+    const row = document.createElement('div');
+    row.className = 'group-member-item';
+
+    row.innerHTML = `
+      <div class="member-info-group">
+        <div class="member-avatar-box">
+          ${isThisMemberAdmin ? '👑' : initial}
+        </div>
+        <div class="member-info-col">
+          <div class="member-name-row">
+            <span class="member-name-text">${escapeHtml(mem.userName || 'Anggota')} ${isSelf ? '(Anda)' : ''}</span>
+            <span class="group-role-badge ${isThisMemberAdmin ? 'badge-admin' : 'badge-member'}">
+              ${isThisMemberAdmin ? '👑 Admin' : '👤 Anggota'}
+            </span>
+          </div>
+          <span class="member-email-text">${escapeHtml(mem.userEmail || '')}</span>
+        </div>
+      </div>
+      <div class="member-action-btns">
+        ${isViewerAdmin && !isSelf ? `
+          ${!isThisMemberAdmin ? `
+            <button type="button" class="btn btn-outline btn-xs btn-promote-admin" title="Jadikan Admin agar dapat mengedit jadwal">
+              👑 Jadikan Admin
+            </button>
+          ` : `
+            <button type="button" class="btn btn-outline btn-xs btn-demote-member" title="Turunkan ke Anggota Biasa (Lihat Saja)">
+              👤 Ubah ke Anggota
+            </button>
+          `}
+          <button type="button" class="btn-icon btn-xs text-danger btn-remove-member" title="Keluarkan dari grup">✕</button>
+        ` : ''}
+      </div>
+    `;
+
+    const promoteBtn = row.querySelector('.btn-promote-admin');
+    if (promoteBtn) {
+      promoteBtn.addEventListener('click', async () => {
+        playUiSound('complete');
+        await updateGroupMemberRoleInCloud(state.currentGroup.id, mem.userId, 'admin');
+        mem.role = 'admin';
+        showToast(`👑 ${mem.userName} sekarang adalah Admin Grup (dapat mengedit jadwal)!`, 'success');
+        renderManageGroupMembersList();
+        renderGroupSwitcher();
+        renderGroupBanner();
+      });
+    }
+
+    const demoteBtn = row.querySelector('.btn-demote-member');
+    if (demoteBtn) {
+      demoteBtn.addEventListener('click', async () => {
+        playUiSound('click');
+        await updateGroupMemberRoleInCloud(state.currentGroup.id, mem.userId, 'member');
+        mem.role = 'member';
+        showToast(`👤 ${mem.userName} diubah menjadi Anggota (Lihat Saja).`, 'info');
+        renderManageGroupMembersList();
+        renderGroupSwitcher();
+        renderGroupBanner();
+      });
+    }
+
+    const removeBtn = row.querySelector('.btn-remove-member');
+    if (removeBtn) {
+      removeBtn.addEventListener('click', async () => {
+        if (confirm(`Keluarkan ${mem.userName} dari grup ini?`)) {
+          playUiSound('delete');
+          await removeGroupMemberFromCloud(state.currentGroup.id, mem.userId);
+          state.currentGroupMembers = state.currentGroupMembers.filter(m => m.userId !== mem.userId);
+          showToast(`${mem.userName} berhasil dikeluarkan dari grup.`, 'info');
+          renderManageGroupMembersList();
+          renderGroupBanner();
+        }
+      });
+    }
+
+    container.appendChild(row);
+  });
+}
+
+/** Salin Kode Undangan ke Clipboard */
+function copyGroupInviteCode() {
+  if (!state.currentGroup) return;
+  const code = state.currentGroup.inviteCode || '';
+  const btnText = document.getElementById('btnMgCopyCodeText');
+
+  const onCopied = () => {
+    playUiSound('pop');
+    if (btnText) {
+      btnText.textContent = '✅ Tersalin!';
+      setTimeout(() => { btnText.textContent = 'Salin Kode'; }, 2000);
+    }
+    showToast(`📋 Kode Undangan "${code}" berhasil disalin!`, 'success');
+  };
+
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(code).then(onCopied).catch(() => {
+      prompt('Salin kode undangan ini:', code);
+    });
+  } else {
+    prompt('Salin kode undangan ini:', code);
+  }
+}
+
+/** Salin Tautan Gabung Grup ke Clipboard */
+function copyGroupInviteLink() {
+  if (!state.currentGroup) return;
+  const code = state.currentGroup.inviteCode || '';
+  const url = `${window.location.origin}${window.location.pathname}?join=${encodeURIComponent(code)}`;
+  const btnText = document.getElementById('btnMgCopyLinkText');
+
+  const onCopied = () => {
+    playUiSound('pop');
+    if (btnText) {
+      btnText.textContent = '✅ Tersalin!';
+      setTimeout(() => { btnText.textContent = 'Salin Tautan'; }, 2000);
+    }
+    showToast(`🔗 Tautan Gabung Grup berhasil disalin! Bagikan ke rekan Anda.`, 'success');
+  };
+
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(url).then(onCopied).catch(() => {
+      prompt('Salin tautan gabung grup ini:', url);
+    });
+  } else {
+    prompt('Salin tautan gabung grup ini:', url);
+  }
+}
+
+/** Bagikan Undangan Grup via WhatsApp */
+function shareGroupViaWhatsApp() {
+  if (!state.currentGroup) return;
+  const g = state.currentGroup;
+  const joinUrl = `${window.location.origin}${window.location.pathname}?join=${encodeURIComponent(g.inviteCode || '')}`;
+  const text = `Halo! Yuk gabung ke ruang jadwal tim "${g.name}" di PlanCraft 📅.\n\nKlik link ini untuk langsung bergabung:\n${joinUrl}\n\nAtau masukkan kode undangan: *${g.inviteCode}*`;
+  const waUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
+  window.open(waUrl, '_blank');
+}
+
+/** Keluar dari Grup */
+async function handleLeaveGroup() {
+  if (!state.currentGroup) return;
+  const gName = state.currentGroup.name;
+
+  if (confirm(`Apakah Anda yakin ingin keluar dari grup "${gName}"?`)) {
+    const myId = state.currentUser ? state.currentUser.id : 'guest';
+    playUiSound('click');
+    await removeGroupMemberFromCloud(state.currentGroup.id, myId);
+    state.groups = state.groups.filter(g => g.id !== state.currentGroup.id);
+    closeManageGroupModal();
+    await switchGroup(null);
+    showToast(`Anda telah keluar dari grup "${gName}".`, 'info');
+  }
+}
+
+/** Hapus Grup Selamanya (Khusus Admin/Owner) */
+async function handleDeleteGroup() {
+  if (!state.currentGroup) return;
+  const gName = state.currentGroup.name;
+
+  if (confirm(`⚠️ PERINGATAN: Apakah Anda yakin ingin menghapus grup "${gName}" beserta seluruh jadwalnya selamanya? Tindakan ini tidak dapat dibatalkan.`)) {
+    playUiSound('delete');
+    await deleteGroupInCloud(state.currentGroup.id);
+    state.groups = state.groups.filter(g => g.id !== state.currentGroup.id);
+    closeManageGroupModal();
+    await switchGroup(null);
+    showToast(`Grup "${gName}" berhasil dihapus selamanya.`, 'info');
+  }
+}
+
+function setupGroupEventListeners() {
+  document.getElementById('btnOpenCreateGroup')?.addEventListener('click', openCreateGroupModal);
+  document.getElementById('btnCloseCreateGroupModal')?.addEventListener('click', closeCreateGroupModal);
+  document.getElementById('btnCancelCreateGroup')?.addEventListener('click', closeCreateGroupModal);
+  document.getElementById('createGroupForm')?.addEventListener('submit', handleCreateGroupSubmit);
+
+  document.querySelectorAll('#groupEmojiSelector .emoji-pill-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      playUiSound('click');
+      document.querySelectorAll('#groupEmojiSelector .emoji-pill-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      selectedGroupEmoji = btn.dataset.emoji;
+    });
+  });
+
+  document.querySelectorAll('#groupColorSelector .color-circle-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      playUiSound('click');
+      document.querySelectorAll('#groupColorSelector .color-circle-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      selectedGroupColor = btn.dataset.color;
+    });
+  });
+
+  document.getElementById('btnOpenJoinGroup')?.addEventListener('click', () => openJoinGroupModal());
+  document.getElementById('btnCloseJoinGroupModal')?.addEventListener('click', closeJoinGroupModal);
+  document.getElementById('btnCancelJoinGroup')?.addEventListener('click', closeJoinGroupModal);
+  document.getElementById('joinGroupForm')?.addEventListener('submit', handleJoinGroupSubmit);
+
+  // Paste button from clipboard in Join Modal
+  document.getElementById('btnPasteJoinCode')?.addEventListener('click', async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      if (text && text.trim()) {
+        const clean = text.trim().toUpperCase();
+        const input = document.getElementById('joinGroupCodeInput');
+        if (input) {
+          input.value = clean;
+          playUiSound('pop');
+          showToast('Kode berhasil ditempel dari clipboard!', 'success');
+          input.focus();
+        }
+      } else {
+        showToast('Clipboard kosong atau tidak berisi teks.', 'info');
+      }
+    } catch {
+      showToast('Silakan tempel kode secara manual dengan Ctrl+V.', 'info');
+    }
+  });
+
+  // Auto-uppercase on typing in join input
+  document.getElementById('joinGroupCodeInput')?.addEventListener('input', (e) => {
+    e.target.value = e.target.value.toUpperCase();
+  });
+
+  document.getElementById('btnGroupCopyInvite')?.addEventListener('click', copyGroupInviteLink);
+  document.getElementById('btnGroupManage')?.addEventListener('click', openManageGroupModal);
+  document.getElementById('btnGroupBackPersonal')?.addEventListener('click', () => switchGroup(null));
+
+  document.getElementById('btnCloseManageGroupModal')?.addEventListener('click', closeManageGroupModal);
+  document.getElementById('btnMgCopyCode')?.addEventListener('click', copyGroupInviteCode);
+  document.getElementById('btnMgCopyLink')?.addEventListener('click', copyGroupInviteLink);
+  document.getElementById('btnMgShareWhatsApp')?.addEventListener('click', shareGroupViaWhatsApp);
+  document.getElementById('btnMgLeaveGroup')?.addEventListener('click', handleLeaveGroup);
+  document.getElementById('btnMgDeleteGroup')?.addEventListener('click', handleDeleteGroup);
+}
+
+// ==============================================================================
+// 21. DATA EXPORT, IMPORT, & RESET
 // ==============================================================================
 function exportDataJSON() {
   playUiSound('pop');
@@ -2752,6 +3463,8 @@ function goToToday() {
 // 23. SETUP EVENT LISTENERS
 // ==============================================================================
 function setupEventListeners() {
+  setupGroupEventListeners();
+
   // Navigation Tabs
   document.querySelectorAll('.nav-item').forEach(btn => {
     btn.addEventListener('click', () => switchView(btn.dataset.view));
@@ -3061,6 +3774,9 @@ function setupEventListeners() {
       closeProfileModal();
       closeAdminModal();
       closeSupabaseConfigModal();
+      closeCreateGroupModal();
+      closeJoinGroupModal();
+      closeManageGroupModal();
       document.getElementById('pomodoroModalOverlay')?.classList.add('hidden');
     } else if (!isTyping) {
       if (e.key === 'n' || e.key === 'N') {
@@ -3102,4 +3818,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   initPomodoro();
   setupEventListeners();
   await initSupabaseSession();
+  await loadGroups();
+
+  // Periksa apakah ada parameter tautan undangan grup di URL (?join=CODE atau #join=CODE)
+  const urlParams = new URLSearchParams(window.location.search);
+  const joinCode = urlParams.get('join') || (window.location.hash.startsWith('#join=') ? window.location.hash.replace('#join=', '') : null);
+  if (joinCode) {
+    openJoinGroupModal(joinCode);
+  }
 });

@@ -1479,26 +1479,6 @@
           <input type="text" id="groupFormDesc" class="form-control" placeholder="Tujuan atau fokus jadwal tim ini...">
         </div>
 
-        <!-- Kode Undangan / Join Code Grup -->
-        <div class="form-group">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-            <label for="groupFormCode" class="form-label required" style="margin-bottom: 0;">Kode Undangan / Join Code</label>
-            <button type="button" id="btnRegenGroupCode" class="btn-link btn-xs" style="color: var(--primary); font-weight: 600; font-size: 0.76rem;">
-              🎲 Acak Kode Baru
-            </button>
-          </div>
-          <div class="input-code-bar">
-            <span class="code-bar-prefix">🔑</span>
-            <input type="text" id="groupFormCode" class="form-control input-invite-code" placeholder="GRP-XXXX" required uppercase style="font-family: var(--font-mono, monospace); font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;">
-            <button type="button" id="btnCopyGroupFormCode" class="btn-paste-code" title="Salin Kode Undangan">
-              <span>📋 Salin</span>
-            </button>
-          </div>
-          <span class="field-hint" style="margin-top: 4px; display: block; font-size: 0.72rem; color: var(--text-muted);">
-            Kode ini yang akan dibagikan ke rekan untuk bergabung di menu <strong>"Gabung Grup"</strong>.
-          </span>
-        </div>
-
         <!-- Pilih Ikon Grup -->
         <div class="form-group">
           <label class="form-label">Pilih Ikon Emoji</label>
@@ -1534,14 +1514,14 @@
         <div class="modal-info-card">
           <div class="info-card-title">👑 Peran Anda: Admin Pemilik Grup</div>
           <p class="info-card-text">
-            Sebagai pembuat grup, Anda otomatis menjadi <strong>Admin</strong> dengan hak penuh untuk menambah, mengedit jadwal, serta mengundang dan mengatur perizinan anggota.
+            Sebagai pembuat grup, Anda otomatis menjadi <strong>Admin</strong> dengan hak penuh untuk menambah, mengedit jadwal, serta mengundang dan mengatur perizinan anggota. Kode undangan grup akan dibuatkan otomatis.
           </p>
         </div>
 
         <div class="modal-footer">
           <button type="button" id="btnCancelCreateGroup" class="btn btn-outline">Batal</button>
           <button type="submit" id="btnSubmitCreateGroup" class="btn btn-primary">
-            <span>Buat Grup & Buat Kode Undangan</span>
+            <span>+ Buat Grup</span>
           </button>
         </div>
       </form>

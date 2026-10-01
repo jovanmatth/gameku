@@ -5493,6 +5493,42 @@ body.sidebar-collapsed .sidebar {
   }
 }
 
+/* 23. GROUP CREATION SUCCESS MODAL & GLOWING CODE DISPLAY */
+.group-success-card {
+  max-width: 440px;
+  animation: modalScaleUp 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
 
+.created-code-box {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.12), rgba(168, 85, 247, 0.12));
+  border: 1.5px dashed var(--primary);
+  border-radius: 14px;
+  padding: 16px;
+  text-align: center;
+  box-shadow: inset 0 0 20px rgba(99, 102, 241, 0.08);
+}
 
+.created-code-label {
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 1.2px;
+  color: var(--primary);
+  display: block;
+  margin-bottom: 8px;
+}
 
+.created-code-display {
+  font-family: var(--font-mono, monospace);
+  font-size: 1.95rem;
+  font-weight: 900;
+  letter-spacing: 3px;
+  color: #ffffff;
+  text-shadow: 0 0 16px rgba(99, 102, 241, 0.7);
+  margin-bottom: 12px;
+  padding: 8px 16px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  display: inline-block;
+  user-select: all;
+}

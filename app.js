@@ -1237,7 +1237,40 @@ function renderMonthView() {
       eventsList.appendChild(overflow);
     }
 
-    cell.appendChild(eventsList);
+    // Indikator Titik Rapi Khusus Layar HP (Mobile Indicator Dots)
+    const dotsRow = document.createElement('div');
+    dotsRow.className = 'cell-dots-row';
+
+    if (dayHolidays.length > 0) {
+      const hDot = document.createElement('span');
+      hDot.className = 'cell-dot is-holiday';
+      hDot.title = `Libur: ${dayHolidays[0].title}`;
+      dotsRow.appendChild(hDot);
+    }
+
+    const maxMobileDots = 3;
+    dayTasks.slice(0, maxMobileDots).forEach(task => {
+      const c = getCategory(task.category);
+      const dot = document.createElement('span');
+      dot.className = 'cell-dot';
+      dot.style.backgroundColor = c.color;
+      dot.title = task.title;
+      dotsRow.appendChild(dot);
+    });
+
+    if (dayTasks.length > maxMobileDots) {
+      const moreDot = document.createElement('span');
+      moreDot.className = 'cell-dot-more';
+      moreDot.textContent = `+${dayTasks.length - maxMobileDots}`;
+      dotsRow.appendChild(moreDot);
+    }
+
+    cell.appendChild(dotsRow);
+
+    const selDateKey = formatDateKey(state.selectedDate || state.currentDate);
+    if (dateKey === selDateKey) {
+      cell.classList.add('is-selected-date');
+    }
 
     cell.addEventListener('click', () => {
       state.selectedDate = cellDate;
@@ -1246,6 +1279,108 @@ function renderMonthView() {
 
     grid.appendChild(cell);
   }
+
+  // Render Daily Agenda Summary for Mobile Viewports
+  renderMobileDayAgenda(state.selectedDate || state.currentDate);
+}
+
+/**
+ * Render Agenda Hari Ini di bawah kalender bulanan khusus perangkat HP
+ * Memungkinkan pengguna melihat dan membuat jadwal tanpa kesulitan klik cell kecil
+ */
+function renderMobileDayAgenda(targetDate) {
+  const sheet = document.getElementById('mobileDayAgendaSheet');
+  if (!sheet) return;
+
+  const dateObj = targetDate ? new Date(targetDate) : new Date();
+  const dateKey = formatDateKey(dateObj);
+  const filtered = getFilteredSchedules();
+  const dayEvents = filtered.filter(item => item.date === dateKey);
+  const dayHolidays = dayEvents.filter(item => item.category === 'holiday' || item.isHoliday);
+  const dayTasks = dayEvents.filter(item => item.category !== 'holiday' && !item.isHoliday);
+
+  const dayNamesIndo = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+  const monthNamesIndo = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+
+  const dayName = dayNamesIndo[dateObj.getDay()];
+  const dateFormatted = `${dayName}, ${dateObj.getDate()} ${monthNamesIndo[dateObj.getMonth()]} ${dateObj.getFullYear()}`;
+
+  let holidayBannerHtml = '';
+  if (dayHolidays.length > 0) {
+    holidayBannerHtml = `
+      <div class="m-agenda-holiday-banner">
+        <span>🇮🇩</span>
+        <span><strong>Libur Nasional:</strong> ${escapeHtml(dayHolidays.map(h => h.title).join(', '))}</span>
+      </div>
+    `;
+  }
+
+  let cardsHtml = '';
+  if (dayTasks.length > 0) {
+    cardsHtml = `<div class="m-agenda-list">`;
+    dayTasks.forEach(task => {
+      const cat = getCategory(task.category);
+      const pri = getPriority(task.priority);
+      const timeStr = task.startTime ? `${task.startTime}${task.endTime ? ' - ' + task.endTime : ''}` : 'Sepanjang Hari';
+      const statusIcon = task.status === 'completed' ? '✅' : '⏳';
+      cardsHtml += `
+        <div class="m-agenda-card" data-id="${task.id}">
+          <div class="m-agenda-card-left">
+            <span class="m-agenda-cat-dot" style="background-color: ${cat.color};"></span>
+            <div class="m-agenda-info">
+              <span class="m-agenda-event-title">${escapeHtml(task.title)}</span>
+              <span class="m-agenda-time">${timeStr} • <span style="color:${pri.color};">${pri.icon} ${pri.label}</span></span>
+            </div>
+          </div>
+          <span style="font-size: 0.85rem;">${statusIcon}</span>
+        </div>
+      `;
+    });
+    cardsHtml += `</div>`;
+  } else {
+    cardsHtml = `
+      <div class="m-agenda-empty">
+        <span>✨ Tidak ada jadwal pada tanggal ini.</span>
+      </div>
+    `;
+  }
+
+  const canAdd = !state.currentGroup || isCurrentGroupAdmin();
+  const addBtnHtml = canAdd ? `
+    <button type="button" class="m-agenda-add-btn" id="btnMobileAgendaAdd">
+      <span>+ Tambah Jadwal pada ${dateObj.getDate()} ${monthNamesIndo[dateObj.getMonth()]}</span>
+    </button>
+  ` : '';
+
+  sheet.innerHTML = `
+    <div class="m-agenda-header">
+      <div class="m-agenda-title-wrap">
+        <span class="m-agenda-title">📅 ${dateFormatted}</span>
+        <span class="m-agenda-subtitle">${dayTasks.length} jadwal terencana</span>
+      </div>
+      <span class="m-agenda-badge">${isDateToday(dateObj) ? 'Hari Ini' : `${dayTasks.length} Agenda`}</span>
+    </div>
+    ${holidayBannerHtml}
+    ${cardsHtml}
+    ${addBtnHtml}
+  `;
+
+  // Pasang event listener pada setiap kartu agenda
+  sheet.querySelectorAll('.m-agenda-card').forEach(card => {
+    card.addEventListener('click', () => {
+      const id = card.dataset.id;
+      const item = state.schedules.find(s => s.id === id);
+      if (item) {
+        playUiSound('pop');
+        openPreviewModal(item);
+      }
+    });
+  });
+
+  document.getElementById('btnMobileAgendaAdd')?.addEventListener('click', () => {
+    playUiSound('click');
+    openScheduleModal(null, dateKey);
+  });
 }
 
 // ==============================================================================
@@ -1619,9 +1754,19 @@ function renderKanbanView() {
     else grouped.scheduled.push(item);
   });
 
+  const mBadges = {
+    todo: document.getElementById('mBadgeTodo'),
+    in_progress: document.getElementById('mBadgeInProgress'),
+    scheduled: document.getElementById('mBadgeScheduled'),
+    completed: document.getElementById('mBadgeCompleted')
+  };
+
   Object.keys(grouped).forEach(statusKey => {
     if (counts[statusKey]) {
       counts[statusKey].textContent = grouped[statusKey].length;
+    }
+    if (mBadges[statusKey]) {
+      mBadges[statusKey].textContent = grouped[statusKey].length;
     }
 
     grouped[statusKey].forEach(item => {
@@ -3419,6 +3564,10 @@ function switchView(viewName) {
     tab.setAttribute('aria-selected', tab.dataset.view === viewName);
   });
 
+  document.querySelectorAll('.mb-nav-item[data-view]').forEach(item => {
+    item.classList.toggle('active', item.dataset.view === viewName);
+  });
+
   const views = {
     month: document.getElementById('viewMonth'),
     week: document.getElementById('viewWeek'),
@@ -3650,18 +3799,69 @@ function setupEventListeners() {
     toggleHeaderDropdown();
   });
 
-  function handleSidebarToggle() {
+  function handleSidebarToggle(forceState) {
     playUiSound('click');
     const sidebar = document.getElementById('sidebar');
+    const backdrop = document.getElementById('sidebarBackdrop');
     const isMobile = window.innerWidth <= 860;
     if (isMobile) {
-      sidebar?.classList.toggle('mobile-open');
+      const willOpen = forceState !== undefined ? forceState : !sidebar?.classList.contains('mobile-open');
+      sidebar?.classList.toggle('mobile-open', willOpen);
+      backdrop?.classList.toggle('active', willOpen);
     } else {
       document.body.classList.toggle('sidebar-collapsed');
       const isCollapsed = document.body.classList.contains('sidebar-collapsed');
       showToast(isCollapsed ? 'Sidebar collapsed (Widescreen Mode)' : 'Sidebar expanded', 'info');
     }
   }
+
+  // Hamburger button in top header
+  document.getElementById('btnMobileMenuToggle')?.addEventListener('click', () => {
+    handleSidebarToggle();
+  });
+
+  // Mobile drawer close 'X' button
+  document.getElementById('btnSidebarCloseMobile')?.addEventListener('click', () => {
+    handleSidebarToggle(false);
+  });
+
+  // Mobile sidebar backdrop click to close
+  document.getElementById('sidebarBackdrop')?.addEventListener('click', () => {
+    handleSidebarToggle(false);
+  });
+
+  // Mobile Bottom Navigation Dock Buttons
+  document.getElementById('mbNavMonth')?.addEventListener('click', () => switchView('month'));
+  document.getElementById('mbNavWeek')?.addEventListener('click', () => switchView('week'));
+  document.getElementById('mbNavAdd')?.addEventListener('click', () => {
+    playUiSound('click');
+    openScheduleModal();
+  });
+  document.getElementById('mbNavKanban')?.addEventListener('click', () => switchView('kanban'));
+  document.getElementById('mbNavDrawer')?.addEventListener('click', () => handleSidebarToggle(true));
+
+  // Auto-close sidebar on mobile when navigating items
+  document.querySelectorAll('#sidebar .nav-item, #sidebar .group-item-btn, #sidebar #btnOpenCreateGroup, #sidebar #btnOpenJoinGroup').forEach(item => {
+    item.addEventListener('click', () => {
+      if (window.innerWidth <= 860) {
+        handleSidebarToggle(false);
+      }
+    });
+  });
+
+  // Mobile Kanban segmented tabs click
+  document.querySelectorAll('.mkanban-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      playUiSound('click');
+      document.querySelectorAll('.mkanban-tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      const colId = tab.dataset.col;
+      const targetCol = document.getElementById(colId);
+      if (targetCol) {
+        targetCol.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+      }
+    });
+  });
 
   document.getElementById('btnToggleSidebar')?.addEventListener('click', () => {
     handleSidebarToggle();

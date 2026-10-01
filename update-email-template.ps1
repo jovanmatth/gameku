@@ -19,12 +19,11 @@ $htmlContent = Get-Content -Raw -Path $htmlPath -Encoding UTF8
 
 $body = @{
     mailer_subjects_confirmation = "{{ .Token }} adalah kode verifikasi akun PlanCalender Anda"
-    mailer_templates_confirmation_content = $htmlContent
+    mailer_templates_confirmation_content = [string]$htmlContent
 } | ConvertTo-Json -Depth 5
 
 $headers = @{
     "Authorization" = "Bearer $Token"
-    "Content-Type" = "application/json"
 }
 
 $url = "https://api.supabase.com/v1/projects/$ProjectRef/config/auth"
@@ -32,7 +31,7 @@ $url = "https://api.supabase.com/v1/projects/$ProjectRef/config/auth"
 Write-Host "Updating Supabase Auth Email Template for project $ProjectRef..." -ForegroundColor Cyan
 
 try {
-    $response = Invoke-RestMethod -Uri $url -Method Patch -Headers $headers -Body $body
+    $response = Invoke-RestMethod -Uri $url -Method Patch -Headers $headers -ContentType "application/json; charset=utf-8" -Body ([System.Text.Encoding]::UTF8.GetBytes($body))
     Write-Host "SUCCESS! Template email Gmail di Supabase berhasil di-update langsung!" -ForegroundColor Green
     Write-Host "Subject: {{ .Token }} adalah kode verifikasi akun PlanCalender Anda" -ForegroundColor Green
 } catch {

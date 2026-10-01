@@ -3318,6 +3318,12 @@ function openCreateGroupModal() {
   selectedGroupEmoji = '🚀';
   selectedGroupColor = '#6366f1';
 
+  // Otomatis buatkan kode join unik baru
+  const codeInput = document.getElementById('groupFormCode');
+  if (codeInput) {
+    codeInput.value = 'GRP-' + Math.random().toString(36).substr(2, 4).toUpperCase();
+  }
+
   document.querySelectorAll('#groupEmojiSelector .emoji-pill-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.emoji === selectedGroupEmoji);
   });
@@ -3334,10 +3340,44 @@ function closeCreateGroupModal() {
   document.getElementById('createGroupModalOverlay')?.classList.add('hidden');
 }
 
+let latestCreatedGroup = null;
+
+/** Tampilkan Modal Sukses Buat Grup dengan Kode Join Sangat Jelas */
+function openGroupCreatedSuccessModal(group) {
+  latestCreatedGroup = group;
+  playUiSound('complete');
+
+  const modal = document.getElementById('groupCreatedSuccessModalOverlay');
+  if (!modal) return;
+
+  const iconEl = document.getElementById('createdSuccessGroupIcon');
+  const nameEl = document.getElementById('createdSuccessGroupName');
+  const descEl = document.getElementById('createdSuccessGroupDesc');
+  const codeEl = document.getElementById('createdSuccessGroupCode');
+
+  if (iconEl) iconEl.textContent = group.icon || '👥';
+  if (nameEl) nameEl.textContent = group.name;
+  if (descEl) descEl.textContent = group.description || 'Ruang kolaborasi jadwal tim';
+  if (codeEl) codeEl.textContent = group.inviteCode;
+
+  // Otomatis salin ke clipboard
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(group.inviteCode).catch(() => {});
+  }
+
+  modal.classList.remove('hidden');
+}
+
+function closeGroupCreatedSuccessModal() {
+  document.getElementById('groupCreatedSuccessModalOverlay')?.classList.add('hidden');
+}
+
 async function handleCreateGroupSubmit(e) {
   e.preventDefault();
   const name = document.getElementById('groupFormName')?.value.trim();
   const description = document.getElementById('groupFormDesc')?.value.trim();
+  const rawCode = document.getElementById('groupFormCode')?.value.trim().toUpperCase();
+  const inviteCode = rawCode || ('GRP-' + Math.random().toString(36).substr(2, 4).toUpperCase());
 
   if (!name) {
     showToast('Nama grup tidak boleh kosong.', 'warning');
@@ -3348,7 +3388,8 @@ async function handleCreateGroupSubmit(e) {
     name,
     description,
     icon: selectedGroupEmoji,
-    color: selectedGroupColor
+    color: selectedGroupColor,
+    inviteCode
   };
 
   try {
@@ -3357,13 +3398,11 @@ async function handleCreateGroupSubmit(e) {
     playUiSound('complete');
     triggerConfetti();
 
-    if (navigator.clipboard) {
-      navigator.clipboard.writeText(newGroup.inviteCode).catch(() => {});
-    }
-
-    showToast(`🎉 Grup "${newGroup.name}" berhasil dibuat! Kode: ${newGroup.inviteCode} (disalin ke clipboard)`, 'success');
     await loadGroups();
     await switchGroup(newGroup);
+
+    // Buka Modal Sukses dengan Kode Join Sangat Jelas
+    openGroupCreatedSuccessModal(newGroup);
   } catch (err) {
     showToast('Gagal membuat grup: ' + err.message, 'error');
   }
@@ -3662,6 +3701,53 @@ function setupGroupEventListeners() {
   document.getElementById('btnCloseCreateGroupModal')?.addEventListener('click', closeCreateGroupModal);
   document.getElementById('btnCancelCreateGroup')?.addEventListener('click', closeCreateGroupModal);
   document.getElementById('createGroupForm')?.addEventListener('submit', handleCreateGroupSubmit);
+
+  // Acak & Salin Kode di Form Buat Grup
+  document.getElementById('btnRegenGroupCode')?.addEventListener('click', () => {
+    playUiSound('pop');
+    const input = document.getElementById('groupFormCode');
+    if (input) {
+      input.value = 'GRP-' + Math.random().toString(36).substr(2, 4).toUpperCase();
+      showToast('Kode baru diacak: ' + input.value, 'info');
+    }
+  });
+
+  document.getElementById('btnCopyGroupFormCode')?.addEventListener('click', () => {
+    playUiSound('pop');
+    const input = document.getElementById('groupFormCode');
+    if (input && input.value) {
+      navigator.clipboard?.writeText(input.value.trim().toUpperCase());
+      showToast(`Kode "${input.value}" disalin ke clipboard!`, 'success');
+    }
+  });
+
+  // Modal Sukses Buat Grup Listeners
+  document.getElementById('btnCloseGroupCreatedModal')?.addEventListener('click', closeGroupCreatedSuccessModal);
+  document.getElementById('btnGoToCreatedGroup')?.addEventListener('click', closeGroupCreatedSuccessModal);
+
+  document.getElementById('btnCopyCreatedCodeBig')?.addEventListener('click', () => {
+    if (!latestCreatedGroup) return;
+    playUiSound('pop');
+    const code = latestCreatedGroup.inviteCode;
+    navigator.clipboard?.writeText(code);
+    showToast(`🎉 Kode Undangan "${code}" berhasil disalin! Bagikan ke teman Anda.`, 'success');
+  });
+
+  document.getElementById('btnCopyLinkCreated')?.addEventListener('click', () => {
+    if (!latestCreatedGroup) return;
+    playUiSound('pop');
+    const code = latestCreatedGroup.inviteCode;
+    const url = `${window.location.origin}${window.location.pathname}?join=${encodeURIComponent(code)}`;
+    navigator.clipboard?.writeText(url);
+    showToast('🔗 Tautan gabung grup berhasil disalin!', 'success');
+  });
+
+  document.getElementById('btnShareWaCreated')?.addEventListener('click', () => {
+    if (!latestCreatedGroup) return;
+    const code = latestCreatedGroup.inviteCode;
+    const text = `Halo! Yuk gabung ke jadwal grup "${latestCreatedGroup.name}" di PlanCalender. Gunakan Kode Undangan ini: *${code}* atau buka tautan: ${window.location.origin}${window.location.pathname}?join=${encodeURIComponent(code)}`;
+    window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, '_blank');
+  });
 
   document.querySelectorAll('#groupEmojiSelector .emoji-pill-btn').forEach(btn => {
     btn.addEventListener('click', () => {

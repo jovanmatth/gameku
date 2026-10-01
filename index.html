@@ -1522,6 +1522,65 @@
   </div>
 
   <!-- ====================================================================== -->
+  <!-- MODAL: SUKSES BUAT GRUP (TAMPILKAN KODE JOIN JELAS)                    -->
+  <!-- ====================================================================== -->
+  <div class="modal-overlay hidden" id="groupCreatedSuccessModalOverlay" role="dialog" aria-modal="true">
+    <div class="modal-card modal-card-sm group-success-card">
+      <div class="modal-header" style="border-bottom: none; padding-bottom: 0;">
+        <div class="modal-title-wrap">
+          <span class="modal-icon-badge" style="background: rgba(16, 185, 129, 0.15); color: #10b981;">🎉</span>
+          <div>
+            <h3 class="modal-title">Grup Berhasil Dibuat!</h3>
+            <span class="modal-subtitle">Ruang kolaborasi jadwal tim Anda siap digunakan</span>
+          </div>
+        </div>
+        <button id="btnCloseGroupCreatedModal" class="btn-icon modal-close-btn" aria-label="Tutup Modal">✕</button>
+      </div>
+
+      <div class="modal-body-content" style="padding: 16px 20px 20px;">
+        <!-- Group Identity Badge -->
+        <div style="display: flex; align-items: center; gap: 12px; background: var(--bg-input); border: 1px solid var(--border-subtle); padding: 10px 14px; border-radius: 12px; margin-bottom: 16px;">
+          <span id="createdSuccessGroupIcon" style="font-size: 1.8rem;">👥</span>
+          <div>
+            <h4 id="createdSuccessGroupName" style="margin: 0; font-size: 1rem; color: var(--text-main); font-weight: 700;">Nama Grup</h4>
+            <span id="createdSuccessGroupDesc" style="font-size: 0.75rem; color: var(--text-muted);">Deskripsi grup</span>
+          </div>
+        </div>
+
+        <!-- Big Highlighted Join Code Box -->
+        <div class="created-code-box">
+          <span class="created-code-label">🔑 KODE GABUNG GRUP (SHARE KE ANGGOTA):</span>
+          <div class="created-code-display" id="createdSuccessGroupCode">GRP-XXXX</div>
+          <button type="button" id="btnCopyCreatedCodeBig" class="btn btn-primary btn-block" style="display: flex; align-items: center; justify-content: center; gap: 8px; font-weight: 700; padding: 10px;">
+            <span>📋 Salin Kode Join</span>
+          </button>
+        </div>
+
+        <!-- Secondary Actions (Share WhatsApp & Direct Link) -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px;">
+          <button type="button" id="btnShareWaCreated" class="btn btn-outline btn-sm" style="display: flex; align-items: center; justify-content: center; gap: 6px;">
+            <span>📲 WhatsApp</span>
+          </button>
+          <button type="button" id="btnCopyLinkCreated" class="btn btn-outline btn-sm" style="display: flex; align-items: center; justify-content: center; gap: 6px;">
+            <span>🔗 Salin Tautan</span>
+          </button>
+        </div>
+
+        <!-- Helper hint -->
+        <div style="background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.2); border-radius: 10px; padding: 10px 12px; margin-top: 14px; font-size: 0.74rem; color: var(--text-muted); line-height: 1.4;">
+          💡 <strong>Cara Teman Join:</strong> Teman cukup buka aplikasi PlanCalender, klik tab <strong>Grup</strong> di menu ➜ klik <strong>Gabung Grup</strong> ➜ masukkan kode di atas.
+        </div>
+
+        <div style="margin-top: 16px;">
+          <button type="button" id="btnGoToCreatedGroup" class="btn btn-primary btn-block" style="background: #10b981; border-color: #10b981; font-weight: 700;">
+            <span>🚀 Masuk ke Jadwal Grup Sekarang</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====================================================================== -->
   <!-- MODAL: GABUNG KE GRUP DENGAN KODE UNDANGAN                             -->
   <!-- ====================================================================== -->
   <div class="modal-overlay hidden" id="joinGroupModalOverlay" role="dialog" aria-modal="true">

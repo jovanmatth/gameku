@@ -116,7 +116,8 @@ const state = {
   dayNotes: {},
   groups: [],                  // Daftar grup pengguna
   currentGroup: null,          // null = Personal Schedule; or group object
-  currentGroupMembers: []      // Anggota grup yang sedang aktif
+  currentGroupMembers: [],     // Anggota grup yang sedang aktif
+  openGroupDropdownId: null    // ID grup yang dropdown kodenya sedang terbuka
 };
 
 /** Memeriksa apakah user saat ini adalah Admin di grup aktif (atau jadwal pribadi) */

@@ -3731,24 +3731,35 @@ function setupGroupEventListeners() {
   document.getElementById('btnCancelCreateGroup')?.addEventListener('click', closeCreateGroupModal);
   document.getElementById('createGroupForm')?.addEventListener('submit', handleCreateGroupSubmit);
 
-  // Acak & Salin Kode di Form Buat Grup
-  document.getElementById('btnRegenGroupCode')?.addEventListener('click', () => {
-    playUiSound('pop');
-    const input = document.getElementById('groupFormCode');
-    if (input) {
-      input.value = 'GRP-' + Math.random().toString(36).substr(2, 4).toUpperCase();
-      showToast('Kode baru diacak: ' + input.value, 'info');
-    }
-  });
+  // Salin Kode Grup di Sidebar (Tepat di Atas Tombol Buat & Gabung Grup)
+  const copySidebarCodeAction = () => {
+    const valEl = document.getElementById('sidebarGroupCodeValue');
+    const copyLabel = document.getElementById('sidebarCopyBtnLabel');
+    const copyBtn = document.getElementById('btnCopySidebarGroupCode');
+    if (!valEl) return;
+    const code = valEl.textContent.trim();
+    if (!code || code === '---') return;
 
-  document.getElementById('btnCopyGroupFormCode')?.addEventListener('click', () => {
     playUiSound('pop');
-    const input = document.getElementById('groupFormCode');
-    if (input && input.value) {
-      navigator.clipboard?.writeText(input.value.trim().toUpperCase());
-      showToast(`Kode "${input.value}" disalin ke clipboard!`, 'success');
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(code).catch(() => {});
     }
-  });
+
+    if (copyBtn && copyLabel) {
+      const origText = copyLabel.textContent;
+      copyLabel.textContent = 'Tersalin!';
+      copyBtn.classList.add('copied');
+      setTimeout(() => {
+        copyLabel.textContent = origText;
+        copyBtn.classList.remove('copied');
+      }, 2000);
+    }
+
+    showToast(`🔑 Kode Undangan "${code}" berhasil disalin! Bagikan ke rekan Anda.`, 'success');
+  };
+
+  document.getElementById('btnCopySidebarGroupCode')?.addEventListener('click', copySidebarCodeAction);
+  document.getElementById('sidebarGroupCodeValWrap')?.addEventListener('click', copySidebarCodeAction);
 
   // Modal Sukses Buat Grup Listeners
   document.getElementById('btnCloseGroupCreatedModal')?.addEventListener('click', closeGroupCreatedSuccessModal);

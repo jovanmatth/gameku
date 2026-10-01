@@ -156,6 +156,33 @@
         <div class="group-switcher-list" id="groupSwitcherList">
           <!-- Populated by JavaScript: Personal Schedule + Groups -->
         </div>
+
+        <!-- Tampilan Kode Grup (Tepat di Atas Tombol Buat & Gabung Grup) -->
+        <div class="sidebar-group-code-card hidden" id="sidebarGroupCodeCard">
+          <div class="sidebar-code-header">
+            <div class="sidebar-code-title-wrap">
+              <span class="sidebar-code-icon">🔑</span>
+              <span class="sidebar-code-label">KODE GABUNG GRUP</span>
+            </div>
+            <span class="sidebar-code-group-badge" id="sidebarGroupCodeBadge">Grup</span>
+          </div>
+          <div class="sidebar-code-body">
+            <div class="sidebar-code-val-wrap" id="sidebarGroupCodeValWrap" title="Klik untuk salin kode">
+              <span class="sidebar-code-val" id="sidebarGroupCodeValue">GRP-XXXX</span>
+            </div>
+            <button type="button" id="btnCopySidebarGroupCode" class="sidebar-code-copy-btn" title="Salin Kode Undangan">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+              </svg>
+              <span id="sidebarCopyBtnLabel">Salin</span>
+            </button>
+          </div>
+          <div class="sidebar-code-sub">
+            <span class="sidebar-code-hint">Bagikan kode ini agar rekan bisa bergabung</span>
+          </div>
+        </div>
+
         <div class="group-nav-actions-row">
           <button id="btnOpenCreateGroup" class="btn-group-nav-action btn-group-nav-create" type="button" title="Buat Ruang Jadwal Grup Baru">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">

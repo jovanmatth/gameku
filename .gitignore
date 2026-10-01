@@ -6,3 +6,8 @@ data/
 *.log
 .DS_Store
 Thumbs.db
+scratch*
+check_*
+query_*
+set_*
+reset_*

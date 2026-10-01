@@ -812,15 +812,11 @@
             <span id="authSubmitText">Sign In Now</span>
           </button>
 
-          <!-- Quick Super Admin Access Button -->
-          <button type="button" id="btnQuickAdminLogin" class="btn btn-warning btn-block" style="margin-top: 10px;"
-            title="Sign In Directly as Super Administrator (Jovan Matthew Adderson)">
-            <span>👑 Sign In as Admin (Jovan)</span>
-          </button>
-
-          <div class="auth-footer-links">
-            <button type="button" id="btnContinueGuest" class="btn-link btn-xs text-muted">Continue as Guest (Local Mode)</button>
-            <button type="button" id="btnOpenSupabaseFromAuth" class="btn-link btn-xs text-supabase">Configure Supabase Credentials</button>
+          <div class="auth-footer-links" style="margin-top: 14px; display: flex; flex-direction: column; gap: 8px; align-items: center;">
+            <button type="button" id="btnContinueGuest" class="btn btn-secondary btn-block" style="font-size: 0.85rem; padding: 9px 12px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); border-radius: 8px;">
+              👤 Lanjut sebagai Tamu (Guest Mode)
+            </button>
+            <button type="button" id="btnOpenSupabaseFromAuth" class="btn-link btn-xs text-supabase" style="margin-top: 4px;">⚙️ Configure Supabase Credentials</button>
           </div>
         </form>
       </div>

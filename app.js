@@ -175,19 +175,20 @@ async function initSupabaseSession() {
     }
   }
 
-  // Jika belum login via session Supabase, otomatis jadikan akun Jovan Matthew Adderson (Admin) sebagai default aktif
-  const isExplicitLogout = localStorage.getItem('plancraft_logged_out') === 'true';
-  const activeAcc = localStorage.getItem('plancraft_active_account');
-  if (!isExplicitLogout || activeAcc === 'admin') {
-    activateJovanAdminSession(false);
-    return;
-  }
-
-  // Jika sengaja keluar (guest mode)
+  // Default: Masuk sebagai Guest Mode (Tamu) jika belum login
   state.currentUser = null;
   state.isAdmin = false;
   updateUserUI();
   loadLocalSchedules('guest');
+
+  // Ajak pengunjung pertama kali untuk membuat akun (atau lanjut sebagai tamu)
+  const hasPromptedAuth = sessionStorage.getItem('plancalender_auth_prompted');
+  if (!hasPromptedAuth) {
+    sessionStorage.setItem('plancalender_auth_prompted', 'true');
+    setTimeout(() => {
+      openAuthModal('register');
+    }, 600);
+  }
 }
 
 /** Mengaktifkan sesi Super Administrator: Jovan Matthew Adderson secara instan */
@@ -2468,8 +2469,12 @@ function openAuthModal(mode = 'login') {
   }
 
   const emailField = document.getElementById('authEmail');
-  if (emailField && !emailField.value) {
-    emailField.value = 'matthewajovan@gmail.com';
+  if (emailField) {
+    if (mode === 'login') {
+      emailField.value = localStorage.getItem('plancalender_last_email') || '';
+    } else {
+      emailField.value = '';
+    }
   }
 
   modal.classList.remove('hidden');
@@ -2639,6 +2644,7 @@ async function handleVerifyOtpSubmit() {
     }
 
     if (authenticatedUser) {
+      localStorage.setItem('plancalender_last_email', (authenticatedUser.email || pendingVerification.email).trim());
       state.currentUser = authenticatedUser;
       updateUserUI();
       closeAuthModal();
@@ -2647,6 +2653,7 @@ async function handleVerifyOtpSubmit() {
       showToast(`Email terverifikasi! Selamat datang, ${authenticatedUser.email}!`, 'success');
       await loadUserData(authenticatedUser.id);
     } else {
+      localStorage.setItem('plancalender_last_email', pendingVerification.email.trim());
       showToast('Email terverifikasi! Silakan Sign In sekarang.', 'success');
       openAuthModal('login');
       showAuthAlert('Verifikasi berhasil! Silakan masuk dengan kata sandi Anda.', 'success');
@@ -2855,6 +2862,7 @@ async function handleAuthFormSubmit(e) {
       playUiSound('chime');
       triggerConfetti();
       showToast(`Welcome back, ${data.user.email}!`, 'success');
+      localStorage.setItem('plancalender_last_email', email.trim());
       await loadUserData(data.user.id);
     } else {
       const data = await registerWithEmail(email, password, displayName);
@@ -2865,6 +2873,7 @@ async function handleAuthFormSubmit(e) {
         playUiSound('chime');
         triggerConfetti();
         showToast('Account successfully created and connected!', 'success');
+        localStorage.setItem('plancalender_last_email', email.trim());
         await loadUserData(data.user.id);
       } else if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
         // Supabase returns identities: [] when email is already registered
@@ -4044,7 +4053,6 @@ function setupEventListeners() {
   document.getElementById('tabBtnLogin')?.addEventListener('click', () => openAuthModal('login'));
   document.getElementById('tabBtnRegister')?.addEventListener('click', () => openAuthModal('register'));
   document.getElementById('authForm')?.addEventListener('submit', handleAuthFormSubmit);
-  document.getElementById('btnQuickAdminLogin')?.addEventListener('click', () => activateJovanAdminSession(true));
 
   // 6-Digit Email OTP Verification Listeners
   setupOtpInputs();

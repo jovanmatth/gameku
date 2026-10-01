@@ -1794,6 +1794,66 @@
   </div>
 
   <!-- ====================================================================== -->
+  <!-- FLOATING LIVE UPDATE NOTIFIER (RELOAD & PATCH)                          -->
+  <!-- ====================================================================== -->
+  <div id="liveUpdateBanner" class="live-update-banner hidden" role="alert">
+    <div class="update-banner-content">
+      <div class="update-banner-icon-col">
+        <span class="update-pulse-ring"></span>
+        <span class="update-main-icon">⚡</span>
+      </div>
+      <div class="update-banner-text">
+        <div class="update-title-row">
+          <strong id="updateBannerTitle">Update Baru Tersedia!</strong>
+          <span class="update-badge" id="updateBannerBadge">v2.7</span>
+        </div>
+        <span class="update-subtitle" id="updateBannerSub">Pembaruan telah diterapkan. Muat ulang untuk mendapatkan perubahan terbaru.</span>
+      </div>
+      <div class="update-banner-btns">
+        <button type="button" id="btnViewPatchNotes" class="btn btn-outline btn-xs update-btn-notes">
+          📋 Lihat Perubahan
+        </button>
+        <button type="button" id="btnReloadPatchNow" class="btn btn-primary btn-xs update-btn-reload">
+          🔄 Muat Ulang (Patch)
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: CATATAN RILIS / PATCH NOTES -->
+  <div class="modal-overlay hidden" id="patchNotesModalOverlay" role="dialog" aria-modal="true">
+    <div class="modal-card modal-card-sm patch-notes-card">
+      <div class="modal-header">
+        <div class="modal-title-wrap">
+          <span class="modal-icon-badge" style="background: rgba(99, 102, 241, 0.15); color: var(--primary);">🚀</span>
+          <div>
+            <h3 class="modal-title" id="patchNotesModalTitle">Catatan Pembaruan (Patch Notes)</h3>
+            <span class="modal-subtitle" id="patchNotesModalDate">Rilis Terbaru</span>
+          </div>
+        </div>
+        <button id="btnClosePatchNotesModal" class="btn-icon modal-close-btn" aria-label="Tutup Modal">✕</button>
+      </div>
+
+      <div class="modal-body-content" style="padding: 16px 20px 20px;">
+        <div class="patch-notes-header-box">
+          <div class="patch-notes-ver-pill" id="patchNotesVerPill">v2.7.0</div>
+          <p class="patch-notes-summary" id="patchNotesSummary">Berikut daftar fitur dan perbaikan yang baru saja diterapkan ke aplikasi PlanCalender:</p>
+        </div>
+
+        <ul class="patch-changes-list" id="patchNotesList">
+          <!-- Dynamically generated list of changes -->
+        </ul>
+
+        <div style="margin-top: 20px;">
+          <button type="button" id="btnApplyPatchReload" class="btn btn-primary btn-block" style="font-weight: 700; padding: 11px; display: flex; align-items: center; justify-content: center; gap: 8px;">
+            <span>🔄 Muat Ulang Halaman Sekarang</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====================================================================== -->
   <!-- TOAST NOTIFICATIONS CONTAINER                                          -->
   <!-- ====================================================================== -->
   <div class="toast-container" id="toastContainer" aria-live="polite"></div>

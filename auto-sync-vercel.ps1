@@ -26,6 +26,17 @@ while ($true) {
             Write-Host "[$(Get-Date -Format 'HH:mm:ss')] Change detected! Waiting 3s to debounce..." -ForegroundColor Yellow
             Start-Sleep -Seconds 3
 
+            # Update version.json buildTimestamp so clients detect live patch
+            $vPath = Join-Path $RepoPath "version.json"
+            if (Test-Path $vPath) {
+                try {
+                    $vObj = Get-Content $vPath -Raw | ConvertFrom-Json
+                    $vObj.buildTimestamp = [long]([DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds())
+                    $vObj.releaseDate = (Get-Date -Format 'dd MMMM yyyy HH:mm WIB')
+                    $vObj | ConvertTo-Json -Depth 5 | Set-Content $vPath -Encoding UTF8
+                } catch {}
+            }
+
             Write-Host "[$(Get-Date -Format 'HH:mm:ss')] Staging files..." -ForegroundColor Gray
             git add -A
 
@@ -34,8 +45,11 @@ while ($true) {
 
             Write-Host "[$(Get-Date -Format 'HH:mm:ss')] Pushing to GitHub origin/main..." -ForegroundColor Cyan
             $pushResult = git push origin main 2>&1
-
-            Write-Host "[$(Get-Date -Format 'HH:mm:ss')] SUCCESS! Deployed to GitHub & Vercel auto-triggered!" -ForegroundColor Green
+            if ($LASTEXITCODE -eq 0) {
+                Write-Host "[$(Get-Date -Format 'HH:mm:ss')] SUCCESS! Deployed to GitHub & Vercel auto-triggered!" -ForegroundColor Green
+            } else {
+                Write-Host "[$(Get-Date -Format 'HH:mm:ss')] Push failed: $pushResult" -ForegroundColor Red
+            }
         }
     } catch {
         Write-Host "[$(Get-Date -Format 'HH:mm:ss')] Sync error: $_" -ForegroundColor Red

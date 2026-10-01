@@ -13,3 +13,5 @@ set_*
 reset_*
 setup_*
 test_*
+delete_*
+del_*

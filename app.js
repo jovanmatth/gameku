@@ -4413,6 +4413,126 @@ function addHours(timeStr, hours) {
   return `${String(nextHour).padStart(2, '0')}:${String(m || 0).padStart(2, '0')}`;
 }
 
+// ==============================================================================
+// 24. REAL-TIME LIVE APP UPDATE / PATCH NOTIFIER & RELOAD SYSTEM
+// ==============================================================================
+let currentAppBuildTimestamp = 0;
+let latestPatchInfo = null;
+
+async function initLiveUpdateChecker() {
+  try {
+    const res = await fetch(`version.json?_t=${Date.now()}`);
+    if (res.ok) {
+      const data = await res.json();
+      currentAppBuildTimestamp = data.buildTimestamp || 0;
+      latestPatchInfo = data;
+    }
+  } catch (e) {}
+
+  // Cek update baru secara berkala setiap 15 detik
+  setInterval(checkForLiveAppPatch, 15000);
+
+  // Cek juga saat tab kembali difokuskan oleh pengguna
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      checkForLiveAppPatch();
+    }
+  });
+  window.addEventListener('focus', checkForLiveAppPatch);
+
+  setupLiveUpdateListeners();
+}
+
+async function checkForLiveAppPatch() {
+  try {
+    const res = await fetch(`version.json?_t=${Date.now()}`);
+    if (!res.ok) return;
+    const data = await res.json();
+    if (!data || !data.buildTimestamp) return;
+
+    if (currentAppBuildTimestamp && data.buildTimestamp > currentAppBuildTimestamp) {
+      latestPatchInfo = data;
+      showLiveUpdateBanner(data);
+    } else if (!currentAppBuildTimestamp) {
+      currentAppBuildTimestamp = data.buildTimestamp;
+      latestPatchInfo = data;
+    }
+  } catch (e) {}
+}
+
+function showLiveUpdateBanner(patchData) {
+  const banner = document.getElementById('liveUpdateBanner');
+  if (!banner) return;
+
+  const titleEl = document.getElementById('updateBannerTitle');
+  const badgeEl = document.getElementById('updateBannerBadge');
+  const subEl = document.getElementById('updateBannerSub');
+
+  if (titleEl) titleEl.textContent = patchData.patchTitle || 'Update Baru Tersedia!';
+  if (badgeEl) badgeEl.textContent = patchData.version || 'v2.7';
+  if (subEl) subEl.textContent = `Pembaruan diterapkan (${patchData.releaseDate || 'Baru saja'}). Muat ulang untuk mendapatkan perubahan terbaru.`;
+
+  banner.classList.remove('hidden');
+  playUiSound('pop');
+}
+
+function openPatchNotesModal() {
+  const modal = document.getElementById('patchNotesModalOverlay');
+  if (!modal) return;
+  playUiSound('pop');
+
+  const titleEl = document.getElementById('patchNotesModalTitle');
+  const dateEl = document.getElementById('patchNotesModalDate');
+  const pillEl = document.getElementById('patchNotesVerPill');
+  const listEl = document.getElementById('patchNotesList');
+
+  const info = latestPatchInfo || {
+    version: 'v2.7.0',
+    releaseDate: '01 Oktober 2026',
+    patchTitle: 'Catatan Pembaruan PlanCalender',
+    changes: [
+      '🚀 Deteksi pembaruan live real-time dengan tombol reload',
+      '🔑 Fitur kode undangan grup saat membuat ruang jadwal baru',
+      '👤 Mode Tamu default tanpa auto-login',
+      '🔄 Kolom email Sign In memuat akun terakhir yang dipakai'
+    ]
+  };
+
+  if (titleEl) titleEl.textContent = info.patchTitle || 'Catatan Pembaruan (Patch Notes)';
+  if (dateEl) dateEl.textContent = info.releaseDate || 'Rilis Terbaru';
+  if (pillEl) pillEl.textContent = info.version || 'v2.7.0';
+
+  if (listEl) {
+    listEl.innerHTML = (info.changes || []).map(item => `
+      <li class="patch-change-item">
+        <span class="patch-change-bullet">✦</span>
+        <span>${escapeHtml(item)}</span>
+      </li>
+    `).join('');
+  }
+
+  modal.classList.remove('hidden');
+}
+
+function closePatchNotesModal() {
+  document.getElementById('patchNotesModalOverlay')?.classList.add('hidden');
+}
+
+function setupLiveUpdateListeners() {
+  // Tombol Muat Ulang Langsung
+  const reloadFn = () => {
+    playUiSound('pop');
+    window.location.reload(true);
+  };
+
+  document.getElementById('btnReloadPatchNow')?.addEventListener('click', reloadFn);
+  document.getElementById('btnApplyPatchReload')?.addEventListener('click', reloadFn);
+
+  // Tombol Lihat Catatan Perubahan
+  document.getElementById('btnViewPatchNotes')?.addEventListener('click', openPatchNotesModal);
+  document.getElementById('btnClosePatchNotesModal')?.addEventListener('click', closePatchNotesModal);
+}
+
 // Inisialisasi Aplikasi Saat Memuat
 document.addEventListener('DOMContentLoaded', async () => {
   initTheme();
@@ -4420,6 +4540,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   initLiveClock();
   initPomodoro();
   setupEventListeners();
+  initLiveUpdateChecker();
   await initSupabaseSession();
   await loadGroups();
 

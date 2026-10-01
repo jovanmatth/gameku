@@ -1,0 +1,13 @@
+{
+  "version": "2.7.0",
+  "buildTimestamp": 1790875000000,
+  "releaseDate": "01 Oktober 2026",
+  "patchTitle": "Update v2.7 — Kode Join Grup & Auto-Patch",
+  "changes": [
+    "🚀 Notifikasi Real-Time: Deteksi otomatis pembaruan aplikasi & tombol Muat Ulang Patch",
+    "🔑 Kode Undangan Grup: Tampilan kode join saat membuat grup dan pop-up khusus share WhatsApp",
+    "👤 Mode Tamu (Guest) Default: Pengguna baru tidak lagi otomatis login sebagai admin",
+    "🔄 Form Sign In Cerdas: Otomatis mengingat email yang terakhir digunakan",
+    "🛡️ Verifikasi Email Gmail: Pembuatan akun wajib memasukkan kode verifikasi 6-digit"
+  ]
+}

@@ -3349,12 +3349,6 @@ function openCreateGroupModal() {
   selectedGroupEmoji = '🚀';
   selectedGroupColor = '#6366f1';
 
-  // Otomatis buatkan kode join unik baru
-  const codeInput = document.getElementById('groupFormCode');
-  if (codeInput) {
-    codeInput.value = 'GRP-' + Math.random().toString(36).substr(2, 4).toUpperCase();
-  }
-
   document.querySelectorAll('#groupEmojiSelector .emoji-pill-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.emoji === selectedGroupEmoji);
   });
@@ -3407,8 +3401,8 @@ async function handleCreateGroupSubmit(e) {
   e.preventDefault();
   const name = document.getElementById('groupFormName')?.value.trim();
   const description = document.getElementById('groupFormDesc')?.value.trim();
-  const rawCode = document.getElementById('groupFormCode')?.value.trim().toUpperCase();
-  const inviteCode = rawCode || ('GRP-' + Math.random().toString(36).substr(2, 4).toUpperCase());
+  // Kode undangan grup otomatis dibuat di background tanpa input manual
+  const inviteCode = 'GRP-' + Math.random().toString(36).substr(2, 4).toUpperCase();
 
   if (!name) {
     showToast('Nama grup tidak boleh kosong.', 'warning');
@@ -3425,12 +3419,16 @@ async function handleCreateGroupSubmit(e) {
 
   try {
     const newGroup = await createGroupInCloud(groupData, state.currentUser);
+    latestCreatedGroup = newGroup;
     closeCreateGroupModal();
     playUiSound('complete');
     triggerConfetti();
 
     await loadGroups();
     await switchGroup(newGroup);
+
+    // Update tampilan kode di sidebar tepat di atas tombol Buat & Gabung Grup
+    renderSidebarGroupCode();
 
     // Buka Modal Sukses dengan Kode Join Sangat Jelas
     openGroupCreatedSuccessModal(newGroup);

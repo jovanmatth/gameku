@@ -2866,6 +2866,10 @@ async function handleAuthFormSubmit(e) {
         triggerConfetti();
         showToast('Account successfully created and connected!', 'success');
         await loadUserData(data.user.id);
+      } else if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+        // Supabase returns identities: [] when email is already registered
+        showAuthAlert('Email ini sudah terdaftar sebelumnya! Silakan login di tab Sign In (atau gunakan email baru).', 'warning');
+        setAuthMode('login');
       } else {
         // Supabase sends 6-digit verification code to email (Gmail)
         showVerifyOtpView(email, password, displayName);

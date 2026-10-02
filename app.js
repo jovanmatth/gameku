@@ -138,6 +138,66 @@ function isCurrentGroupAdmin() {
 // ==============================================================================
 // 2. SUPABASE INITIALIZATION & USER SESSION
 // ==============================================================================
+// 1.1 MANAJEMEN SESI & ISOLASI DATA PER AKUN
+// ==============================================================================
+
+/**
+ * Mengalihkan konteks akun secara bersih dan aman:
+ * - Menjamin jadwal pribadi, catatan harian, dan grup benar-benar terisolasi 100% per akun/guest.
+ * - Mengatur ulang grup aktif ke Jadwal Pribadi sehingga data grup akun lama tidak bocor ke akun baru.
+ */
+async function switchAccountContext(userOrNull) {
+  state.currentUser = userOrNull;
+  state.currentGroup = null; // Selalu reset ke Jadwal Pribadi saat berganti akun
+  state.currentGroupMembers = [];
+
+  const uid = userOrNull ? userOrNull.id : 'guest';
+  const emailLower = userOrNull ? (userOrNull.email || '').toLowerCase().trim() : '';
+  const isAdm = Boolean(userOrNull && (
+    isUserAdmin(userOrNull) ||
+    emailLower === 'matthewajovan@gmail.com' ||
+    emailLower.includes('matthewajovan') ||
+    userOrNull.id === 'a76b1dfe-9c4d-4be5-be10-808f0355bfaa'
+  ));
+  state.isAdmin = isAdm;
+
+  if (isAdm && userOrNull) {
+    userOrNull.user_metadata = userOrNull.user_metadata || {};
+    userOrNull.user_metadata.role = 'admin';
+    userOrNull.user_metadata.is_admin = true;
+    userOrNull.app_metadata = userOrNull.app_metadata || {};
+    userOrNull.app_metadata.role = 'admin';
+    userOrNull.app_metadata.is_admin = true;
+
+    // Otomatis sinkronkan klaim admin ke Supabase user metadata jika belum ada
+    const client = getSupabase();
+    if (client) {
+      client.auth.updateUser({
+        data: {
+          role: 'admin',
+          is_admin: true,
+          display_name: userOrNull.user_metadata?.display_name || 'Jovan Matthew Adderson'
+        }
+      }).catch(() => {});
+    }
+  }
+
+  updateUserUI();
+
+  // 1. Muat jadwal & catatan pribadi untuk akun/guest ini
+  if (userOrNull && isSupabaseConfigured()) {
+    await loadUserData(uid);
+  } else {
+    loadLocalSchedules(uid);
+  }
+
+  // 2. Muat grup-grup yang HANYA diikuti oleh akun/guest ini
+  await loadGroups();
+
+  // 3. Render ulang kalender dan antarmuka
+  renderApp();
+}
+
 async function initSupabaseSession() {
   initSupabase();
   const configured = isSupabaseConfigured();
@@ -148,33 +208,7 @@ async function initSupabaseSession() {
     try {
       const user = await getCurrentUser();
       if (user) {
-        state.currentUser = user;
-        const emailLower = (user.email || '').toLowerCase().trim();
-        const isAdm = isUserAdmin(user) || emailLower === 'matthewajovan@gmail.com' || emailLower.includes('matthewajovan') || user.id === 'a76b1dfe-9c4d-4be5-be10-808f0355bfaa';
-        state.isAdmin = isAdm;
-
-        if (isAdm) {
-          user.user_metadata = user.user_metadata || {};
-          user.user_metadata.role = 'admin';
-          user.user_metadata.is_admin = true;
-          user.app_metadata = user.app_metadata || {};
-          user.app_metadata.role = 'admin';
-          user.app_metadata.is_admin = true;
-
-          // Otomatis sinkronkan klaim admin ke Supabase user metadata jika belum ada
-          const client = getSupabase();
-          if (client) {
-            client.auth.updateUser({
-              data: {
-                role: 'admin',
-                is_admin: true,
-                display_name: 'Jovan Matthew Adderson'
-              }
-            }).catch(() => {});
-          }
-        }
-        updateUserUI();
-        await loadUserData(user.id);
+        await switchAccountContext(user);
         return;
       }
     } catch (err) {
@@ -183,10 +217,7 @@ async function initSupabaseSession() {
   }
 
   // Default: Masuk sebagai Guest Mode (Tamu) jika belum login
-  state.currentUser = null;
-  state.isAdmin = false;
-  updateUserUI();
-  loadLocalSchedules('guest');
+  await switchAccountContext(null);
 
   // Ajak pengunjung pertama kali untuk membuat akun (atau lanjut sebagai tamu)
   const hasPromptedAuth = sessionStorage.getItem('plancalender_auth_prompted');
@@ -199,7 +230,7 @@ async function initSupabaseSession() {
 }
 
 /** Mengaktifkan sesi Super Administrator: Jovan Matthew Adderson secara instan */
-function activateJovanAdminSession(showFeedback = true) {
+async function activateJovanAdminSession(showFeedback = true) {
   const adminUser = {
     id: 'a76b1dfe-9c4d-4be5-be10-808f0355bfaa',
     email: 'matthewajovan@gmail.com',
@@ -215,24 +246,10 @@ function activateJovanAdminSession(showFeedback = true) {
     }
   };
 
-  state.currentUser = adminUser;
-  state.isAdmin = true;
   localStorage.setItem('plancraft_active_account', 'admin');
   localStorage.removeItem('plancraft_logged_out');
 
-  // Sinkronkan ke Supabase jika client aktif
-  try {
-    const client = getSupabase();
-    client?.auth?.updateUser({
-      data: {
-        role: 'admin',
-        is_admin: true,
-        display_name: 'jovan matthew adderson'
-      }
-    }).catch(() => {});
-  } catch {}
-
-  updateUserUI();
+  await switchAccountContext(adminUser);
   closeAuthModal();
 
   if (showFeedback) {
@@ -240,8 +257,6 @@ function activateJovanAdminSession(showFeedback = true) {
     triggerConfetti();
     showToast('👑 Administrator Mode Active: Jovan Matthew Adderson!', 'success');
   }
-
-  loadUserData(adminUser.id);
 }
 
 /** Memuat data jadwal dan catatan khusus milik user ID yang sedang aktif */
@@ -2652,13 +2667,11 @@ async function handleVerifyOtpSubmit() {
 
     if (authenticatedUser) {
       localStorage.setItem('plancalender_last_email', (authenticatedUser.email || pendingVerification.email).trim());
-      state.currentUser = authenticatedUser;
-      updateUserUI();
       closeAuthModal();
       playUiSound('chime');
       triggerConfetti();
       showToast(`Email terverifikasi! Selamat datang, ${authenticatedUser.email}!`, 'success');
-      await loadUserData(authenticatedUser.id);
+      await switchAccountContext(authenticatedUser);
     } else {
       localStorage.setItem('plancalender_last_email', pendingVerification.email.trim());
       showToast('Email terverifikasi! Silakan Sign In sekarang.', 'success');
@@ -2848,42 +2861,21 @@ async function handleAuthFormSubmit(e) {
   try {
     if (activeAuthMode === 'login') {
       const data = await loginWithEmail(email, password);
-      state.currentUser = data.user;
-
-      if (isUserAdmin(data.user)) {
-        state.isAdmin = true;
-        localStorage.setItem('plancraft_active_account', 'admin');
-        localStorage.removeItem('plancraft_logged_out');
-        try {
-          const client = getSupabase();
-          client?.auth?.updateUser({
-            data: {
-              role: 'admin',
-              is_admin: true,
-              display_name: 'jovan matthew adderson'
-            }
-          }).catch(() => {});
-        } catch {}
-      }
-
-      updateUserUI();
+      localStorage.setItem('plancalender_last_email', email.trim());
       closeAuthModal();
       playUiSound('chime');
       triggerConfetti();
       showToast(`Welcome back, ${data.user.email}!`, 'success');
-      localStorage.setItem('plancalender_last_email', email.trim());
-      await loadUserData(data.user.id);
+      await switchAccountContext(data.user);
     } else {
       const data = await registerWithEmail(email, password, displayName);
       if (data.session) {
-        state.currentUser = data.user;
-        updateUserUI();
+        localStorage.setItem('plancalender_last_email', email.trim());
         closeAuthModal();
         playUiSound('chime');
         triggerConfetti();
         showToast('Account successfully created and connected!', 'success');
-        localStorage.setItem('plancalender_last_email', email.trim());
-        await loadUserData(data.user.id);
+        await switchAccountContext(data.user);
       } else if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
         // Supabase returns identities: [] when email is already registered
         showAuthAlert('Email ini sudah terdaftar sebelumnya! Silakan masuk di tab Sign In.', 'warning');
@@ -2913,11 +2905,9 @@ async function handleLogout() {
   if (confirm('Are you sure you want to sign out?')) {
     playUiSound('click');
     await logoutUser();
-    state.currentUser = null;
-    updateUserUI();
     closeProfileModal();
-    loadLocalSchedules('guest');
-    showToast('You have been signed out.', 'info');
+    await switchAccountContext(null);
+    showToast('You have been signed out. Welcome back, Guest!', 'info');
     openAuthModal('login');
   }
 }
@@ -3221,13 +3211,15 @@ async function loadGroups() {
       });
     }
     if (migrated) {
-      saveLocalGroupsStore(state.groups);
+      saveLocalGroupsStore(state.groups, uid);
     }
 
     if (state.currentGroup) {
       const match = (state.groups || []).find(g => g && g.id === state.currentGroup.id);
       if (match) {
         state.currentGroup = { ...state.currentGroup, ...match };
+      } else {
+        state.currentGroup = null;
       }
     }
 
@@ -3313,7 +3305,8 @@ function renderGroupSwitcher() {
       }
     });
     if (codeChanged) {
-      saveLocalGroupsStore(state.groups);
+      const uid = state.currentUser ? state.currentUser.id : 'guest';
+      saveLocalGroupsStore(state.groups, uid);
       if (state.currentGroup) {
         const found = state.groups.find(x => x && x.id === state.currentGroup.id);
         if (found) state.currentGroup.inviteCode = found.inviteCode;
@@ -3436,11 +3429,13 @@ function renderGroupSwitcher() {
         e.stopPropagation();
         if (confirm(`🔄 Acak kode 6 digit angka baru untuk grup "${g.name}"?\n\nKode lama tidak akan dapat digunakan lagi.`)) {
           playUiSound('complete');
-          const newCode = await regenerateGroupInviteCodeInCloud(g.id);
+          const uid = state.currentUser ? state.currentUser.id : 'guest';
+          const newCode = await regenerateGroupInviteCodeInCloud(g.id, uid);
           g.inviteCode = newCode;
           if (state.currentGroup && state.currentGroup.id === g.id) {
             state.currentGroup.inviteCode = newCode;
           }
+          saveLocalGroupsStore(state.groups, uid);
           renderGroupSwitcher();
           renderGroupBanner();
           showToast(`🔑 Kode baru untuk "${g.name}": ${newCode}`, 'success');
@@ -3917,10 +3912,12 @@ async function handleResetGroupInviteCode() {
     return;
   }
   playUiSound('complete');
-  const newCode = await regenerateGroupInviteCodeInCloud(state.currentGroup.id);
+  const uid = state.currentUser ? state.currentUser.id : 'guest';
+  const newCode = await regenerateGroupInviteCodeInCloud(state.currentGroup.id, uid);
   state.currentGroup.inviteCode = newCode;
   const grp = state.groups.find(g => g.id === state.currentGroup.id);
   if (grp) grp.inviteCode = newCode;
+  saveLocalGroupsStore(state.groups, uid);
 
   const codeVal = document.getElementById('mgInviteCodeVal');
   const linkInput = document.getElementById('mgInviteLinkInput');
@@ -3945,11 +3942,12 @@ async function handleSaveGroupInfo() {
   }
 
   playUiSound('complete');
+  const uid = state.currentUser ? state.currentUser.id : 'guest';
   await updateGroupInfoInCloud(state.currentGroup.id, {
     name: newName,
     description: newDesc,
     icon: selectedEditGroupEmoji
-  });
+  }, uid);
 
   state.currentGroup.name = newName;
   state.currentGroup.description = newDesc;
@@ -3961,6 +3959,7 @@ async function handleSaveGroupInfo() {
     grp.description = newDesc;
     grp.icon = selectedEditGroupEmoji;
   }
+  saveLocalGroupsStore(state.groups, uid);
 
   const spotlightName = document.getElementById('mgSpotlightName');
   const spotlightDesc = document.getElementById('mgSpotlightDesc');
@@ -4048,6 +4047,7 @@ async function handleLeaveGroup() {
     playUiSound('click');
     await removeGroupMemberFromCloud(state.currentGroup.id, myId);
     state.groups = state.groups.filter(g => g.id !== state.currentGroup.id);
+    saveLocalGroupsStore(state.groups, myId);
     closeManageGroupModal();
     await switchGroup(null);
     showToast(`Anda telah keluar dari grup "${gName}".`, 'info');
@@ -4060,9 +4060,11 @@ async function handleDeleteGroup() {
   const gName = state.currentGroup.name;
 
   if (confirm(`⚠️ PERINGATAN: Apakah Anda yakin ingin menghapus grup "${gName}" beserta seluruh jadwalnya selamanya? Tindakan ini tidak dapat dibatalkan.`)) {
+    const myId = state.currentUser ? state.currentUser.id : 'guest';
     playUiSound('delete');
-    await deleteGroupInCloud(state.currentGroup.id);
+    await deleteGroupInCloud(state.currentGroup.id, myId);
     state.groups = state.groups.filter(g => g.id !== state.currentGroup.id);
+    saveLocalGroupsStore(state.groups, myId);
     closeManageGroupModal();
     await switchGroup(null);
     showToast(`Grup "${gName}" berhasil dihapus selamanya.`, 'info');
@@ -4539,7 +4541,9 @@ function setupEventListeners() {
   document.getElementById('btnSyncNow')?.addEventListener('click', async () => {
     if (state.currentUser) {
       await loadUserData(state.currentUser.id);
+      await loadGroups();
       closeProfileModal();
+      showToast('Data jadwal & grup berhasil disinkronkan!', 'success');
     }
   });
 
@@ -4951,10 +4955,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   setupEventListeners();
   initLiveUpdateChecker();
   await initSupabaseSession();
-  await loadGroups();
 
   // Sinkronkan data grup lokal ke cloud jika tabel sudah dibuat di Supabase
-  syncAllLocalGroupsToCloud().catch(() => {});
+  const initUid = state.currentUser ? state.currentUser.id : 'guest';
+  syncAllLocalGroupsToCloud(initUid).catch(() => {});
 
   // Periksa apakah ada parameter tautan undangan grup di URL (?join=CODE atau #join=CODE)
   const urlParams = new URLSearchParams(window.location.search);

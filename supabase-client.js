@@ -512,48 +512,63 @@ export async function fetchAdminDatabaseStats() {
 // 5. GROUP SCHEDULES, INVITE CODES & ROLE-BASED ADMIN ENGINE
 // ------------------------------------------------------------------------------
 
-const GROUPS_STORAGE_KEY = 'plancraft_groups_store';
+const GROUPS_STORAGE_PREFIX = 'plancraft_user_groups_';
 const GROUP_MEMBERS_PREFIX = 'plancraft_grp_members_';
 const GROUP_SCHEDULES_PREFIX = 'plancraft_grp_schedules_';
 
-/** Helper LocalStorage untuk Groups */
-function getLocalGroupsStore() {
+/** Mendapatkan key LocalStorage khusus per user agar data grup tidak pernah bocor ke akun lain */
+export function getUserGroupsStorageKey(userId) {
+  const cleanId = (userId && typeof userId === 'string' && userId.trim()) ? userId.trim() : 'guest';
+  return `${GROUPS_STORAGE_PREFIX}${cleanId}`;
+}
+
+/** Helper LocalStorage untuk Groups terisolasi ketat per akun */
+export function getLocalGroupsStore(userId) {
   try {
-    const raw = localStorage.getItem(GROUPS_STORAGE_KEY);
+    const cleanId = (userId && typeof userId === 'string' && userId.trim()) ? userId.trim() : 'guest';
+    const key = getUserGroupsStorageKey(cleanId);
+    const raw = localStorage.getItem(key);
     if (raw) {
       let list = JSON.parse(raw);
       if (Array.isArray(list)) {
-        // Hapus grup demo placeholder jika sebelumnya tersimpan di browser
-        const filtered = list.filter(g => g && g.id !== 'grp-demo-sprint' && g.inviteCode !== 'GRP-ALPHA');
-        let modified = (filtered.length !== list.length);
-
-        // Auto-migrate SEMUA grup agar menggunakan 6 digit angka murni
-        filtered.forEach(g => {
-          if (!g) return;
-          const codeStr = String(g.inviteCode || '').trim();
-          if (!codeStr || !/^\d{6}$/.test(codeStr)) {
-            g.inviteCode = generateGroupInviteCode();
-            modified = true;
-          }
-        });
-
-        if (modified) {
-          localStorage.setItem(GROUPS_STORAGE_KEY, JSON.stringify(filtered));
-          localStorage.removeItem(`${GROUP_MEMBERS_PREFIX}grp-demo-sprint`);
-          localStorage.removeItem(`${GROUP_SCHEDULES_PREFIX}grp-demo-sprint`);
-        }
-        return filtered;
+        return list.filter(g => g && g.id !== 'grp-demo-sprint' && g.inviteCode !== 'GRP-ALPHA');
       }
     }
+
+    // Migrasi satu kali dari store lama jika ada
+    const legacyRaw = localStorage.getItem('plancraft_groups_store');
+    if (legacyRaw) {
+      try {
+        const oldList = JSON.parse(legacyRaw);
+        if (Array.isArray(oldList)) {
+          // Simpan definisi grup ke shared cache agar kode undangan tetap bisa dicari
+          oldList.forEach(g => {
+            if (g && g.inviteCode) localStorage.setItem(`plancraft_shared_grp_${g.inviteCode}`, JSON.stringify(g));
+            if (g && g.id) localStorage.setItem(`plancraft_shared_grp_${g.id}`, JSON.stringify(g));
+          });
+
+          // Hanya akun pemilik (atau guest) yang mewarisi grup lama
+          const matched = oldList.filter(g => g && (g.ownerId === cleanId || cleanId === 'guest'));
+          localStorage.removeItem('plancraft_groups_store');
+          if (matched.length > 0) {
+            saveLocalGroupsStore(matched, cleanId);
+            return matched;
+          }
+        }
+      } catch {}
+    }
+
     return [];
   } catch {
     return [];
   }
 }
 
-export function saveLocalGroupsStore(groups) {
+export function saveLocalGroupsStore(groups, userId) {
   try {
-    localStorage.setItem(GROUPS_STORAGE_KEY, JSON.stringify(groups));
+    const cleanId = (userId && typeof userId === 'string' && userId.trim()) ? userId.trim() : 'guest';
+    const key = getUserGroupsStorageKey(cleanId);
+    localStorage.setItem(key, JSON.stringify(groups || []));
   } catch {}
 }
 
@@ -587,31 +602,28 @@ function saveLocalGroupSchedules(groupId, schedules) {
   } catch {}
 }
 
-/** Mengambil daftar semua grup yang diikuti user */
+/** Mengambil daftar semua grup yang HANYA diikuti oleh akun user ini (Terisolasi per Akun) */
 export async function fetchUserGroups(userId) {
-  const localGroups = getLocalGroupsStore();
+  const cleanUid = (userId && typeof userId === 'string' && userId.trim()) ? userId.trim() : 'guest';
+  const localGroups = getLocalGroupsStore(cleanUid);
   const client = getSupabase();
-  if (!client || !userId || !isSupabaseConfigured()) {
+  if (!client || !userId || cleanUid === 'guest' || !isSupabaseConfigured()) {
     return localGroups;
   }
 
   try {
-    // 1. Ambil membership user
+    // 1. Ambil membership user ini
     const { data: memberRows, error: memErr } = await client
       .from('group_members')
       .select('group_id, role')
-      .eq('user_id', userId);
+      .eq('user_id', cleanUid);
 
     if (memErr) {
-      if (memErr.code === 'PGRST205') {
-        // Tabel belum dibuat di Supabase, gunakan local cache
-        return localGroups;
-      }
-      console.warn('Gagal fetch group_members dari Supabase, gunakan local:', memErr);
       return localGroups;
     }
 
     if (!memberRows || memberRows.length === 0) {
+      // Jika user belum join grup manapun di database, kembalikan hanya grup lokal milik akun ini
       return localGroups;
     }
 
@@ -619,17 +631,17 @@ export async function fetchUserGroups(userId) {
     const roleMap = {};
     memberRows.forEach(m => { roleMap[m.group_id] = m.role; });
 
-    // 2. Ambil data grup
+    // 2. Ambil data grup yang di-join oleh user ini
     const { data: groupRows, error: grpErr } = await client
       .from('groups')
       .select('*')
       .in('id', groupIds);
 
-    if (grpErr) {
+    if (grpErr || !groupRows) {
       return localGroups;
     }
 
-    const merged = (groupRows || []).map(g => ({
+    const merged = groupRows.map(g => ({
       id: g.id,
       name: g.name,
       description: g.description || '',
@@ -642,9 +654,9 @@ export async function fetchUserGroups(userId) {
       membersCount: 1
     }));
 
-    // Sinkronkan ke local cache
-    saveLocalGroupsStore(merged);
-    return merged.length > 0 ? merged : localGroups;
+    // Sinkronkan ke local cache khusus user ini saja
+    saveLocalGroupsStore(merged, cleanUid);
+    return merged;
   } catch (err) {
     console.warn('Error fetching groups from Supabase:', err);
     return localGroups;
@@ -658,9 +670,9 @@ export function generateGroupInviteCode() {
 
 /** Membuat Grup Baru di Supabase & LocalStorage */
 export async function createGroupInCloud(groupData, user) {
-  const userId = user ? user.id : 'guest-' + Math.random().toString(36).substr(2, 6);
-  const userEmail = user?.email || 'guest@plancraft.local';
-  const userName = user?.user_metadata?.display_name || userEmail.split('@')[0] || 'User';
+  const userId = user ? user.id : 'guest';
+  const userEmail = user?.email || (userId === 'guest' ? 'guest@plancraft.local' : '');
+  const userName = user?.user_metadata?.display_name || (userEmail ? userEmail.split('@')[0] : 'Tamu (Guest)');
 
   const groupId = `grp-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
   const inviteCode = (groupData.inviteCode || '').toString().trim() || generateGroupInviteCode();
@@ -678,10 +690,16 @@ export async function createGroupInCloud(groupData, user) {
     membersCount: 1
   };
 
-  // Simpan ke local storage
-  const currentGroups = getLocalGroupsStore();
+  // Simpan ke local storage khusus user ini
+  const currentGroups = getLocalGroupsStore(userId);
   currentGroups.unshift(newGroup);
-  saveLocalGroupsStore(currentGroups);
+  saveLocalGroupsStore(currentGroups, userId);
+
+  // Simpan juga definisinya ke shared store agar bisa dicari oleh akun lain di perangkat ini
+  try {
+    localStorage.setItem(`plancraft_shared_grp_${inviteCode}`, JSON.stringify(newGroup));
+    localStorage.setItem(`plancraft_shared_grp_${groupId}`, JSON.stringify(newGroup));
+  } catch {}
 
   const initialMember = {
     id: `mem-${Date.now()}`,
@@ -757,9 +775,9 @@ export async function joinGroupByCodeInCloud(inviteCode, user, fallbackGroup = n
     return false;
   };
 
-  const userId = user ? user.id : 'guest-' + Math.random().toString(36).substr(2, 6);
-  const userEmail = user?.email || 'guest@plancraft.local';
-  const userName = user?.user_metadata?.display_name || userEmail.split('@')[0] || 'User';
+  const userId = user ? user.id : 'guest';
+  const userEmail = user?.email || (userId === 'guest' ? 'guest@plancraft.local' : '');
+  const userName = user?.user_metadata?.display_name || (userEmail ? userEmail.split('@')[0] : 'Tamu (Guest)');
 
   let foundGroup = null;
   let cloudTableMissing = false;
@@ -814,16 +832,34 @@ export async function joinGroupByCodeInCloud(inviteCode, user, fallbackGroup = n
     }
   }
 
-  // 2. Jika belum ditemukan di cloud, cari di local storage
+  // 2. Jika belum ditemukan di cloud, cari di local storage milik user ini
   if (!foundGroup) {
-    const allLocal = getLocalGroupsStore();
+    const allLocal = getLocalGroupsStore(userId);
     foundGroup = allLocal.find(g => isMatch(g.inviteCode));
     if (foundGroup) {
       foundGroup = { ...foundGroup, role: foundGroup.ownerId === userId ? 'admin' : 'member' };
     }
   }
 
-  // 3. Jika belum ditemukan tapi ada fallbackGroup (misal dari Tautan Gabung Langsung URL)
+  // 3. Cari di shared group definitions (grup yang dibuat oleh akun lain di browser ini)
+  if (!foundGroup) {
+    try {
+      const codeKey = digitsOnly || cleanCode;
+      const rawShared = localStorage.getItem(`plancraft_shared_grp_${codeKey}`);
+      if (rawShared) {
+        const parsed = JSON.parse(rawShared);
+        if (parsed && parsed.name) {
+          foundGroup = {
+            ...parsed,
+            role: parsed.ownerId === userId ? 'admin' : 'member',
+            membersCount: 2
+          };
+        }
+      }
+    } catch {}
+  }
+
+  // 4. Jika belum ditemukan tapi ada fallbackGroup (misal dari Tautan Gabung Langsung URL)
   if (!foundGroup && fallbackGroup) {
     foundGroup = {
       id: fallbackGroup.id || `grp-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`,
@@ -852,7 +888,7 @@ export async function joinGroupByCodeInCloud(inviteCode, user, fallbackGroup = n
     }
   }
 
-  // 4. Cek apakah cocok dengan preset grup bawaan (seperti grup 'ada' 482915)
+  // 5. Cek apakah cocok dengan preset grup bawaan (seperti grup 'ada' 482915)
   if (!foundGroup) {
     const PRESET_GROUPS = [
       {
@@ -875,7 +911,7 @@ export async function joinGroupByCodeInCloud(inviteCode, user, fallbackGroup = n
     }
   }
 
-  // 5. Jika masih belum ditemukan (misal kode baru dari rekan di perangkat lain tanpa database):
+  // 6. Jika masih belum ditemukan (misal kode baru dari rekan di perangkat lain tanpa database):
   // Alih-alih error macet, mintakan nama grup agar teman bisa langsung masuk!
   if (!foundGroup) {
     const displayCode = digitsOnly && digitsOnly.length >= 4 ? digitsOnly : cleanCode;
@@ -901,15 +937,15 @@ export async function joinGroupByCodeInCloud(inviteCode, user, fallbackGroup = n
     }
   }
 
-  // Tambahkan ke store local groups jika belum ada
-  const myGroups = getLocalGroupsStore();
+  // Tambahkan ke store local groups HANYA untuk user ini (terisolasi per akun!)
+  const myGroups = getLocalGroupsStore(userId);
   const existingIdx = myGroups.findIndex(g => g.id === foundGroup.id);
   if (existingIdx !== -1) {
     myGroups[existingIdx] = { ...myGroups[existingIdx], ...foundGroup };
   } else {
     myGroups.push(foundGroup);
   }
-  saveLocalGroupsStore(myGroups);
+  saveLocalGroupsStore(myGroups, userId);
 
   // Tambahkan ke member list lokal
   const members = getLocalGroupMembers(foundGroup.id);
@@ -930,10 +966,10 @@ export async function joinGroupByCodeInCloud(inviteCode, user, fallbackGroup = n
 }
 
 /** Sinkronkan seluruh grup lokal ke Supabase jika tabel sudah dibuat */
-export async function syncAllLocalGroupsToCloud() {
+export async function syncAllLocalGroupsToCloud(userId) {
   const client = getSupabase();
   if (!client || !isSupabaseConfigured()) return false;
-  const groups = getLocalGroupsStore();
+  const groups = getLocalGroupsStore(userId);
   if (!groups || groups.length === 0) return true;
 
   try {
@@ -945,7 +981,7 @@ export async function syncAllLocalGroupsToCloud() {
         icon: g.icon || '👥',
         color: g.color || '#6366f1',
         invite_code: g.inviteCode,
-        owner_id: g.ownerId || 'admin'
+        owner_id: g.ownerId || (userId || 'admin')
       }, { onConflict: 'id' });
 
       if (error && (error.code === 'PGRST205' || error.message?.includes('schema cache'))) {
@@ -1040,13 +1076,16 @@ export async function removeGroupMemberFromCloud(groupId, targetUserId) {
 }
 
 /** Atur ulang kode undangan grup menjadi 6 digit angka baru (ala WhatsApp Reset Link) */
-export async function regenerateGroupInviteCodeInCloud(groupId) {
+export async function regenerateGroupInviteCodeInCloud(groupId, userId) {
   const newCode = generateGroupInviteCode();
-  const groups = getLocalGroupsStore();
+  const groups = getLocalGroupsStore(userId);
   const target = groups.find(g => g && g.id === groupId);
   if (target) {
     target.inviteCode = newCode;
-    saveLocalGroupsStore(groups);
+    saveLocalGroupsStore(groups, userId);
+    try {
+      localStorage.setItem(`plancraft_shared_grp_${newCode}`, JSON.stringify(target));
+    } catch {}
   }
 
   const client = getSupabase();
@@ -1062,15 +1101,20 @@ export async function regenerateGroupInviteCodeInCloud(groupId) {
 }
 
 /** Memperbarui informasi nama, deskripsi, icon grup (ala Info Grup WhatsApp) */
-export async function updateGroupInfoInCloud(groupId, { name, description, icon, color }) {
-  const groups = getLocalGroupsStore();
+export async function updateGroupInfoInCloud(groupId, { name, description, icon, color }, userId) {
+  const groups = getLocalGroupsStore(userId);
   const target = groups.find(g => g && g.id === groupId);
   if (target) {
     if (name !== undefined) target.name = name;
     if (description !== undefined) target.description = description;
     if (icon !== undefined) target.icon = icon;
     if (color !== undefined) target.color = color;
-    saveLocalGroupsStore(groups);
+    saveLocalGroupsStore(groups, userId);
+    try {
+      if (target.inviteCode) {
+        localStorage.setItem(`plancraft_shared_grp_${target.inviteCode}`, JSON.stringify(target));
+      }
+    } catch {}
   }
 
   const client = getSupabase();
@@ -1091,9 +1135,9 @@ export async function updateGroupInfoInCloud(groupId, { name, description, icon,
 }
 
 /** Menghapus Grup Selamanya */
-export async function deleteGroupInCloud(groupId) {
-  const groups = getLocalGroupsStore().filter(g => g.id !== groupId);
-  saveLocalGroupsStore(groups);
+export async function deleteGroupInCloud(groupId, userId) {
+  const groups = getLocalGroupsStore(userId).filter(g => g.id !== groupId);
+  saveLocalGroupsStore(groups, userId);
   localStorage.removeItem(`${GROUP_MEMBERS_PREFIX}${groupId}`);
   localStorage.removeItem(`${GROUP_SCHEDULES_PREFIX}${groupId}`);
 

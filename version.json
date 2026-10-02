@@ -1,11 +1,11 @@
 {
-    "version": "2.8.5",
-    "buildTimestamp": 1790909600000,
-    "releaseDate": "02 Oktober 2026 08.52 WIB",
-    "patchTitle": "Patch v2.8.5 — Auto-Join Multi-Device Tanpa Database",
+    "version": "2.8.6",
+    "buildTimestamp": 1790911000000,
+    "releaseDate": "02 Oktober 2026 09.05 WIB",
+    "patchTitle": "Patch v2.8.6 — Isolasi Total Data Jadwal & Grup Per Akun",
     "changes": [
-        "Teman dapat langsung masuk dengan kode 482915 atau link WhatsApp secara instan tanpa error",
-        "Sistem cerdas mendeteksi grup dan menghubungkan teman secara otomatis tanpa perlu setup database",
-        "Tautan Gabung 1-Klik via WhatsApp otomatis memasukkan peserta langsung ke jadwal tim"
+        "Setiap akun (dan akun tamu) memiliki data jadwal pribadi, catatan kalender, dan daftar grup yang 100% terpisah dan aman",
+        "Pergantian akun (Sign In / Register / Sign Out) otomatis membersihkan sesi aktif dan hanya memuat data spesifik milik akun tersebut",
+        "Pencegahan kebocoran data antar-pengguna dengan enkapsulasi kunci penyimpanan berbasis User ID"
     ]
 }

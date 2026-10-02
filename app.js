@@ -57,7 +57,16 @@ import {
   deleteGroupInCloud,
   fetchGroupSchedulesFromCloud,
   saveGroupScheduleToCloud,
-  deleteGroupScheduleFromCloud
+  deleteGroupScheduleFromCloud,
+  getClientDeviceId,
+  getGuestUserId,
+  getGuestDisplayName,
+  setGuestDisplayName,
+  getGuestEmail,
+  getEffectiveUser,
+  getDeterministicGroupId,
+  sendGroupCloudRelay,
+  fetchGroupCloudRelay
 } from './supabase-client.js';
 
 // ==============================================================================
@@ -358,9 +367,9 @@ function loadLocalSchedules(accountKey) {
 async function persistSchedule(scheduleData) {
   // Jika sedang membuka grup, simpan ke jadwal grup
   if (state.currentGroup) {
-    const uid = state.currentUser ? state.currentUser.id : 'guest';
+    const eff = getEffectiveUser(state.currentUser);
     try {
-      await saveGroupScheduleToCloud(scheduleData, state.currentGroup.id, uid);
+      await saveGroupScheduleToCloud(scheduleData, state.currentGroup.id, eff.id, state.currentGroup.inviteCode);
     } catch (err) {
       console.warn('Gagal sinkron jadwal grup:', err);
     }
@@ -368,7 +377,7 @@ async function persistSchedule(scheduleData) {
   }
 
   // 1. Simpan ke state dan cache lokal personal
-  const accKey = state.currentUser ? state.currentUser.id : 'guest';
+  const accKey = state.currentUser ? state.currentUser.id : getGuestUserId();
   localStorage.setItem(`${STORAGE_PREFIX}${accKey}`, JSON.stringify(state.schedules));
 
   // 2. Jika akun terhubung ke Supabase, simpan langsung ke Supabase dengan RLS
@@ -386,14 +395,14 @@ async function persistSchedule(scheduleData) {
 async function removeSchedule(scheduleId) {
   if (state.currentGroup) {
     try {
-      await deleteGroupScheduleFromCloud(scheduleId, state.currentGroup.id);
+      await deleteGroupScheduleFromCloud(scheduleId, state.currentGroup.id, state.currentGroup.inviteCode);
     } catch (err) {
       console.warn('Gagal hapus jadwal grup:', err);
     }
     return;
   }
 
-  const accKey = state.currentUser ? state.currentUser.id : 'guest';
+  const accKey = state.currentUser ? state.currentUser.id : getGuestUserId();
   localStorage.setItem(`${STORAGE_PREFIX}${accKey}`, JSON.stringify(state.schedules));
 
   if (state.currentUser && isSupabaseConfigured()) {
@@ -3195,7 +3204,8 @@ let selectedGroupColor = '#6366f1';
 /** Memuat daftar grup pengguna */
 async function loadGroups() {
   try {
-    const uid = state.currentUser ? state.currentUser.id : 'guest';
+    const myEff = getEffectiveUser(state.currentUser);
+    const uid = myEff.id;
     state.groups = await fetchUserGroups(uid);
 
     // Auto-migrate SEMUA grup ke format 6 digit angka murni
@@ -3220,6 +3230,7 @@ async function loadGroups() {
         state.currentGroup = { ...state.currentGroup, ...match };
       } else {
         state.currentGroup = null;
+        stopGroupAutoSync();
       }
     }
 
@@ -3230,13 +3241,86 @@ async function loadGroups() {
   }
 }
 
+let groupAutoSyncTimer = null;
+
+/**
+ * Sinkronisasi Real-Time Otomatis Lintas-Perangkat:
+ * Berjalan setiap 3.5 detik untuk memperbarui daftar peserta dan jadwal secara instan
+ * saat teman bergabung atau admin melakukan perubahan.
+ */
+function startGroupAutoSync() {
+  stopGroupAutoSync();
+  groupAutoSyncTimer = setInterval(async () => {
+    if (document.hidden) return;
+    if (!state.currentGroup) return;
+
+    try {
+      const g = state.currentGroup;
+      const myEffUser = getEffectiveUser(state.currentUser);
+
+      // 1. Sinkronisasi Anggota Grup
+      const newMembers = await fetchGroupMembersFromCloud(g.id, g.inviteCode);
+      const oldMembers = state.currentGroupMembers || [];
+
+      // Periksa apakah diri sendiri dikeluarkan (di-kick)
+      const amIStillMember = newMembers.some(m => m.userId === myEffUser.id) || g.ownerId === myEffUser.id;
+      if (!amIStillMember && oldMembers.some(m => m.userId === myEffUser.id)) {
+        showToast(`🚫 Anda telah dikeluarkan dari grup "${g.name}".`, 'warning');
+        playUiSound('delete');
+        closeManageGroupModal();
+        await switchGroup(null);
+        return;
+      }
+
+      // Deteksi peserta baru yang baru saja masuk
+      const newlyJoined = newMembers.filter(nm => !oldMembers.some(om => om.userId === nm.userId) && nm.userId !== myEffUser.id);
+      if (newlyJoined.length > 0) {
+        showToast(`🎉 ${newlyJoined[0].userName} baru saja bergabung ke grup!`, 'success');
+        playUiSound('complete');
+      }
+
+      const membersChanged = JSON.stringify(newMembers) !== JSON.stringify(oldMembers);
+      if (membersChanged) {
+        state.currentGroupMembers = newMembers;
+        g.membersCount = newMembers.length;
+        const myMem = newMembers.find(m => m.userId === myEffUser.id);
+        if (myMem) g.role = myMem.role;
+
+        const mgModal = document.getElementById('manageGroupModalOverlay');
+        if (mgModal && !mgModal.classList.contains('hidden')) {
+          renderManageGroupMembersList();
+        }
+        renderGroupBanner();
+        renderGroupSwitcher();
+      }
+
+      // 2. Sinkronisasi Jadwal Grup
+      const newSchedules = await fetchGroupSchedulesFromCloud(g.id, g.inviteCode);
+      const schedulesChanged = JSON.stringify(newSchedules) !== JSON.stringify(state.schedules);
+      if (schedulesChanged) {
+        state.schedules = newSchedules;
+        renderApp();
+      }
+    } catch (err) {}
+  }, 3500);
+}
+
+function stopGroupAutoSync() {
+  if (groupAutoSyncTimer) {
+    clearInterval(groupAutoSyncTimer);
+    groupAutoSyncTimer = null;
+  }
+}
+
 /** Beralih antara Jadwal Pribadi dan Jadwal Grup */
 async function switchGroup(groupOrNull) {
   state.currentGroup = groupOrNull;
 
   if (!groupOrNull) {
+    stopGroupAutoSync();
     // Mode Jadwal Pribadi
-    const uid = state.currentUser ? state.currentUser.id : 'guest';
+    const myEff = getEffectiveUser(state.currentUser);
+    const uid = myEff.id;
     if (state.currentUser && isSupabaseConfigured()) {
       await loadUserData(uid);
     } else {
@@ -3246,16 +3330,21 @@ async function switchGroup(groupOrNull) {
   } else {
     // Mode Jadwal Grup
     playUiSound('chime');
-    state.schedules = await fetchGroupSchedulesFromCloud(groupOrNull.id);
-    state.currentGroupMembers = await fetchGroupMembersFromCloud(groupOrNull.id);
+    state.schedules = await fetchGroupSchedulesFromCloud(groupOrNull.id, groupOrNull.inviteCode);
+    state.currentGroupMembers = await fetchGroupMembersFromCloud(groupOrNull.id, groupOrNull.inviteCode);
 
     // Refresh role user saat ini
-    const myId = state.currentUser ? state.currentUser.id : 'guest';
-    const myEmail = state.currentUser ? state.currentUser.email : '';
+    const myEff = getEffectiveUser(state.currentUser);
+    const myId = myEff.id;
+    const myEmail = myEff.email;
     const myMem = state.currentGroupMembers.find(m => m.userId === myId || (myEmail && m.userEmail === myEmail));
     if (myMem) {
       state.currentGroup.role = myMem.role;
+    } else if (state.currentGroup.ownerId === myId) {
+      state.currentGroup.role = 'admin';
     }
+
+    startGroupAutoSync();
 
     const roleName = isCurrentGroupAdmin() ? '👑 Admin Grup' : '👁️ Anggota (Lihat Saja)';
     showToast(`Beralih ke grup "${groupOrNull.name}" (${roleName})`, 'success');
@@ -3566,6 +3655,12 @@ function openCreateGroupModal() {
   selectedGroupEmoji = '🚀';
   selectedGroupColor = '#6366f1';
 
+  const creatorInput = document.getElementById('groupCreatorName');
+  if (creatorInput) {
+    const effUser = getEffectiveUser(state.currentUser);
+    creatorInput.value = effUser.isGuest ? (localStorage.getItem('plancraft_guest_display_name') || '') : effUser.name;
+  }
+
   document.querySelectorAll('#groupEmojiSelector .emoji-pill-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.emoji === selectedGroupEmoji);
   });
@@ -3618,6 +3713,7 @@ async function handleCreateGroupSubmit(e) {
   e.preventDefault();
   const name = document.getElementById('groupFormName')?.value.trim();
   const description = document.getElementById('groupFormDesc')?.value.trim();
+  const creatorName = document.getElementById('groupCreatorName')?.value.trim();
   // Kode undangan grup otomatis dibuat berupa 6 digit angka acak unik
   const inviteCode = generateGroupInviteCode();
 
@@ -3635,7 +3731,7 @@ async function handleCreateGroupSubmit(e) {
   };
 
   try {
-    const newGroup = await createGroupInCloud(groupData, state.currentUser);
+    const newGroup = await createGroupInCloud(groupData, state.currentUser, creatorName);
     latestCreatedGroup = newGroup;
     closeCreateGroupModal();
     playUiSound('complete');
@@ -3659,14 +3755,23 @@ function openJoinGroupModal(prefillCode = '') {
   playUiSound('pop');
   const modal = document.getElementById('joinGroupModalOverlay');
   const input = document.getElementById('joinGroupCodeInput');
+  const nameInput = document.getElementById('joinGroupNameInput');
   if (!modal) return;
 
   if (input) {
     input.value = prefillCode;
   }
+  if (nameInput) {
+    const effUser = getEffectiveUser(state.currentUser);
+    nameInput.value = effUser.isGuest ? (localStorage.getItem('plancraft_guest_display_name') || '') : effUser.name;
+  }
 
   modal.classList.remove('hidden');
-  input?.focus();
+  if (input && !prefillCode) {
+    input.focus();
+  } else if (nameInput) {
+    nameInput.focus();
+  }
 }
 
 function closeJoinGroupModal() {
@@ -3676,6 +3781,7 @@ function closeJoinGroupModal() {
 async function handleJoinGroupSubmit(e) {
   e.preventDefault();
   const rawCode = document.getElementById('joinGroupCodeInput')?.value.trim();
+  const customName = document.getElementById('joinGroupNameInput')?.value.trim();
   if (!rawCode) {
     showToast('Masukkan kode angka grup.', 'warning');
     return;
@@ -3685,7 +3791,7 @@ async function handleJoinGroupSubmit(e) {
   const code = rawCode.replace(/\D/g, '') || rawCode.toUpperCase();
 
   try {
-    const joined = await joinGroupByCodeInCloud(code, state.currentUser);
+    const joined = await joinGroupByCodeInCloud(code, state.currentUser, null, customName);
     closeJoinGroupModal();
     playUiSound('complete');
     triggerConfetti();
@@ -3765,7 +3871,7 @@ async function openManageGroupModal() {
     btn.classList.toggle('active', btn.dataset.emoji === selectedEditGroupEmoji);
   });
 
-  state.currentGroupMembers = await fetchGroupMembersFromCloud(g.id);
+  state.currentGroupMembers = await fetchGroupMembersFromCloud(g.id, g.inviteCode);
   renderManageGroupMembersList();
 
   modal.classList.remove('hidden');
@@ -3788,11 +3894,13 @@ function renderManageGroupMembersList() {
   container.innerHTML = '';
 
   const isViewerAdmin = isCurrentGroupAdmin();
-  const myId = state.currentUser ? state.currentUser.id : 'guest';
+  const myEffUser = getEffectiveUser(state.currentUser);
+  const myId = myEffUser.id;
+  const myEmail = myEffUser.email;
 
   members.forEach(mem => {
     const isThisMemberAdmin = mem.role === 'admin';
-    const isSelf = mem.userId === myId;
+    const isSelf = mem.userId === myId || (myEmail && mem.userEmail === myEmail);
     const initial = (mem.userName || mem.userEmail || 'A').charAt(0).toUpperCase();
 
     const row = document.createElement('div');
@@ -3841,7 +3949,7 @@ function renderManageGroupMembersList() {
     if (promoteBtn) {
       promoteBtn.addEventListener('click', async () => {
         playUiSound('complete');
-        await updateGroupMemberRoleInCloud(state.currentGroup.id, mem.userId, 'admin');
+        await updateGroupMemberRoleInCloud(state.currentGroup.id, mem.userId, 'admin', state.currentGroup.inviteCode);
         mem.role = 'admin';
         showToast(`👑 ${mem.userName} sekarang adalah Admin Grup!`, 'success');
         renderManageGroupMembersList();
@@ -3854,7 +3962,7 @@ function renderManageGroupMembersList() {
     if (demoteBtn) {
       demoteBtn.addEventListener('click', async () => {
         playUiSound('click');
-        await updateGroupMemberRoleInCloud(state.currentGroup.id, mem.userId, 'member');
+        await updateGroupMemberRoleInCloud(state.currentGroup.id, mem.userId, 'member', state.currentGroup.inviteCode);
         mem.role = 'member';
         showToast(`👤 ${mem.userName} diubah menjadi Anggota biasa.`, 'info');
         renderManageGroupMembersList();
@@ -3869,7 +3977,7 @@ function renderManageGroupMembersList() {
         const targetName = mem.userName || mem.userEmail || 'Anggota ini';
         if (confirm(`🚫 Keluarkan "${targetName}" dari grup "${state.currentGroup.name}"?\n\nAnggota yang di-kick tidak akan dapat lagi mengakses jadwal grup ini.`)) {
           playUiSound('delete');
-          await removeGroupMemberFromCloud(state.currentGroup.id, mem.userId);
+          await removeGroupMemberFromCloud(state.currentGroup.id, mem.userId, state.currentGroup.inviteCode);
           state.currentGroupMembers = state.currentGroupMembers.filter(m => m.userId !== mem.userId);
           if (state.currentGroup) {
             state.currentGroup.membersCount = Math.max(1, state.currentGroupMembers.length);
@@ -3912,7 +4020,8 @@ async function handleResetGroupInviteCode() {
     return;
   }
   playUiSound('complete');
-  const uid = state.currentUser ? state.currentUser.id : 'guest';
+  const myEff = getEffectiveUser(state.currentUser);
+  const uid = myEff.id;
   const newCode = await regenerateGroupInviteCodeInCloud(state.currentGroup.id, uid);
   state.currentGroup.inviteCode = newCode;
   const grp = state.groups.find(g => g.id === state.currentGroup.id);
@@ -3942,12 +4051,13 @@ async function handleSaveGroupInfo() {
   }
 
   playUiSound('complete');
-  const uid = state.currentUser ? state.currentUser.id : 'guest';
+  const myEff = getEffectiveUser(state.currentUser);
+  const uid = myEff.id;
   await updateGroupInfoInCloud(state.currentGroup.id, {
     name: newName,
     description: newDesc,
     icon: selectedEditGroupEmoji
-  }, uid);
+  }, uid, state.currentGroup.inviteCode);
 
   state.currentGroup.name = newName;
   state.currentGroup.description = newDesc;
@@ -4043,9 +4153,10 @@ async function handleLeaveGroup() {
   const gName = state.currentGroup.name;
 
   if (confirm(`Apakah Anda yakin ingin keluar dari grup "${gName}"?`)) {
-    const myId = state.currentUser ? state.currentUser.id : 'guest';
+    const myEff = getEffectiveUser(state.currentUser);
+    const myId = myEff.id;
     playUiSound('click');
-    await removeGroupMemberFromCloud(state.currentGroup.id, myId);
+    await removeGroupMemberFromCloud(state.currentGroup.id, myId, state.currentGroup.inviteCode);
     state.groups = state.groups.filter(g => g.id !== state.currentGroup.id);
     saveLocalGroupsStore(state.groups, myId);
     closeManageGroupModal();
@@ -4060,9 +4171,10 @@ async function handleDeleteGroup() {
   const gName = state.currentGroup.name;
 
   if (confirm(`⚠️ PERINGATAN: Apakah Anda yakin ingin menghapus grup "${gName}" beserta seluruh jadwalnya selamanya? Tindakan ini tidak dapat dibatalkan.`)) {
-    const myId = state.currentUser ? state.currentUser.id : 'guest';
+    const myEff = getEffectiveUser(state.currentUser);
+    const myId = myEff.id;
     playUiSound('delete');
-    await deleteGroupInCloud(state.currentGroup.id, myId);
+    await deleteGroupInCloud(state.currentGroup.id, myId, state.currentGroup.inviteCode);
     state.groups = state.groups.filter(g => g.id !== state.currentGroup.id);
     saveLocalGroupsStore(state.groups, myId);
     closeManageGroupModal();

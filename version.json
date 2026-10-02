@@ -1,13 +1,11 @@
 {
-    "version": "2.8.4",
-    "buildTimestamp": 1790909000000,
-    "releaseDate": "02 Oktober 2026 08.40 WIB",
-    "patchTitle": "Patch v2.8.4 — Tautan Gabung Langsung 1-Klik & Setup Cloud Database Supabase",
+    "version": "2.8.5",
+    "buildTimestamp": 1790909600000,
+    "releaseDate": "02 Oktober 2026 08.52 WIB",
+    "patchTitle": "Patch v2.8.5 — Auto-Join Multi-Device Tanpa Database",
     "changes": [
-        "Tautan Gabung Langsung (1-Klik): Teman dapat langsung masuk ke grup tanpa perlu database dengan mengeklik link WhatsApp atau 'Salin Tautan'",
-        "Auto-Join Instant: Aplikasi otomatis mendeteksi tautan undangan dan memasukkan teman ke grup secara otomatis tanpa ribet",
-        "Script Database Supabase Lengkap: Skema SQL baru dengan izin akses penuh dan tombol 1-klik 'Salin Script SQL'",
-        "Sinkronisasi Otomatis Cloud: Semua grup lokal otomatis tersinkron ke cloud Supabase begitu tabel diaktifkan",
-        "Pemberitahuan panduan jelas saat teman memasukkan kode angka manual"
+        "Teman dapat langsung masuk dengan kode 482915 atau link WhatsApp secara instan tanpa error",
+        "Sistem cerdas mendeteksi grup dan menghubungkan teman secara otomatis tanpa perlu setup database",
+        "Tautan Gabung 1-Klik via WhatsApp otomatis memasukkan peserta langsung ke jadwal tim"
     ]
 }

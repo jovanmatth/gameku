@@ -20,15 +20,17 @@ let supabaseClient = null;
 
 /** Mengambil kredensial aktif dari LocalStorage atau default */
 export function getSupabaseCredentials() {
-  const url = localStorage.getItem(STORAGE_URL_KEY) || DEFAULT_SUPABASE_URL;
-  const key = localStorage.getItem(STORAGE_KEY_KEY) || DEFAULT_SUPABASE_ANON_KEY;
-  return { url: url.trim(), key: key.trim() };
+  const rawUrl = localStorage.getItem(STORAGE_URL_KEY);
+  const rawKey = localStorage.getItem(STORAGE_KEY_KEY);
+  const url = (rawUrl && rawUrl.trim()) ? rawUrl.trim() : DEFAULT_SUPABASE_URL;
+  const key = (rawKey && rawKey.trim()) ? rawKey.trim() : DEFAULT_SUPABASE_ANON_KEY;
+  return { url, key };
 }
 
 /** Menyimpan kredensial baru ke LocalStorage dan inisialisasi ulang */
 export function saveSupabaseCredentials(url, key) {
-  localStorage.setItem(STORAGE_URL_KEY, url.trim());
-  localStorage.setItem(STORAGE_KEY_KEY, key.trim());
+  localStorage.setItem(STORAGE_URL_KEY, (url || '').trim());
+  localStorage.setItem(STORAGE_KEY_KEY, (key || '').trim());
   return initSupabase();
 }
 
@@ -74,6 +76,14 @@ export function getSupabase() {
     initSupabase();
   }
   return supabaseClient;
+}
+
+// Global window fallbacks to prevent ReferenceError anywhere
+if (typeof window !== 'undefined') {
+  window.getSupabase = getSupabase;
+  window.initSupabase = initSupabase;
+  window.isSupabaseConfigured = isSupabaseConfigured;
+  window.getSupabaseCredentials = getSupabaseCredentials;
 }
 
 // ------------------------------------------------------------------------------

@@ -22,6 +22,7 @@
 import { CATEGORIES, PRIORITIES, STATUSES, getDefaultSchedules, isOldDummySchedule, HOLIDAY_CATEGORY } from './schedule-data.js';
 import {
   initSupabase,
+  getSupabase,
   isSupabaseConfigured,
   getSupabaseCredentials,
   saveSupabaseCredentials,
@@ -2848,14 +2849,16 @@ async function handleAuthFormSubmit(e) {
         state.isAdmin = true;
         localStorage.setItem('plancraft_active_account', 'admin');
         localStorage.removeItem('plancraft_logged_out');
-        const client = getSupabase();
-        client?.auth?.updateUser({
-          data: {
-            role: 'admin',
-            is_admin: true,
-            display_name: 'jovan matthew adderson'
-          }
-        }).catch(() => {});
+        try {
+          const client = getSupabase();
+          client?.auth?.updateUser({
+            data: {
+              role: 'admin',
+              is_admin: true,
+              display_name: 'jovan matthew adderson'
+            }
+          }).catch(() => {});
+        } catch {}
       }
 
       updateUserUI();

@@ -1,13 +1,11 @@
-﻿{
-    "version":  "2.8.0",
-    "buildTimestamp":  1790870212203,
-    "releaseDate":  "01 Oktober 2026 22.56 WIB",
-    "patchTitle":  "Update v2.8 â€” Kode Gabung Grup di Sidebar \u0026 Auto Patch",
-    "changes":  [
-                    "ðŸ”‘ Kode Undangan di Atas Tombol Aksi: Kode grup otomatis muncul tepat di atas tombol Buat \u0026 Gabung Grup dengan tombol 1-klik salin",
-                    "âœ¨ Pembuatan Grup Lebih Praktis: Kolom input kode saat buat grup telah dihapus, kode dibuat otomatis secara unik",
-                    "ðŸš€ Notifikasi Live Patch: Tombol muat ulang instan dan modal catatan perubahan saat versi baru rilis",
-                    "ðŸ›¡ï¸ Verifikasi Email Gmail: Pendaftaran akun baru wajib verifikasi kode OTP 6-digit",
-                    "ðŸ‘¤ Mode Tamu \u0026 Login Cerdas: Akun tamu sebagai default dan email terakhir otomatis terisi saat sign in"
-                ]
+{
+    "version": "2.8.1",
+    "buildTimestamp": 1790906800000,
+    "releaseDate": "02 Oktober 2026 08.06 WIB",
+    "patchTitle": "Patch v2.8.1 — Perbaikan Login & Inisialisasi Supabase",
+    "changes": [
+        "Perbaikan import dan inisialisasi Supabase client pada alur masuk akun",
+        "Pencegahan error referensi getSupabase dan fallback global window",
+        "Pembaruan auto-sync live deploy"
+    ]
 }

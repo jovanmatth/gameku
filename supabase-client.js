@@ -639,14 +639,19 @@ export async function fetchUserGroups(userId) {
   }
 }
 
+/** Membuat 6 digit angka acak unik untuk kode grup */
+export function generateGroupInviteCode() {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+}
+
 /** Membuat Grup Baru di Supabase & LocalStorage */
 export async function createGroupInCloud(groupData, user) {
   const userId = user ? user.id : 'guest-' + Math.random().toString(36).substr(2, 6);
   const userEmail = user?.email || 'guest@plancraft.local';
   const userName = user?.user_metadata?.display_name || userEmail.split('@')[0] || 'User';
 
-  const groupId = `grp-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
-  const inviteCode = groupData.inviteCode || ('GRP-' + Math.random().toString(36).substr(2, 4).toUpperCase());
+  const groupId = `grp-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
+  const inviteCode = (groupData.inviteCode || '').toString().trim() || generateGroupInviteCode();
 
   const newGroup = {
     id: groupId,
@@ -711,8 +716,28 @@ export async function createGroupInCloud(groupData, user) {
 
 /** Bergabung ke grup menggunakan Kode Undangan */
 export async function joinGroupByCodeInCloud(inviteCode, user) {
-  const code = (inviteCode || '').trim().toUpperCase();
-  if (!code) throw new Error('Kode undangan harus diisi.');
+  const rawInput = (inviteCode || '').toString().trim();
+  if (!rawInput) throw new Error('Kode undangan harus diisi.');
+
+  const digitsOnly = rawInput.replace(/\D/g, '');
+  const cleanCode = rawInput.toUpperCase().replace(/\s+/g, '');
+  const codeWithoutPrefix = cleanCode.replace(/^GRP-?/i, '');
+
+  const isMatch = (targetCode) => {
+    if (!targetCode) return false;
+    const str = targetCode.toString().trim();
+    const gDigits = str.replace(/\D/g, '');
+    const gClean = str.toUpperCase().replace(/\s+/g, '');
+    const gWithoutPrefix = gClean.replace(/^GRP-?/i, '');
+
+    // 1. Direct match
+    if (gClean === cleanCode) return true;
+    // 2. Pure digits match (e.g. 582914)
+    if (digitsOnly && digitsOnly.length >= 4 && gDigits === digitsOnly) return true;
+    // 3. Match without GRP prefix
+    if (gWithoutPrefix && codeWithoutPrefix && gWithoutPrefix === codeWithoutPrefix) return true;
+    return false;
+  };
 
   const userId = user ? user.id : 'guest-' + Math.random().toString(36).substr(2, 6);
   const userEmail = user?.email || 'guest@plancraft.local';
@@ -724,22 +749,28 @@ export async function joinGroupByCodeInCloud(inviteCode, user) {
   const client = getSupabase();
   if (client && isSupabaseConfigured()) {
     try {
+      const candidates = [cleanCode];
+      if (digitsOnly && !candidates.includes(digitsOnly)) candidates.push(digitsOnly);
+      if (codeWithoutPrefix && !candidates.includes(codeWithoutPrefix)) candidates.push(codeWithoutPrefix);
+      if (!cleanCode.startsWith('GRP-')) candidates.push('GRP-' + cleanCode);
+
       const { data, error } = await client
         .from('groups')
         .select('*')
-        .eq('invite_code', code)
-        .maybeSingle();
+        .in('invite_code', candidates)
+        .limit(1);
 
-      if (!error && data) {
+      if (!error && data && data.length > 0) {
+        const row = data[0];
         foundGroup = {
-          id: data.id,
-          name: data.name,
-          description: data.description || '',
-          icon: data.icon || '👥',
-          color: data.color || '#6366f1',
-          inviteCode: data.invite_code,
-          ownerId: data.owner_id,
-          createdAt: data.created_at,
+          id: row.id,
+          name: row.name,
+          description: row.description || '',
+          icon: row.icon || '👥',
+          color: row.color || '#6366f1',
+          inviteCode: row.invite_code,
+          ownerId: row.owner_id,
+          createdAt: row.created_at,
           role: 'member', // Bergabung via invite code masuk sebagai Member biasa
           membersCount: 2
         };
@@ -747,12 +778,12 @@ export async function joinGroupByCodeInCloud(inviteCode, user) {
         // Daftarkan membership di Supabase
         if (user) {
           await client.from('group_members').upsert({
-            group_id: data.id,
+            group_id: row.id,
             user_id: userId,
             user_email: userEmail,
             user_name: userName,
             role: 'member'
-          }, { onConflict: 'group_id,user_id' });
+          }, { onConflict: 'group_id,user_id' }).catch(() => {});
         }
       }
     } catch (err) {
@@ -763,14 +794,15 @@ export async function joinGroupByCodeInCloud(inviteCode, user) {
   // 2. Jika belum ditemukan di cloud, cari di local storage
   if (!foundGroup) {
     const allLocal = getLocalGroupsStore();
-    foundGroup = allLocal.find(g => (g.inviteCode || '').toUpperCase() === code);
+    foundGroup = allLocal.find(g => isMatch(g.inviteCode));
     if (foundGroup) {
       foundGroup = { ...foundGroup, role: foundGroup.ownerId === userId ? 'admin' : 'member' };
     }
   }
 
   if (!foundGroup) {
-    throw new Error(`Grup dengan kode undangan "${code}" tidak ditemukan. Periksa kembali kodenya.`);
+    const displayCode = digitsOnly && digitsOnly.length >= 4 ? digitsOnly : cleanCode;
+    throw new Error(`Grup dengan kode "${displayCode}" tidak ditemukan. Pastikan kodenya benar.`);
   }
 
   // Tambahkan ke store local groups jika belum ada

@@ -45,6 +45,7 @@ import {
   fetchAdminDatabaseStats,
   fetchUserGroups,
   createGroupInCloud,
+  generateGroupInviteCode,
   joinGroupByCodeInCloud,
   fetchGroupMembersFromCloud,
   updateGroupMemberRoleInCloud,
@@ -3452,8 +3453,8 @@ async function handleCreateGroupSubmit(e) {
   e.preventDefault();
   const name = document.getElementById('groupFormName')?.value.trim();
   const description = document.getElementById('groupFormDesc')?.value.trim();
-  // Kode undangan grup otomatis dibuat di background tanpa input manual
-  const inviteCode = 'GRP-' + Math.random().toString(36).substr(2, 4).toUpperCase();
+  // Kode undangan grup otomatis dibuat berupa 6 digit angka acak unik
+  const inviteCode = generateGroupInviteCode();
 
   if (!name) {
     showToast('Nama grup tidak boleh kosong.', 'warning');
@@ -3509,11 +3510,14 @@ function closeJoinGroupModal() {
 
 async function handleJoinGroupSubmit(e) {
   e.preventDefault();
-  const code = document.getElementById('joinGroupCodeInput')?.value.trim();
-  if (!code) {
-    showToast('Masukkan kode undangan grup.', 'warning');
+  const rawCode = document.getElementById('joinGroupCodeInput')?.value.trim();
+  if (!rawCode) {
+    showToast('Masukkan kode angka grup.', 'warning');
     return;
   }
+
+  // Bersihkan input kode: utamakan angka
+  const code = rawCode.replace(/\D/g, '') || rawCode.toUpperCase();
 
   try {
     const joined = await joinGroupByCodeInCloud(code, state.currentUser);
@@ -3868,12 +3872,13 @@ function setupGroupEventListeners() {
     try {
       const text = await navigator.clipboard.readText();
       if (text && text.trim()) {
-        const clean = text.trim().toUpperCase();
+        const digits = text.replace(/\D/g, '').slice(0, 6);
+        const clean = digits || text.trim().toUpperCase();
         const input = document.getElementById('joinGroupCodeInput');
         if (input) {
           input.value = clean;
           playUiSound('pop');
-          showToast('Kode berhasil ditempel dari clipboard!', 'success');
+          showToast('Kode berhasil ditempel!', 'success');
           input.focus();
         }
       } else {
@@ -3884,9 +3889,9 @@ function setupGroupEventListeners() {
     }
   });
 
-  // Auto-uppercase on typing in join input
+  // Khusus angka untuk input kode grup (maksimal 6 digit)
   document.getElementById('joinGroupCodeInput')?.addEventListener('input', (e) => {
-    e.target.value = e.target.value.toUpperCase();
+    e.target.value = e.target.value.replace(/\D/g, '').slice(0, 6);
   });
 
   document.getElementById('btnGroupCopyInvite')?.addEventListener('click', copyGroupInviteLink);

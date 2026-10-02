@@ -1531,7 +1531,7 @@
         <!-- Big Highlighted Join Code Box -->
         <div class="created-code-box">
           <span class="created-code-label">🔑 KODE GABUNG GRUP (SHARE KE ANGGOTA):</span>
-          <div class="created-code-display" id="createdSuccessGroupCode">GRP-XXXX</div>
+          <div class="created-code-display" id="createdSuccessGroupCode" style="letter-spacing: 4px; font-size: 1.8rem;">123456</div>
           <button type="button" id="btnCopyCreatedCodeBig" class="btn btn-primary btn-block" style="display: flex; align-items: center; justify-content: center; gap: 8px; font-weight: 700; padding: 10px;">
             <span>📋 Salin Kode Join</span>
           </button>
@@ -1584,7 +1584,7 @@
             <span class="join-step-num">1</span>
             <div class="join-step-info">
               <strong>Dapatkan Kode</strong>
-              <span>Minta kode 6-8 digit ke Admin</span>
+              <span>Minta 6 digit angka kode grup ke Admin</span>
             </div>
           </div>
           <div class="join-step-arrow">➜</div>
@@ -1609,12 +1609,12 @@
           <label for="joinGroupCodeInput" class="form-label required">Kode Undangan Tim</label>
           <div class="input-code-bar">
             <span class="code-bar-prefix">🔑</span>
-            <input type="text" id="joinGroupCodeInput" class="form-control input-invite-code" placeholder="GRP-XXXXX" required autofocus autocomplete="off">
+            <input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="6" id="joinGroupCodeInput" class="form-control input-invite-code" placeholder="123456" style="letter-spacing: 3px; font-weight: 700; font-size: 1.1rem; text-align: center;" required autofocus autocomplete="off">
             <button type="button" id="btnPasteJoinCode" class="btn-paste-code" title="Tempel dari Clipboard">
               <span>📋 Tempel</span>
             </button>
           </div>
-          <span class="field-hint" id="joinCodeHint">Format kode contoh: <strong>GRP-7X29</strong> (huruf kapital otomatis).</span>
+          <span class="field-hint" id="joinCodeHint">Format kode: <strong>6 digit angka</strong> (contoh: <strong>582914</strong>).</span>
         </div>
 
         <!-- Role Clarity Card -->
@@ -1900,7 +1900,7 @@
   </nav>
 
   <!-- Scripts -->
-  <script type="module" src="app.js?v=3.6"></script>
+  <script type="module" src="app.js?v=3.7"></script>
 </body>
 
 </html>

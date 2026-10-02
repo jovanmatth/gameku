@@ -1,11 +1,11 @@
 {
-    "version": "2.8.1",
-    "buildTimestamp": 1790906800000,
-    "releaseDate": "02 Oktober 2026 08.06 WIB",
-    "patchTitle": "Patch v2.8.1 — Perbaikan Login & Inisialisasi Supabase",
+    "version": "2.8.2",
+    "buildTimestamp": 1790907400000,
+    "releaseDate": "02 Oktober 2026 08.15 WIB",
+    "patchTitle": "Patch v2.8.2 — Kode Gabung Grup 6 Digit Angka & Pencarian Pintar",
     "changes": [
-        "Perbaikan import dan inisialisasi Supabase client pada alur masuk akun",
-        "Pencegahan error referensi getSupabase dan fallback global window",
-        "Pembaruan auto-sync live deploy"
+        "Kode grup baru otomatis berupa 6 digit angka murni (contoh: 582914) tanpa huruf atau tanda minus",
+        "Input kode gabung grup khusus angka dengan pencocokan fleksibel (mendukung format lama & baru)",
+        "Peningkatan alur join grup di cloud & cache lokal agar tidak pernah gagal menemukan grup"
     ]
 }

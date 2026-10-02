@@ -50,6 +50,9 @@ import {
   fetchGroupMembersFromCloud,
   updateGroupMemberRoleInCloud,
   removeGroupMemberFromCloud,
+  regenerateGroupInviteCodeInCloud,
+  updateGroupInfoInCloud,
+  saveLocalGroupsStore,
   deleteGroupInCloud,
   fetchGroupSchedulesFromCloud,
   saveGroupScheduleToCloud,
@@ -3124,6 +3127,30 @@ async function loadGroups() {
   try {
     const uid = state.currentUser ? state.currentUser.id : 'guest';
     state.groups = await fetchUserGroups(uid);
+
+    // Auto-migrate SEMUA grup ke format 6 digit angka murni
+    let migrated = false;
+    if (Array.isArray(state.groups)) {
+      state.groups.forEach(g => {
+        if (!g) return;
+        const c = String(g.inviteCode || '').trim();
+        if (!c || !/^\d{6}$/.test(c)) {
+          g.inviteCode = generateGroupInviteCode();
+          migrated = true;
+        }
+      });
+    }
+    if (migrated) {
+      saveLocalGroupsStore(state.groups);
+    }
+
+    if (state.currentGroup) {
+      const match = (state.groups || []).find(g => g && g.id === state.currentGroup.id);
+      if (match) {
+        state.currentGroup = { ...state.currentGroup, ...match };
+      }
+    }
+
     renderGroupSwitcher();
     renderGroupBanner();
   } catch (err) {
@@ -3195,6 +3222,24 @@ function renderGroupSwitcher() {
 
   // 2. Tab untuk Setiap Grup dengan Dropdown Kode Undangan
   if (state.groups && state.groups.length > 0) {
+    // Pastikan seluruh kode grup yang ditampilkan adalah 6 digit angka murni
+    let codeChanged = false;
+    state.groups.forEach(g => {
+      if (!g) return;
+      const c = String(g.inviteCode || '').trim();
+      if (!c || !/^\d{6}$/.test(c)) {
+        g.inviteCode = generateGroupInviteCode();
+        codeChanged = true;
+      }
+    });
+    if (codeChanged) {
+      saveLocalGroupsStore(state.groups);
+      if (state.currentGroup) {
+        const found = state.groups.find(x => x && x.id === state.currentGroup.id);
+        if (found) state.currentGroup.inviteCode = found.inviteCode;
+      }
+    }
+
     state.groups.forEach(g => {
       const isGroupActive = state.currentGroup && state.currentGroup.id === g.id;
       const isDropdownOpen = isGroupActive && (state.openGroupDropdownId === g.id);
@@ -3247,13 +3292,13 @@ function renderGroupSwitcher() {
         <div class="sidebar-code-header">
           <div class="sidebar-code-title-wrap">
             <span class="sidebar-code-icon">🔑</span>
-            <span class="sidebar-code-label">KODE GABUNG GRUP</span>
+            <span class="sidebar-code-label">KODE GABUNG (ANGKA)</span>
           </div>
           <span class="sidebar-code-group-badge">${g.icon || '👥'} ${escapeHtml(g.name)}</span>
         </div>
         <div class="sidebar-code-body">
-          <div class="sidebar-code-val-wrap" title="Klik untuk salin kode">
-            <span class="sidebar-code-val">${escapeHtml(g.inviteCode || '---')}</span>
+          <div class="sidebar-code-val-wrap" title="Klik untuk salin kode angka">
+            <span class="sidebar-code-val" style="letter-spacing: 2.5px; font-size: 1rem; color: #38bdf8;">${escapeHtml(g.inviteCode || '---')}</span>
           </div>
           <button type="button" class="sidebar-code-copy-btn" title="Salin Kode Undangan">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
@@ -3263,8 +3308,22 @@ function renderGroupSwitcher() {
             <span class="copy-label-text">Salin</span>
           </button>
         </div>
-        <div class="sidebar-code-sub">
-          <span class="sidebar-code-hint">Bagikan kode ini agar rekan bisa bergabung</span>
+        <div class="sidebar-dropdown-actions" style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 6px;">
+          ${isAdmin ? `
+            <button type="button" class="btn btn-outline btn-xs btn-quick-reset-code" title="Acak kode 6 digit angka baru jika bocor" style="font-size: 0.68rem; padding: 4px 6px; font-weight: 700;">
+              🔄 Kode Baru
+            </button>
+          ` : `
+            <button type="button" class="btn btn-outline btn-xs btn-quick-share-wa" title="Bagikan ke WhatsApp" style="font-size: 0.68rem; padding: 4px 6px; font-weight: 700; color: #22c55e; border-color: rgba(34,197,94,0.3);">
+              💬 WhatsApp
+            </button>
+          `}
+          <button type="button" class="btn btn-primary btn-xs btn-quick-manage-group" title="Buka Info Grup & Kick Anggota" style="font-size: 0.68rem; padding: 4px 6px; font-weight: 700;">
+            ⚙️ Info Grup
+          </button>
+        </div>
+        <div class="sidebar-code-sub" style="margin-top: 4px;">
+          <span class="sidebar-code-hint">6 digit angka • Rekan cukup masukkan angka ini</span>
         </div>
       `;
 
@@ -3292,6 +3351,37 @@ function renderGroupSwitcher() {
 
       dropdownPanel.querySelector('.sidebar-code-val-wrap')?.addEventListener('click', doCopy);
       dropdownPanel.querySelector('.sidebar-code-copy-btn')?.addEventListener('click', doCopy);
+
+      dropdownPanel.querySelector('.btn-quick-reset-code')?.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        if (confirm(`🔄 Acak kode 6 digit angka baru untuk grup "${g.name}"?\n\nKode lama tidak akan dapat digunakan lagi.`)) {
+          playUiSound('complete');
+          const newCode = await regenerateGroupInviteCodeInCloud(g.id);
+          g.inviteCode = newCode;
+          if (state.currentGroup && state.currentGroup.id === g.id) {
+            state.currentGroup.inviteCode = newCode;
+          }
+          renderGroupSwitcher();
+          renderGroupBanner();
+          showToast(`🔑 Kode baru untuk "${g.name}": ${newCode}`, 'success');
+        }
+      });
+
+      dropdownPanel.querySelector('.btn-quick-manage-group')?.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        if (!isGroupActive) {
+          await switchGroup(g);
+        }
+        openManageGroupModal();
+      });
+
+      dropdownPanel.querySelector('.btn-quick-share-wa')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const joinUrl = `${window.location.origin}${window.location.pathname}?join=${encodeURIComponent(g.inviteCode || '')}`;
+        const text = `Halo! Yuk gabung ke ruang jadwal tim "${g.name}" di PlanCalender 📅.\n\nKode Gabung: *${g.inviteCode}*\nLink: ${joinUrl}`;
+        window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, '_blank');
+      });
+
       dropdownPanel.addEventListener('click', (e) => e.stopPropagation());
 
       wrapper.appendChild(dropdownPanel);
@@ -3533,7 +3623,7 @@ async function handleJoinGroupSubmit(e) {
   }
 }
 
-/** Buka Modal Kelola Grup & Hak Akses */
+/** Buka Modal Kelola Grup & Hak Akses (Info Grup ala WhatsApp) */
 async function openManageGroupModal() {
   if (!state.currentGroup) {
     showToast('Pilih grup terlebih dahulu untuk mengelolanya.', 'info');
@@ -3557,10 +3647,13 @@ async function openManageGroupModal() {
   const codeVal = document.getElementById('mgInviteCodeVal');
   const linkInput = document.getElementById('mgInviteLinkInput');
   const deleteBtn = document.getElementById('btnMgDeleteGroup');
+  const resetBtn = document.getElementById('btnMgResetCode');
+  const toggleEditBtn = document.getElementById('btnMgToggleEditGroup');
+  const editFormWrap = document.getElementById('mgEditGroupFormWrap');
 
   if (iconHeader) iconHeader.textContent = g.icon || '👥';
-  if (titleHeader) titleHeader.textContent = `Kelola: ${g.name}`;
-  if (subHeader) subHeader.textContent = isAdmin ? 'Akses Administrator • Kelola perizinan anggota & jadwal' : 'Akses Anggota • Melihat daftar anggota grup';
+  if (titleHeader) titleHeader.textContent = `Info Grup: ${g.name}`;
+  if (subHeader) subHeader.textContent = isAdmin ? 'Akses Administrator • Kelola perizinan, ubah info & kick anggota' : 'Akses Anggota • Melihat info & daftar peserta grup';
   if (iconSpot) iconSpot.textContent = g.icon || '👥';
   if (nameSpot) nameSpot.textContent = g.name;
   if (descSpot) descSpot.textContent = g.description || 'Tidak ada deskripsi.';
@@ -3579,9 +3672,20 @@ async function openManageGroupModal() {
     }
   }
 
-  if (deleteBtn) {
-    deleteBtn.classList.toggle('hidden', !isAdmin);
-  }
+  if (deleteBtn) deleteBtn.classList.toggle('hidden', !isAdmin);
+  if (resetBtn) resetBtn.classList.toggle('hidden', !isAdmin);
+  if (toggleEditBtn) toggleEditBtn.classList.toggle('hidden', !isAdmin);
+  if (editFormWrap) editFormWrap.classList.add('hidden');
+
+  // Siapkan nilai form edit
+  const editName = document.getElementById('mgEditGroupName');
+  const editDesc = document.getElementById('mgEditGroupDesc');
+  if (editName) editName.value = g.name;
+  if (editDesc) editDesc.value = g.description || '';
+  selectedEditGroupEmoji = g.icon || '👥';
+  document.querySelectorAll('#mgEditGroupEmojiSelector .emoji-pill-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.emoji === selectedEditGroupEmoji);
+  });
 
   state.currentGroupMembers = await fetchGroupMembersFromCloud(g.id);
   renderManageGroupMembersList();
@@ -3591,9 +3695,10 @@ async function openManageGroupModal() {
 
 function closeManageGroupModal() {
   document.getElementById('manageGroupModalOverlay')?.classList.add('hidden');
+  document.getElementById('mgEditGroupFormWrap')?.classList.add('hidden');
 }
 
-/** Render Daftar Anggota di Modal Kelola Grup */
+/** Render Daftar Anggota di Modal Kelola Grup (Ala WhatsApp) */
 function renderManageGroupMembersList() {
   const container = document.getElementById('mgMembersListContainer');
   const countLabel = document.getElementById('mgMembersCountLabel');
@@ -3622,9 +3727,9 @@ function renderManageGroupMembersList() {
         </div>
         <div class="member-info-col">
           <div class="member-name-row">
-            <span class="member-name-text">${escapeHtml(mem.userName || 'Anggota')} ${isSelf ? '(Anda)' : ''}</span>
+            <span class="member-name-text">${escapeHtml(mem.userName || 'Anggota')} ${isSelf ? '<span style="font-size:0.72rem; color:var(--text-muted); font-weight:normal;">(Anda)</span>' : ''}</span>
             <span class="group-role-badge ${isThisMemberAdmin ? 'badge-admin' : 'badge-member'}">
-              ${isThisMemberAdmin ? '👑 Admin' : '👤 Anggota'}
+              ${isThisMemberAdmin ? '👑 Admin Grup' : '👤 Anggota'}
             </span>
           </div>
           <span class="member-email-text">${escapeHtml(mem.userEmail || '')}</span>
@@ -3633,7 +3738,7 @@ function renderManageGroupMembersList() {
       <div class="member-action-btns">
         ${isViewerAdmin && !isSelf ? `
           ${!isThisMemberAdmin ? `
-            <button type="button" class="btn btn-outline btn-xs btn-promote-admin" title="Jadikan Admin agar dapat mengedit jadwal">
+            <button type="button" class="btn btn-outline btn-xs btn-promote-admin" title="Jadikan Admin Grup (Dapat mengedit jadwal)">
               👑 Jadikan Admin
             </button>
           ` : `
@@ -3641,7 +3746,15 @@ function renderManageGroupMembersList() {
               👤 Ubah ke Anggota
             </button>
           `}
-          <button type="button" class="btn-icon btn-xs text-danger btn-remove-member" title="Keluarkan dari grup">✕</button>
+          <button type="button" class="btn-kick-member" title="Keluarkan anggota ini dari grup (Kick ala WhatsApp)">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+              <circle cx="8.5" cy="7" r="4"></circle>
+              <line x1="18" y1="8" x2="23" y2="13"></line>
+              <line x1="23" y1="8" x2="18" y2="13"></line>
+            </svg>
+            <span>🚫 Kick</span>
+          </button>
         ` : ''}
       </div>
     `;
@@ -3652,7 +3765,7 @@ function renderManageGroupMembersList() {
         playUiSound('complete');
         await updateGroupMemberRoleInCloud(state.currentGroup.id, mem.userId, 'admin');
         mem.role = 'admin';
-        showToast(`👑 ${mem.userName} sekarang adalah Admin Grup (dapat mengedit jadwal)!`, 'success');
+        showToast(`👑 ${mem.userName} sekarang adalah Admin Grup!`, 'success');
         renderManageGroupMembersList();
         renderGroupSwitcher();
         renderGroupBanner();
@@ -3665,22 +3778,30 @@ function renderManageGroupMembersList() {
         playUiSound('click');
         await updateGroupMemberRoleInCloud(state.currentGroup.id, mem.userId, 'member');
         mem.role = 'member';
-        showToast(`👤 ${mem.userName} diubah menjadi Anggota (Lihat Saja).`, 'info');
+        showToast(`👤 ${mem.userName} diubah menjadi Anggota biasa.`, 'info');
         renderManageGroupMembersList();
         renderGroupSwitcher();
         renderGroupBanner();
       });
     }
 
-    const removeBtn = row.querySelector('.btn-remove-member');
-    if (removeBtn) {
-      removeBtn.addEventListener('click', async () => {
-        if (confirm(`Keluarkan ${mem.userName} dari grup ini?`)) {
+    const kickBtn = row.querySelector('.btn-kick-member');
+    if (kickBtn) {
+      kickBtn.addEventListener('click', async () => {
+        const targetName = mem.userName || mem.userEmail || 'Anggota ini';
+        if (confirm(`🚫 Keluarkan "${targetName}" dari grup "${state.currentGroup.name}"?\n\nAnggota yang di-kick tidak akan dapat lagi mengakses jadwal grup ini.`)) {
           playUiSound('delete');
           await removeGroupMemberFromCloud(state.currentGroup.id, mem.userId);
           state.currentGroupMembers = state.currentGroupMembers.filter(m => m.userId !== mem.userId);
-          showToast(`${mem.userName} berhasil dikeluarkan dari grup.`, 'info');
+          if (state.currentGroup) {
+            state.currentGroup.membersCount = Math.max(1, state.currentGroupMembers.length);
+          }
+          const grp = state.groups.find(x => x.id === state.currentGroup.id);
+          if (grp) grp.membersCount = state.currentGroup.membersCount;
+
+          showToast(`🚫 ${targetName} berhasil dikeluarkan (di-kick) dari grup!`, 'info');
           renderManageGroupMembersList();
+          renderGroupSwitcher();
           renderGroupBanner();
         }
       });
@@ -3688,6 +3809,78 @@ function renderManageGroupMembersList() {
 
     container.appendChild(row);
   });
+}
+
+let selectedEditGroupEmoji = '👥';
+
+/** Atur ulang kode gabung grup 6 digit angka (ala WhatsApp Reset Link) */
+async function handleResetGroupInviteCode() {
+  if (!state.currentGroup || !isCurrentGroupAdmin()) return;
+  if (!confirm(`🔄 Atur ulang kode gabung grup "${state.currentGroup.name}"?\n\nKode 6 digit lama tidak akan dapat digunakan lagi. Rekan harus memasukkan kode baru untuk bergabung.`)) {
+    return;
+  }
+  playUiSound('complete');
+  const newCode = await regenerateGroupInviteCodeInCloud(state.currentGroup.id);
+  state.currentGroup.inviteCode = newCode;
+  const grp = state.groups.find(g => g.id === state.currentGroup.id);
+  if (grp) grp.inviteCode = newCode;
+
+  const codeVal = document.getElementById('mgInviteCodeVal');
+  const linkInput = document.getElementById('mgInviteLinkInput');
+  if (codeVal) codeVal.textContent = newCode;
+  if (linkInput) linkInput.value = `${window.location.origin}${window.location.pathname}?join=${encodeURIComponent(newCode)}`;
+
+  renderGroupSwitcher();
+  renderGroupBanner();
+  showToast(`🔑 Kode baru 6 digit berhasil dibuat: ${newCode}`, 'success');
+}
+
+/** Simpan Perubahan Info Grup (Nama, Deskripsi, Emoji) */
+async function handleSaveGroupInfo() {
+  if (!state.currentGroup || !isCurrentGroupAdmin()) return;
+  const nameInput = document.getElementById('mgEditGroupName');
+  const descInput = document.getElementById('mgEditGroupDesc');
+  const newName = nameInput ? nameInput.value.trim() : '';
+  const newDesc = descInput ? descInput.value.trim() : '';
+  if (!newName) {
+    showToast('Nama grup tidak boleh kosong!', 'warning');
+    return;
+  }
+
+  playUiSound('complete');
+  await updateGroupInfoInCloud(state.currentGroup.id, {
+    name: newName,
+    description: newDesc,
+    icon: selectedEditGroupEmoji
+  });
+
+  state.currentGroup.name = newName;
+  state.currentGroup.description = newDesc;
+  state.currentGroup.icon = selectedEditGroupEmoji;
+
+  const grp = state.groups.find(g => g.id === state.currentGroup.id);
+  if (grp) {
+    grp.name = newName;
+    grp.description = newDesc;
+    grp.icon = selectedEditGroupEmoji;
+  }
+
+  const spotlightName = document.getElementById('mgSpotlightName');
+  const spotlightDesc = document.getElementById('mgSpotlightDesc');
+  const spotlightIcon = document.getElementById('mgSpotlightIcon');
+  const headerIcon = document.getElementById('mgHeaderIcon');
+  const headerTitle = document.getElementById('mgHeaderTitle');
+
+  if (spotlightName) spotlightName.textContent = newName;
+  if (spotlightDesc) spotlightDesc.textContent = newDesc || 'Tidak ada deskripsi.';
+  if (spotlightIcon) spotlightIcon.textContent = selectedEditGroupEmoji;
+  if (headerIcon) headerIcon.textContent = selectedEditGroupEmoji;
+  if (headerTitle) headerTitle.textContent = `Info Grup: ${newName}`;
+
+  document.getElementById('mgEditGroupFormWrap')?.classList.add('hidden');
+  renderGroupSwitcher();
+  renderGroupBanner();
+  showToast('✅ Informasi grup berhasil diperbarui!', 'success');
 }
 
 /** Salin Kode Undangan ke Clipboard */
@@ -3900,10 +4093,33 @@ function setupGroupEventListeners() {
 
   document.getElementById('btnCloseManageGroupModal')?.addEventListener('click', closeManageGroupModal);
   document.getElementById('btnMgCopyCode')?.addEventListener('click', copyGroupInviteCode);
+  document.getElementById('btnMgResetCode')?.addEventListener('click', handleResetGroupInviteCode);
   document.getElementById('btnMgCopyLink')?.addEventListener('click', copyGroupInviteLink);
   document.getElementById('btnMgShareWhatsApp')?.addEventListener('click', shareGroupViaWhatsApp);
   document.getElementById('btnMgLeaveGroup')?.addEventListener('click', handleLeaveGroup);
   document.getElementById('btnMgDeleteGroup')?.addEventListener('click', handleDeleteGroup);
+
+  document.getElementById('btnMgToggleEditGroup')?.addEventListener('click', () => {
+    playUiSound('click');
+    const wrap = document.getElementById('mgEditGroupFormWrap');
+    wrap?.classList.toggle('hidden');
+  });
+
+  document.getElementById('btnMgCancelEditGroup')?.addEventListener('click', () => {
+    playUiSound('click');
+    document.getElementById('mgEditGroupFormWrap')?.classList.add('hidden');
+  });
+
+  document.getElementById('btnMgSaveEditGroup')?.addEventListener('click', handleSaveGroupInfo);
+
+  document.querySelectorAll('#mgEditGroupEmojiSelector .emoji-pill-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      playUiSound('click');
+      document.querySelectorAll('#mgEditGroupEmojiSelector .emoji-pill-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      selectedEditGroupEmoji = btn.dataset.emoji || '👥';
+    });
+  });
 }
 
 // ==============================================================================

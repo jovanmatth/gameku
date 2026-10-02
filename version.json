@@ -1,12 +1,14 @@
 {
-    "version": "2.8.2",
-    "buildTimestamp": 1790907500000,
-    "releaseDate": "02 Oktober 2026 08.18 WIB",
-    "patchTitle": "Patch v2.8.2 — Kode Gabung Grup 6 Digit Angka & Live Sync",
+    "version": "2.8.3",
+    "buildTimestamp": 1790908100000,
+    "releaseDate": "02 Oktober 2026 08.28 WIB",
+    "patchTitle": "Patch v2.8.3 — Migrasi Kode Angka 6 Digit & Info Grup Ala WhatsApp (Admin Kick)",
     "changes": [
-        "Kode grup baru otomatis berupa 6 digit angka murni (contoh: 582914) tanpa huruf atau tanda minus",
-        "Input kode gabung grup khusus angka dengan pencocokan fleksibel (mendukung format lama & baru)",
-        "Peningkatan alur join grup di cloud & cache lokal agar tidak pernah gagal menemukan grup",
-        "Live deployment update ke GitHub & Vercel"
+        "Semua grup lama (seperti 'ada') otomatis di-migrate ke kode 6 digit angka murni (tanpa GRP- atau huruf)",
+        "Info & Pengaturan Grup ala WhatsApp: Tampilan Info Grup lengkap dengan daftar peserta dan perizinan",
+        "Fitur Kick Anggota oleh Admin: Tombol 🚫 Kick yang jelas dan konfirmasi pengeluaran anggota secara instan",
+        "Atur Ulang / Reset Kode Grup: Admin dapat mereset dan mengacak kode 6 digit baru kapan saja jika kode bocor",
+        "Edit Informasi Grup: Admin dapat mengganti nama, deskripsi, dan ikon grup secara langsung",
+        "Akses cepat Info Grup dan Reset Kode di panel dropdown grup sidebar"
     ]
 }

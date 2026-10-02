@@ -525,7 +525,19 @@ function getLocalGroupsStore() {
       if (Array.isArray(list)) {
         // Hapus grup demo placeholder jika sebelumnya tersimpan di browser
         const filtered = list.filter(g => g && g.id !== 'grp-demo-sprint' && g.inviteCode !== 'GRP-ALPHA');
-        if (filtered.length !== list.length) {
+        let modified = (filtered.length !== list.length);
+
+        // Auto-migrate SEMUA grup agar menggunakan 6 digit angka murni
+        filtered.forEach(g => {
+          if (!g) return;
+          const codeStr = String(g.inviteCode || '').trim();
+          if (!codeStr || !/^\d{6}$/.test(codeStr)) {
+            g.inviteCode = generateGroupInviteCode();
+            modified = true;
+          }
+        });
+
+        if (modified) {
           localStorage.setItem(GROUPS_STORAGE_KEY, JSON.stringify(filtered));
           localStorage.removeItem(`${GROUP_MEMBERS_PREFIX}grp-demo-sprint`);
           localStorage.removeItem(`${GROUP_SCHEDULES_PREFIX}grp-demo-sprint`);
@@ -539,7 +551,7 @@ function getLocalGroupsStore() {
   }
 }
 
-function saveLocalGroupsStore(groups) {
+export function saveLocalGroupsStore(groups) {
   try {
     localStorage.setItem(GROUPS_STORAGE_KEY, JSON.stringify(groups));
   } catch {}
@@ -910,6 +922,57 @@ export async function removeGroupMemberFromCloud(groupId, targetUserId) {
       console.warn('Gagal hapus anggota di Supabase:', err);
     }
   }
+}
+
+/** Atur ulang kode undangan grup menjadi 6 digit angka baru (ala WhatsApp Reset Link) */
+export async function regenerateGroupInviteCodeInCloud(groupId) {
+  const newCode = generateGroupInviteCode();
+  const groups = getLocalGroupsStore();
+  const target = groups.find(g => g && g.id === groupId);
+  if (target) {
+    target.inviteCode = newCode;
+    saveLocalGroupsStore(groups);
+  }
+
+  const client = getSupabase();
+  if (client && isSupabaseConfigured()) {
+    try {
+      await client.from('groups').update({ invite_code: newCode }).eq('id', groupId);
+    } catch (err) {
+      console.warn('Gagal atur ulang kode grup di Supabase:', err);
+    }
+  }
+
+  return newCode;
+}
+
+/** Memperbarui informasi nama, deskripsi, icon grup (ala Info Grup WhatsApp) */
+export async function updateGroupInfoInCloud(groupId, { name, description, icon, color }) {
+  const groups = getLocalGroupsStore();
+  const target = groups.find(g => g && g.id === groupId);
+  if (target) {
+    if (name !== undefined) target.name = name;
+    if (description !== undefined) target.description = description;
+    if (icon !== undefined) target.icon = icon;
+    if (color !== undefined) target.color = color;
+    saveLocalGroupsStore(groups);
+  }
+
+  const client = getSupabase();
+  if (client && isSupabaseConfigured()) {
+    try {
+      const payload = {};
+      if (name !== undefined) payload.name = name;
+      if (description !== undefined) payload.description = description;
+      if (icon !== undefined) payload.icon = icon;
+      if (color !== undefined) payload.color = color;
+      await client.from('groups').update(payload).eq('id', groupId);
+    } catch (err) {
+      console.warn('Gagal update info grup di Supabase:', err);
+    }
+  }
+
+  return target;
 }
 
 /** Menghapus Grup Selamanya */

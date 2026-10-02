@@ -1644,20 +1644,23 @@
         <div class="modal-title-wrap">
           <span class="modal-icon-badge" id="mgHeaderIcon">👥</span>
           <div>
-            <h3 class="modal-title" id="mgHeaderTitle">Kelola Grup & Anggota</h3>
-            <span class="modal-subtitle" id="mgHeaderSubtitle">Atur kode undangan dan perizinan Admin di grup ini</span>
+            <h3 class="modal-title" id="mgHeaderTitle">Info Grup</h3>
+            <span class="modal-subtitle" id="mgHeaderSubtitle">Pengaturan grup, kode undangan & perizinan admin (ala WhatsApp)</span>
           </div>
         </div>
         <button id="btnCloseManageGroupModal" class="btn-icon modal-close-btn" aria-label="Tutup Modal">✕</button>
       </div>
 
       <div class="modal-body-content">
-        <!-- Spotlight Grup & Role Aktif -->
+        <!-- Spotlight Grup & Role Aktif (Info Grup WhatsApp) -->
         <div class="group-spotlight-card">
           <div class="group-spotlight-left">
             <div class="group-spotlight-icon" id="mgSpotlightIcon">🚀</div>
             <div>
-              <h4 class="group-spotlight-name" id="mgSpotlightName">Nama Grup</h4>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <h4 class="group-spotlight-name" id="mgSpotlightName">Nama Grup</h4>
+                <button type="button" id="btnMgToggleEditGroup" class="btn-icon btn-xs hidden" title="Edit Nama & Deskripsi Grup (Khusus Admin)" style="font-size: 0.75rem; padding: 2px 7px; border: 1px solid var(--border-subtle); border-radius: 6px; background: rgba(255,255,255,0.05);">✏️ Edit</button>
+              </div>
               <p class="group-spotlight-desc" id="mgSpotlightDesc">Deskripsi grup...</p>
             </div>
           </div>
@@ -1666,33 +1669,76 @@
           </div>
         </div>
 
-        <!-- 1. KOTAK KODE UNDANGAN & TAUTAN -->
+        <!-- Form Edit Info Grup (Muncul saat tombol ✏️ dipencet oleh Admin) -->
+        <div id="mgEditGroupFormWrap" class="group-edit-info-box hidden">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+            <span style="font-size: 0.78rem; font-weight: 700; color: #a5b4fc;">✏️ EDIT INFORMASI GRUP (ALA WA)</span>
+            <span style="font-size: 0.7rem; color: var(--text-muted);">Khusus Admin</span>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            <div>
+              <label style="font-size: 0.72rem; color: var(--text-muted); display: block; margin-bottom: 3px;">Nama Grup</label>
+              <input type="text" id="mgEditGroupName" class="form-control" placeholder="Nama grup..." maxlength="30">
+            </div>
+            <div>
+              <label style="font-size: 0.72rem; color: var(--text-muted); display: block; margin-bottom: 3px;">Deskripsi Grup</label>
+              <textarea id="mgEditGroupDesc" class="form-control" rows="2" placeholder="Deskripsi atau catatan tim..." maxlength="120"></textarea>
+            </div>
+            <div>
+              <label style="font-size: 0.72rem; color: var(--text-muted); display: block; margin-bottom: 3px;">Ikon Emoji Grup</label>
+              <div class="emoji-selector" id="mgEditGroupEmojiSelector">
+                <button type="button" class="emoji-pill-btn active" data-emoji="👥">👥</button>
+                <button type="button" class="emoji-pill-btn" data-emoji="🚀">🚀</button>
+                <button type="button" class="emoji-pill-btn" data-emoji="💼">💼</button>
+                <button type="button" class="emoji-pill-btn" data-emoji="🎓">🎓</button>
+                <button type="button" class="emoji-pill-btn" data-emoji="⚡">⚡</button>
+                <button type="button" class="emoji-pill-btn" data-emoji="🔥">🔥</button>
+                <button type="button" class="emoji-pill-btn" data-emoji="🎮">🎮</button>
+              </div>
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px;">
+              <button type="button" id="btnMgCancelEditGroup" class="btn btn-outline btn-xs">Batal</button>
+              <button type="button" id="btnMgSaveEditGroup" class="btn btn-primary btn-xs">💾 Simpan Info</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 1. KOTAK KODE UNDANGAN & TAUTAN (ALA WA: UNDANG VIA TAUTAN / KODE) -->
         <div class="admin-section-block">
           <div class="admin-section-title">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
               <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
             </svg>
-            <span>BAGIKAN UNDANGAN KE REKAN TIM</span>
+            <span>UNDANG VIA KODE ATAU TAUTAN</span>
           </div>
 
           <div class="invite-pass-card">
-            <!-- Top: Big Code & Quick Copy -->
+            <!-- Top: Big 6-Digit Numeric Code & Action Buttons -->
             <div class="invite-pass-header">
               <div class="invite-code-col">
-                <span class="invite-pass-label">KODE UNDANGAN RESMI</span>
+                <span class="invite-pass-label">KODE GABUNG GRUP (6 DIGIT ANGKA)</span>
                 <div class="invite-code-pill">
                   <span class="invite-code-icon">🔑</span>
-                  <strong class="invite-code-val" id="mgInviteCodeVal">---</strong>
+                  <strong class="invite-code-val" id="mgInviteCodeVal" style="font-size: 1.35rem; letter-spacing: 3px;">---</strong>
                 </div>
               </div>
-              <button type="button" id="btnMgCopyCode" class="btn btn-outline btn-sm btn-action-copy" title="Salin Kode Undangan">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                </svg>
-                <span id="btnMgCopyCodeText">Salin Kode</span>
-              </button>
+              <div class="invite-pass-btns" style="display: flex; gap: 6px; flex-wrap: wrap;">
+                <button type="button" id="btnMgCopyCode" class="btn btn-outline btn-sm btn-action-copy" title="Salin Kode Angka">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                  </svg>
+                  <span id="btnMgCopyCodeText">Salin Kode</span>
+                </button>
+                <button type="button" id="btnMgResetCode" class="btn btn-outline btn-sm btn-action-reset hidden" title="Atur Ulang Kode Baru (Khusus Admin)">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="23 4 23 10 17 10"></polyline>
+                    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+                  </svg>
+                  <span id="btnMgResetCodeText">🔄 Reset Kode</span>
+                </button>
+              </div>
             </div>
 
             <!-- Middle: Direct Link Input & Copy Link -->
@@ -1715,17 +1761,17 @@
               <button type="button" id="btnMgShareWhatsApp" class="btn btn-sm btn-whatsapp-share" title="Bagikan undangan langsung via WhatsApp">
                 <span>💬 Bagikan via WhatsApp</span>
               </button>
-              <span class="invite-pass-tip">💡 Rekan yang mengklik tautan langsung membuka form konfirmasi bergabung.</span>
+              <span class="invite-pass-tip">💡 Cukup bagikan kode 6 digit angka atau tautan ini ke rekan tim.</span>
             </div>
           </div>
 
           <div class="invite-role-rule-note">
             <span class="rule-icon">🛡️</span>
-            <span><strong>Kontrol Keamanan Admin:</strong> Anggota yang bergabung via tautan/kode otomatis berstatus <strong>Hanya Lihat (View-Only)</strong>. Anda sebagai Admin dapat memberikan hak edit kapan saja dengan menekan tombol <strong>👑 Jadikan Admin</strong> di daftar anggota di bawah.</span>
+            <span><strong>Kontrol Admin:</strong> Admin grup dapat mengangkat admin lain atau mengeluarkan (kick) anggota di daftar peserta di bawah.</span>
           </div>
         </div>
 
-        <!-- 2. DAFTAR ANGGOTA & PERIZINAN ADMIN -->
+        <!-- 2. DAFTAR PESERTA & PERIZINAN ADMIN (ALA WA: PESERTA GRUP) -->
         <div class="admin-section-block">
           <div class="admin-section-title">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -1734,7 +1780,7 @@
               <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
               <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
             </svg>
-            <span>DAFTAR ANGGOTA & HAK AKSES (<span id="mgMembersCountLabel">0</span>)</span>
+            <span>DAFTAR PESERTA GRUP (<span id="mgMembersCountLabel">0</span>)</span>
           </div>
 
           <div class="group-members-list" id="mgMembersListContainer">
@@ -1900,7 +1946,7 @@
   </nav>
 
   <!-- Scripts -->
-  <script type="module" src="app.js?v=3.7"></script>
+  <script type="module" src="app.js?v=3.9"></script>
 </body>
 
 </html>

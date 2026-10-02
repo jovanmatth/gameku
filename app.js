@@ -53,6 +53,7 @@ import {
   regenerateGroupInviteCodeInCloud,
   updateGroupInfoInCloud,
   saveLocalGroupsStore,
+  syncAllLocalGroupsToCloud,
   deleteGroupInCloud,
   fetchGroupSchedulesFromCloud,
   saveGroupScheduleToCloud,
@@ -3089,22 +3090,101 @@ async function exportAdminMasterBackup() {
   }
 }
 
-function copyAdminSqlToClipboard() {
-  const sql = `-- ==============================================================================
--- ADMIN ROLE ACTIVATION: JOVAN MATTHEW ADDERSON
--- ==============================================================================
-UPDATE auth.users
-SET raw_app_meta_data = COALESCE(raw_app_meta_data, '{}'::jsonb) || '{"role": "admin", "is_admin": true}'::jsonb,
-    raw_user_meta_data = COALESCE(raw_user_meta_data, '{}'::jsonb) || '{"role": "admin", "is_admin": true}'::jsonb
-WHERE id = 'a76b1dfe-9c4d-4be5-be10-808f0355bfaa'
-   OR email = 'matthewajovan@gmail.com';`;
+async function copyFullSqlSchema() {
+  playUiSound('pop');
+  let sqlText = '';
+  try {
+    const res = await fetch(`supabase-schema.sql?_t=${Date.now()}`);
+    if (res.ok) {
+      sqlText = await res.text();
+    }
+  } catch {}
 
-  navigator.clipboard.writeText(sql).then(() => {
-    playUiSound('pop');
-    showToast('📋 Admin activation SQL query copied to clipboard!', 'success');
-  }).catch(() => {
-    showToast('Failed to copy query. Please copy directly from supabase-schema.sql', 'warning');
-  });
+  if (!sqlText) {
+    sqlText = `-- PlanCraft PRO / PlanCalender Database Schema
+CREATE TABLE IF NOT EXISTS public.groups (
+  id text PRIMARY KEY,
+  name text NOT NULL,
+  description text DEFAULT '',
+  icon text DEFAULT '👥',
+  color text DEFAULT '#6366f1',
+  invite_code text UNIQUE NOT NULL,
+  owner_id text,
+  created_at timestamptz DEFAULT now() NOT NULL,
+  updated_at timestamptz DEFAULT now() NOT NULL
+);
+CREATE TABLE IF NOT EXISTS public.group_members (
+  id text PRIMARY KEY,
+  group_id text NOT NULL,
+  user_id text NOT NULL,
+  user_email text DEFAULT '',
+  user_name text DEFAULT '',
+  role text NOT NULL DEFAULT 'member',
+  joined_at timestamptz DEFAULT now() NOT NULL,
+  CONSTRAINT group_members_group_user_key UNIQUE (group_id, user_id)
+);
+CREATE TABLE IF NOT EXISTS public.schedules (
+  id text PRIMARY KEY,
+  user_id text,
+  group_id text,
+  title text NOT NULL,
+  category text NOT NULL DEFAULT 'work',
+  date text NOT NULL,
+  start_time text DEFAULT '09:00',
+  end_time text DEFAULT '10:00',
+  priority text DEFAULT 'medium',
+  status text DEFAULT 'scheduled',
+  location text DEFAULT '',
+  description text DEFAULT '',
+  checklist jsonb DEFAULT '[]'::jsonb,
+  created_at timestamptz DEFAULT now() NOT NULL,
+  updated_at timestamptz DEFAULT now() NOT NULL
+);
+CREATE TABLE IF NOT EXISTS public.day_notes (
+  id text PRIMARY KEY,
+  user_id text,
+  date text NOT NULL,
+  note text DEFAULT '',
+  updated_at timestamptz DEFAULT now() NOT NULL
+);
+CREATE TABLE IF NOT EXISTS public.profiles (
+  id text PRIMARY KEY,
+  email text,
+  role text DEFAULT 'user',
+  is_admin boolean DEFAULT false,
+  updated_at timestamptz DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_groups_invite_code ON public.groups(invite_code);
+CREATE INDEX IF NOT EXISTS idx_group_members_group_id ON public.group_members(group_id);
+ALTER TABLE public.groups ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.group_members ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.schedules ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.day_notes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "groups_all_policy" ON public.groups;
+CREATE POLICY "groups_all_policy" ON public.groups FOR ALL USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "group_members_all_policy" ON public.group_members;
+CREATE POLICY "group_members_all_policy" ON public.group_members FOR ALL USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "schedules_all_policy" ON public.schedules;
+CREATE POLICY "schedules_all_policy" ON public.schedules FOR ALL USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "day_notes_all_policy" ON public.day_notes;
+CREATE POLICY "day_notes_all_policy" ON public.day_notes FOR ALL USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "profiles_all_policy" ON public.profiles;
+CREATE POLICY "profiles_all_policy" ON public.profiles FOR ALL USING (true) WITH CHECK (true);
+GRANT USAGE ON SCHEMA public TO anon, authenticated;
+GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated;`;
+  }
+
+  if (navigator.clipboard) {
+    await navigator.clipboard.writeText(sqlText);
+    showToast('📋 Script SQL Supabase lengkap berhasil disalin! Buka Supabase SQL Editor dan klik RUN.', 'success');
+  } else {
+    prompt('Salin script SQL ini:', sqlText);
+  }
+}
+
+function copyAdminSqlToClipboard() {
+  copyFullSqlSchema();
 }
 
 function showAdminBroadcastPrompt() {
@@ -3377,8 +3457,8 @@ function renderGroupSwitcher() {
 
       dropdownPanel.querySelector('.btn-quick-share-wa')?.addEventListener('click', (e) => {
         e.stopPropagation();
-        const joinUrl = `${window.location.origin}${window.location.pathname}?join=${encodeURIComponent(g.inviteCode || '')}`;
-        const text = `Halo! Yuk gabung ke ruang jadwal tim "${g.name}" di PlanCalender 📅.\n\nKode Gabung: *${g.inviteCode}*\nLink: ${joinUrl}`;
+        const joinUrl = buildGroupShareUrl(g);
+        const text = `Halo! Yuk gabung ke ruang jadwal tim "${g.name}" di PlanCalender 📅.\n\nKlik tautan ini untuk langsung masuk:\n${joinUrl}\n\nKode 6 digit: *${g.inviteCode}*`;
         window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, '_blank');
       });
 
@@ -3619,7 +3699,10 @@ async function handleJoinGroupSubmit(e) {
     await loadGroups();
     await switchGroup(joined);
   } catch (err) {
-    showToast(err.message || 'Gagal bergabung ke grup.', 'error');
+    if (err.message && err.message.includes('Supabase belum di-setup')) {
+      alert(err.message);
+    }
+    showToast(err.message || 'Gagal bergabung ke grup.', 'danger');
   }
 }
 
@@ -3659,7 +3742,7 @@ async function openManageGroupModal() {
   if (descSpot) descSpot.textContent = g.description || 'Tidak ada deskripsi.';
   if (codeVal) codeVal.textContent = g.inviteCode || '---';
 
-  const directLink = `${window.location.origin}${window.location.pathname}?join=${encodeURIComponent(g.inviteCode || '')}`;
+  const directLink = buildGroupShareUrl(g);
   if (linkInput) linkInput.value = directLink;
 
   if (badgeRole) {
@@ -3813,6 +3896,20 @@ function renderManageGroupMembersList() {
 
 let selectedEditGroupEmoji = '👥';
 
+/** Menghasilkan URL lengkap dengan metadata grup agar teman bisa gabung langsung 1-klik tanpa perlu database */
+function buildGroupShareUrl(g) {
+  if (!g) return window.location.href;
+  const base = `${window.location.origin}${window.location.pathname}`;
+  const params = new URLSearchParams();
+  params.set('join', g.inviteCode || '');
+  if (g.id) params.set('gid', g.id);
+  if (g.name) params.set('gname', g.name);
+  if (g.icon) params.set('gicon', g.icon);
+  if (g.color) params.set('gcolor', g.color);
+  if (g.description) params.set('gdesc', g.description);
+  return `${base}?${params.toString()}`;
+}
+
 /** Atur ulang kode gabung grup 6 digit angka (ala WhatsApp Reset Link) */
 async function handleResetGroupInviteCode() {
   if (!state.currentGroup || !isCurrentGroupAdmin()) return;
@@ -3828,7 +3925,7 @@ async function handleResetGroupInviteCode() {
   const codeVal = document.getElementById('mgInviteCodeVal');
   const linkInput = document.getElementById('mgInviteLinkInput');
   if (codeVal) codeVal.textContent = newCode;
-  if (linkInput) linkInput.value = `${window.location.origin}${window.location.pathname}?join=${encodeURIComponent(newCode)}`;
+  if (linkInput) linkInput.value = buildGroupShareUrl(state.currentGroup);
 
   renderGroupSwitcher();
   renderGroupBanner();
@@ -3907,11 +4004,10 @@ function copyGroupInviteCode() {
   }
 }
 
-/** Salin Tautan Gabung Grup ke Clipboard */
+/** Salin Tautan Gabung Grup ke Clipboard (Tautan 1-Klik Langsung Masuk) */
 function copyGroupInviteLink() {
   if (!state.currentGroup) return;
-  const code = state.currentGroup.inviteCode || '';
-  const url = `${window.location.origin}${window.location.pathname}?join=${encodeURIComponent(code)}`;
+  const url = buildGroupShareUrl(state.currentGroup);
   const btnText = document.getElementById('btnMgCopyLinkText');
 
   const onCopied = () => {
@@ -3920,7 +4016,7 @@ function copyGroupInviteLink() {
       btnText.textContent = '✅ Tersalin!';
       setTimeout(() => { btnText.textContent = 'Salin Tautan'; }, 2000);
     }
-    showToast(`🔗 Tautan Gabung Grup berhasil disalin! Bagikan ke rekan Anda.`, 'success');
+    showToast(`🔗 Tautan Gabung Langsung disalin! Teman Anda cukup klik tautan ini untuk langsung masuk.`, 'success');
   };
 
   if (navigator.clipboard) {
@@ -3936,8 +4032,8 @@ function copyGroupInviteLink() {
 function shareGroupViaWhatsApp() {
   if (!state.currentGroup) return;
   const g = state.currentGroup;
-  const joinUrl = `${window.location.origin}${window.location.pathname}?join=${encodeURIComponent(g.inviteCode || '')}`;
-  const text = `Halo! Yuk gabung ke ruang jadwal tim "${g.name}" di PlanCalender 📅.\n\nKlik link ini untuk langsung bergabung:\n${joinUrl}\n\nAtau masukkan kode undangan: *${g.inviteCode}*`;
+  const joinUrl = buildGroupShareUrl(g);
+  const text = `Halo! Yuk gabung ke ruang jadwal tim "${g.name}" di PlanCalender 📅.\n\nKlik tautan ini untuk langsung bergabung tanpa ribet:\n${joinUrl}\n\nAtau masukkan kode 6 digit: *${g.inviteCode}*`;
   const waUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
   window.open(waUrl, '_blank');
 }
@@ -4024,16 +4120,16 @@ function setupGroupEventListeners() {
   document.getElementById('btnCopyLinkCreated')?.addEventListener('click', () => {
     if (!latestCreatedGroup) return;
     playUiSound('pop');
-    const code = latestCreatedGroup.inviteCode;
-    const url = `${window.location.origin}${window.location.pathname}?join=${encodeURIComponent(code)}`;
+    const url = buildGroupShareUrl(latestCreatedGroup);
     navigator.clipboard?.writeText(url);
-    showToast('🔗 Tautan gabung grup berhasil disalin!', 'success');
+    showToast('🔗 Tautan gabung langsung berhasil disalin! Teman Anda cukup klik tautan ini.', 'success');
   });
 
   document.getElementById('btnShareWaCreated')?.addEventListener('click', () => {
     if (!latestCreatedGroup) return;
-    const code = latestCreatedGroup.inviteCode;
-    const text = `Halo! Yuk gabung ke jadwal grup "${latestCreatedGroup.name}" di PlanCalender. Gunakan Kode Undangan ini: *${code}* atau buka tautan: ${window.location.origin}${window.location.pathname}?join=${encodeURIComponent(code)}`;
+    const g = latestCreatedGroup;
+    const url = buildGroupShareUrl(g);
+    const text = `Halo! Yuk gabung ke ruang jadwal tim "${g.name}" di PlanCalender 📅.\n\nKlik tautan ini untuk langsung bergabung tanpa ribet:\n${url}\n\nAtau masukkan kode 6 digit: *${g.inviteCode}*`;
     window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, '_blank');
   });
 
@@ -4491,6 +4587,7 @@ function setupEventListeners() {
   document.getElementById('btnCloseSupabaseConfig')?.addEventListener('click', closeSupabaseConfigModal);
   document.getElementById('btnCancelSupabaseConfig')?.addEventListener('click', closeSupabaseConfigModal);
   document.getElementById('btnSaveSupabaseConfig')?.addEventListener('click', handleSaveSupabaseConfig);
+  document.getElementById('btnCopyFullSqlSchema')?.addEventListener('click', copyFullSqlSchema);
 
   // Admin Control Panel Event Listeners
   document.getElementById('btnSidebarAdminPanel')?.addEventListener('click', openAdminModal);
@@ -4856,10 +4953,45 @@ document.addEventListener('DOMContentLoaded', async () => {
   await initSupabaseSession();
   await loadGroups();
 
+  // Sinkronkan data grup lokal ke cloud jika tabel sudah dibuat di Supabase
+  syncAllLocalGroupsToCloud().catch(() => {});
+
   // Periksa apakah ada parameter tautan undangan grup di URL (?join=CODE atau #join=CODE)
   const urlParams = new URLSearchParams(window.location.search);
   const joinCode = urlParams.get('join') || (window.location.hash.startsWith('#join=') ? window.location.hash.replace('#join=', '') : null);
+  const gName = urlParams.get('gname');
+  const gId = urlParams.get('gid');
+  const gIcon = urlParams.get('gicon');
+  const gColor = urlParams.get('gcolor');
+  const gDesc = urlParams.get('gdesc');
+
   if (joinCode) {
-    openJoinGroupModal(joinCode);
+    if (gName) {
+      // Tautan Gabung Langsung dengan metadata grup — langsung masuk tanpa butuh database!
+      const fallbackGroup = {
+        id: gId || `grp-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`,
+        name: gName,
+        description: gDesc || '',
+        icon: gIcon || '👥',
+        color: gColor || '#6366f1',
+        inviteCode: joinCode
+      };
+
+      try {
+        const joined = await joinGroupByCodeInCloud(joinCode, state.currentUser, fallbackGroup);
+        await loadGroups();
+        await switchGroup(joined);
+        triggerConfetti();
+        playUiSound('complete');
+        showToast(`🎉 Selamat datang! Anda berhasil bergabung ke grup "${joined.name}"!`, 'success');
+        // Bersihkan parameter URL tanpa reload agar rapi
+        window.history.replaceState({}, document.title, window.location.pathname);
+      } catch (err) {
+        console.warn('Gagal auto-join via tautan langsung:', err);
+        openJoinGroupModal(joinCode);
+      }
+    } else {
+      openJoinGroupModal(joinCode);
+    }
   }
 });

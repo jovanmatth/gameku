@@ -1041,12 +1041,22 @@
             placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." required>
         </div>
 
-        <div class="supabase-schema-info-card">
-          <div class="schema-info-title">📋 Database Schema (Tables & RLS)</div>
-          <p class="schema-info-text">
-            The <code>supabase-schema.sql</code> file is in your project directory. Copy and run it in the Supabase <em>SQL
-              Editor</em> to enable Row Level Security.
+        <div class="supabase-schema-info-card" style="background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.25); border-radius: 10px; padding: 12px 14px; margin-top: 14px;">
+          <div class="schema-info-title" style="font-weight: 700; color: #a5b4fc; display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+            <span>📋 Setup Database Supabase Cloud</span>
+            <span style="font-size: 0.7rem; background: rgba(99, 102, 241, 0.2); padding: 2px 7px; border-radius: 99px; color: #c7d2fe;">15 Detik</span>
+          </div>
+          <p class="schema-info-text" style="font-size: 0.76rem; color: var(--text-muted); line-height: 1.4; margin-bottom: 10px;">
+            Jalankan script SQL di Supabase SQL Editor agar tabel <code>groups</code>, <code>group_members</code>, dan <code>schedules</code> aktif sehingga teman Anda bisa masuk dengan kode 6 digit dari perangkat mana saja.
           </p>
+          <div style="display: flex; gap: 8px;">
+            <button type="button" id="btnCopyFullSqlSchema" class="btn btn-outline btn-xs" style="font-weight: 700;">
+              📋 Salin Script SQL
+            </button>
+            <a href="https://supabase.com/dashboard/project/zwpqneedroxllkdjohos/sql/new" target="_blank" rel="noopener" class="btn btn-primary btn-xs" style="text-decoration: none; display: inline-flex; align-items: center; gap: 4px;">
+              🚀 Buka SQL Editor
+            </a>
+          </div>
         </div>
       </div>
 
@@ -1548,8 +1558,8 @@
         </div>
 
         <!-- Helper hint -->
-        <div style="background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.2); border-radius: 10px; padding: 10px 12px; margin-top: 14px; font-size: 0.74rem; color: var(--text-muted); line-height: 1.4;">
-          💡 <strong>Cara Teman Join:</strong> Teman cukup buka aplikasi PlanCalender, klik tab <strong>Grup</strong> di menu ➜ klik <strong>Gabung Grup</strong> ➜ masukkan kode di atas.
+        <div style="background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.25); border-radius: 10px; padding: 10px 12px; margin-top: 14px; font-size: 0.75rem; color: var(--text-muted); line-height: 1.4;">
+          ⚡ <strong>Cara Paling Cepat & Anti-Gagal:</strong> Klik tombol <strong>📲 WhatsApp</strong> atau <strong>🔗 Salin Tautan</strong> di atas lalu kirim ke teman. Teman Anda cukup mengetuk link tersebut dan akan <strong>langsung otomatis bergabung</strong> ke grup ini!
         </div>
 
         <div style="margin-top: 16px;">
@@ -1615,6 +1625,9 @@
             </button>
           </div>
           <span class="field-hint" id="joinCodeHint">Format kode: <strong>6 digit angka</strong> (contoh: <strong>582914</strong>).</span>
+          <div style="background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.2); border-radius: 8px; padding: 9px 12px; margin-top: 8px; font-size: 0.76rem; color: var(--text-muted); line-height: 1.4;">
+            💡 <strong>Mau gabung lebih cepat?</strong> Minta rekan Anda mengirimkan <em>Tautan Gabung WhatsApp</em>. Cukup klik link tersebut untuk langsung masuk otomatis ke grup tanpa perlu ketik kode!
+          </div>
         </div>
 
         <!-- Role Clarity Card -->

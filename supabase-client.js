@@ -696,7 +696,7 @@ export async function createGroupInCloud(groupData, user) {
 
   // Jika terhubung ke Supabase, simpan ke database cloud
   const client = getSupabase();
-  if (client && user && isSupabaseConfigured()) {
+  if (client && isSupabaseConfigured()) {
     try {
       const { error: grpErr } = await client.from('groups').insert({
         id: groupId,
@@ -708,7 +708,13 @@ export async function createGroupInCloud(groupData, user) {
         owner_id: userId
       });
 
-      if (!grpErr) {
+      if (grpErr) {
+        console.warn('Gagal sinkron grup baru ke Supabase:', grpErr);
+        if (grpErr.code === 'PGRST205' || grpErr.message?.includes('schema cache')) {
+          window._supabaseMissingTables = true;
+          window.dispatchEvent(new CustomEvent('supabase-tables-missing', { detail: { table: 'groups' } }));
+        }
+      } else {
         await client.from('group_members').insert({
           id: initialMember.id,
           group_id: groupId,
@@ -716,7 +722,7 @@ export async function createGroupInCloud(groupData, user) {
           user_email: userEmail,
           user_name: userName,
           role: 'admin'
-        });
+        }).catch(() => {});
       }
     } catch (err) {
       console.warn('Gagal sinkron grup baru ke Supabase:', err);
@@ -726,10 +732,10 @@ export async function createGroupInCloud(groupData, user) {
   return newGroup;
 }
 
-/** Bergabung ke grup menggunakan Kode Undangan */
-export async function joinGroupByCodeInCloud(inviteCode, user) {
+/** Bergabung ke grup menggunakan Kode Undangan (Mendukung Fallback Objek dari Link URL) */
+export async function joinGroupByCodeInCloud(inviteCode, user, fallbackGroup = null) {
   const rawInput = (inviteCode || '').toString().trim();
-  if (!rawInput) throw new Error('Kode undangan harus diisi.');
+  if (!rawInput && !fallbackGroup) throw new Error('Kode undangan harus diisi.');
 
   const digitsOnly = rawInput.replace(/\D/g, '');
   const cleanCode = rawInput.toUpperCase().replace(/\s+/g, '');
@@ -756,6 +762,7 @@ export async function joinGroupByCodeInCloud(inviteCode, user) {
   const userName = user?.user_metadata?.display_name || userEmail.split('@')[0] || 'User';
 
   let foundGroup = null;
+  let cloudTableMissing = false;
 
   // 1. Cek di Supabase jika terhubung
   const client = getSupabase();
@@ -772,7 +779,13 @@ export async function joinGroupByCodeInCloud(inviteCode, user) {
         .in('invite_code', candidates)
         .limit(1);
 
-      if (!error && data && data.length > 0) {
+      if (error) {
+        if (error.code === 'PGRST205' || error.message?.includes('schema cache')) {
+          cloudTableMissing = true;
+          window._supabaseMissingTables = true;
+          window.dispatchEvent(new CustomEvent('supabase-tables-missing', { detail: { table: 'groups' } }));
+        }
+      } else if (data && data.length > 0) {
         const row = data[0];
         foundGroup = {
           id: row.id,
@@ -783,20 +796,18 @@ export async function joinGroupByCodeInCloud(inviteCode, user) {
           inviteCode: row.invite_code,
           ownerId: row.owner_id,
           createdAt: row.created_at,
-          role: 'member', // Bergabung via invite code masuk sebagai Member biasa
+          role: 'member',
           membersCount: 2
         };
 
-        // Daftarkan membership di Supabase
-        if (user) {
-          await client.from('group_members').upsert({
-            group_id: row.id,
-            user_id: userId,
-            user_email: userEmail,
-            user_name: userName,
-            role: 'member'
-          }, { onConflict: 'group_id,user_id' }).catch(() => {});
-        }
+        await client.from('group_members').upsert({
+          id: `mem-${Date.now()}-${Math.floor(100 + Math.random() * 900)}`,
+          group_id: row.id,
+          user_id: userId,
+          user_email: userEmail,
+          user_name: userName,
+          role: 'member'
+        }, { onConflict: 'group_id,user_id' }).catch(() => {});
       }
     } catch (err) {
       console.warn('Gagal cek kode undangan di Supabase:', err);
@@ -812,8 +823,40 @@ export async function joinGroupByCodeInCloud(inviteCode, user) {
     }
   }
 
+  // 3. Jika belum ditemukan tapi ada fallbackGroup (misal dari Tautan Gabung Langsung URL)
+  if (!foundGroup && fallbackGroup) {
+    foundGroup = {
+      id: fallbackGroup.id || `grp-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`,
+      name: fallbackGroup.name,
+      description: fallbackGroup.description || '',
+      icon: fallbackGroup.icon || '👥',
+      color: fallbackGroup.color || '#6366f1',
+      inviteCode: fallbackGroup.inviteCode || digitsOnly || cleanCode,
+      ownerId: fallbackGroup.ownerId || 'admin',
+      createdAt: fallbackGroup.createdAt || new Date().toISOString(),
+      role: 'member',
+      membersCount: 2
+    };
+
+    // Jika tabel Supabase sudah aktif, simpan juga ke Supabase
+    if (client && isSupabaseConfigured() && !cloudTableMissing) {
+      client.from('groups').upsert({
+        id: foundGroup.id,
+        name: foundGroup.name,
+        description: foundGroup.description,
+        icon: foundGroup.icon,
+        color: foundGroup.color,
+        invite_code: foundGroup.inviteCode,
+        owner_id: foundGroup.ownerId
+      }, { onConflict: 'id' }).catch(() => {});
+    }
+  }
+
   if (!foundGroup) {
     const displayCode = digitsOnly && digitsOnly.length >= 4 ? digitsOnly : cleanCode;
+    if (cloudTableMissing) {
+      throw new Error(`⚠️ Cloud Database Supabase belum di-setup (tabel 'groups' belum ada).\n\nMinta teman Anda mengirimkan "Tautan Gabung Langsung" via WhatsApp agar bisa langsung masuk tanpa database, atau minta admin menjalankan SQL di Supabase.`);
+    }
     throw new Error(`Grup dengan kode "${displayCode}" tidak ditemukan. Pastikan kodenya benar.`);
   }
 
@@ -843,6 +886,37 @@ export async function joinGroupByCodeInCloud(inviteCode, user) {
   }
 
   return foundGroup;
+}
+
+/** Sinkronkan seluruh grup lokal ke Supabase jika tabel sudah dibuat */
+export async function syncAllLocalGroupsToCloud() {
+  const client = getSupabase();
+  if (!client || !isSupabaseConfigured()) return false;
+  const groups = getLocalGroupsStore();
+  if (!groups || groups.length === 0) return true;
+
+  try {
+    for (const g of groups) {
+      const { error } = await client.from('groups').upsert({
+        id: g.id,
+        name: g.name,
+        description: g.description || '',
+        icon: g.icon || '👥',
+        color: g.color || '#6366f1',
+        invite_code: g.inviteCode,
+        owner_id: g.ownerId || 'admin'
+      }, { onConflict: 'id' });
+
+      if (error && (error.code === 'PGRST205' || error.message?.includes('schema cache'))) {
+        window._supabaseMissingTables = true;
+        return false;
+      }
+    }
+    window._supabaseMissingTables = false;
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /** Mengambil seluruh anggota dalam suatu grup */
